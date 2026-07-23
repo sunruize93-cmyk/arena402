@@ -6,7 +6,18 @@
 <title>arena402</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;family=VT323&amp;family=Fira+Code:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+/* Inline font fallback — no Google Fonts dependency */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal; font-weight: 400;
+  src: local('Press Start 2P'), local('PressStart2P-Regular'),
+       url(https://cdn.jsdelivr.net/npm/@fontsource/press-start-2p/files/press-start-2p-latin-400-normal.woff2) format('woff2');
+  font-display: swap;
+}
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;family=VT323&amp;family=Fira+Code:wght@400;700&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
 
 <style>
 :root {
@@ -198,7 +209,15 @@ body {
   <div id="main-content" style="padding-top:48px"></div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2/umd/supabase.min.js"></script>
+<!-- Supabase: try jsdelivr first (faster in Asia), fallback to unpkg -->
+<script>
+window.SB_READY = false;
+window.SB_URL = 'https://jvdxqjttvwphxnwcorkq.supabase.co';
+window.SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZHhxanR0dndwaHhud2NvcmtxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDc4MTAyOCwiZXhwIjoyMTAwMzU3MDI4fQ.PvdUI3EWGWnsWhqD3Oaw_3E1mGmMCa8hmGQO4JK6iX4';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
+  onerror="var s=document.createElement('script');s.src='https://unpkg.com/@supabase/supabase-js@2/umd/supabase.min.js';document.head.appendChild(s);"
+  onload="window.SB_READY=true"></script>
 
 <script>
 // ==================== arena402 — Fracture Engine ====================
@@ -318,7 +337,12 @@ console.log('◈ arena402 booting...');
 
 // ==================== APP ====================
 var state={page:'home',leaderboard:[],battles:[],liveBattles:[],agents:[],listings:[],filter:''};
-var sb=window.supabase.createClient('https://jvdxqjttvwphxnwcorkq.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZHhxanR0dndwaHhud2NvcmtxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDc4MTAyOCwiZXhwIjoyMTAwMzU3MDI4fQ.PvdUI3EWGWnsWhqD3Oaw_3E1mGmMCa8hmGQO4JK6iX4');
+var sb=null;
+function getSB(){
+  if(sb)return sb;
+  if(window.supabase){sb=window.supabase.createClient(window.SB_URL,window.SB_KEY);console.log('✅ Supabase connected');return sb;}
+  return null;
+}
 
 function tierTag(t){
   var m={master:['MASTER','tier-master'],diamond:['DIAMOND','tier-diamond'],gold:['GOLD','tier-gold'],silver:['SILVER','tier-silver'],bronze:['BRONZE','tier-bronze']};
@@ -395,11 +419,27 @@ function render(){
 var A = window.A = {
   nav:function(p){state.page=p;render();if(p==='arena')A.fetchLB();if(p==='market')A.fetchListings();if(p==='agents')A.fetchAgents();},
   filter:function(f){state.filter=f;if(state.page==='arena')A.fetchLB(f);if(state.page==='market')A.fetchListings(f);},
-  fetchLB:function(a,mb,l){a=a||'';mb=mb||0;l=l||50;sb.rpc('get_leaderboard',{p_asset_class:a,p_min_battles:mb,p_limit:l}).then(function(r){if(r.data){state.leaderboard=r.data;render();}});},
-  fetchBattles:function(l){l=l||30;sb.from('battles').select('*').order('ended_at',{ascending:false}).limit(l).then(function(r){if(r.data){state.battles=r.data;render();}});},
-  fetchAgents:function(){sb.from('agents').select('*').then(function(r){if(r.data){state.agents=r.data;render();}});},
-  fetchListings:function(a){a=a||'';var q=sb.from('listings').select('*').eq('is_active',true).order('created_at',{ascending:false});if(a)q=q.eq('asset_class',a);q.then(function(r){if(r.data){state.listings=r.data;render();}});},
-  init:function(){sb.channel('live').on('postgres_changes',{event:'INSERT',schema:'public',table:'battles'},function(p){state.liveBattles=[p.new].concat(state.liveBattles).slice(0,8);render();}).subscribe();Promise.all([A.fetchLB(),A.fetchBattles(),A.fetchAgents(),A.fetchListings()]).then(function(){render();console.log('◈ arena402 ready');});}
+  fetchLB:function(a,mb,l){var s=getSB();if(!s)return;a=a||'';mb=mb||0;l=l||50;s.rpc('get_leaderboard',{p_asset_class:a,p_min_battles:mb,p_limit:l}).then(function(r){if(r.data){state.leaderboard=r.data;render();}});},
+  fetchBattles:function(l){var s=getSB();if(!s)return;l=l||30;s.from('battles').select('*').order('ended_at',{ascending:false}).limit(l).then(function(r){if(r.data){state.battles=r.data;render();}});},
+  fetchAgents:function(){var s=getSB();if(!s)return;s.from('agents').select('*').then(function(r){if(r.data){state.agents=r.data;render();}});},
+  fetchListings:function(a){var s=getSB();if(!s)return;a=a||'';var q=s.from('listings').select('*').eq('is_active',true).order('created_at',{ascending:false});if(a)q=q.eq('asset_class',a);q.then(function(r){if(r.data){state.listings=r.data;render();}});},
+  init:function(){
+    // Wait for Supabase to load (max 10s), then try
+    function tryInit(){
+      var s=getSB();
+      if(s){
+        s.channel('live').on('postgres_changes',{event:'INSERT',schema:'public',table:'battles'},function(p){state.liveBattles=[p.new].concat(state.liveBattles).slice(0,8);render();}).subscribe();
+        Promise.all([A.fetchLB(),A.fetchBattles(),A.fetchAgents(),A.fetchListings()]).then(function(){render();console.log('◈ arena402 ready');});
+      }else{
+        render();
+        console.log('⚠️ Supabase not loaded — showing static page');
+      }
+    }
+    if(window.SB_READY){tryInit();}else{
+      var attempts=0;
+      var iv=setInterval(function(){attempts++;if(window.SB_READY){clearInterval(iv);tryInit();}else if(attempts>20){clearInterval(iv);tryInit();}},500);
+    }
+  }
 };
 A.init();
 </script>
