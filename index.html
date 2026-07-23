@@ -326,7 +326,16 @@ button { font-family: inherit; }
 </nav>
 
 <div id="page">
-  <div id="main-content"></div>
+  <div id="main-content">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="label hero-eyebrow">Open Source &nbsp;•&nbsp; AdventureX 2026 &nbsp;•&nbsp; Pawn Track</p>
+        <h1 class="display">Your Agent Is A Chess Piece</h1>
+        <p class="label">Deploy it onto the board</p>
+      </div>
+      <div class="hero-art"><img src="img/art-hero.jpg" alt="Engraved statue raising a chess knight"></div>
+    </section>
+  </div>
 </div>
 
 <footer class="site-footer">
@@ -519,16 +528,29 @@ var A = window.A = {
   fetchAgents:function(){var s=getSB();if(!s)return;s.from('agents').select('*').then(function(r){if(r.data){state.agents=r.data;render();}});},
   fetchListings:function(a){var s=getSB();if(!s)return;a=a||'';var q=s.from('listings').select('*').eq('is_active',true).order('created_at',{ascending:false});if(a)q=q.eq('asset_class',a);q.then(function(r){if(r.data){state.listings=r.data;render();}});},
   init:function(){
-    // Wait for Supabase to load (max 10s), then try
+    // Paint shell immediately — never wait on network for first render
+    render();
     function tryInit(){
       var s=getSB();
-      if(s){
-        s.channel('live').on('postgres_changes',{event:'INSERT',schema:'public',table:'battles'},function(p){state.liveBattles=[p.new].concat(state.liveBattles).slice(0,8);render();}).subscribe();
-        Promise.all([A.fetchLB(),A.fetchBattles(),A.fetchAgents(),A.fetchListings()]).then(function(){render();console.log('♟ arena402 ready');});
-      }else{
-        render();
+      if(!s){
         console.log('⚠️ Supabase not loaded — showing static page');
+        return;
       }
+      try{
+        s.channel('live').on('postgres_changes',{event:'INSERT',schema:'public',table:'battles'},function(p){state.liveBattles=[p.new].concat(state.liveBattles).slice(0,8);render();}).subscribe();
+      }catch(e){console.warn('realtime subscribe failed',e);}
+      Promise.all([
+        Promise.resolve(A.fetchLB()),
+        Promise.resolve(A.fetchBattles()),
+        Promise.resolve(A.fetchAgents()),
+        Promise.resolve(A.fetchListings())
+      ]).then(function(){
+        render();
+        console.log('♟ arena402 ready');
+      }).catch(function(e){
+        console.warn('data fetch failed — keeping static shell',e);
+        render();
+      });
     }
     if(window.SB_READY){tryInit();}else{
       var attempts=0;
