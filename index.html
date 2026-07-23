@@ -21,13 +21,13 @@
 
 <style>
 :root {
-  --ink:      #08080a;
-  --shadow:   #141416;
-  --steel:    #2a2a2e;
-  --mid:      #5a5a5e;
-  --silver:   #909098;
-  --mist:     #c0c0c4;
-  --white:    #f0f0f0;
+  --ink:      #0d0d0c;
+  --shadow:   #181816;
+  --steel:    #2e2e2a;
+  --mid:      #5e5e58;
+  --silver:   #94948e;
+  --mist:     #c4c4be;
+  --white:    #f0f0e8;
   --pure:     #ffffff;
   --void:     #000000;
 }
@@ -42,24 +42,43 @@ body {
   -webkit-font-smoothing: none;
 }
 
-/* === Layered shadow system === */
-.shadow-1 { box-shadow: 4px 4px 0 var(--shadow), 8px 8px 0 rgba(0,0,0,0.4); }
-.shadow-2 { box-shadow: 6px 6px 0 var(--steel), 12px 12px 0 var(--shadow), 18px 18px 0 rgba(0,0,0,0.3); }
-.shadow-3 { box-shadow: 2px 2px 0 var(--white), 6px 6px 0 var(--steel), 10px 10px 0 var(--shadow), 16px 16px 0 rgba(0,0,0,0.4); }
+/* === STUDIO SPOTLIGHT background (no canvas) === */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  /* Warm carbon gray base with spotlight */
+  background:
+    /* Softbox spotlight — drifts slowly */
+    radial-gradient(ellipse 900px 600px at var(--spot-x, 70%) var(--spot-y, 30%),
+      rgba(255,252,245,0.06) 0%, rgba(255,248,235,0.03) 30%, transparent 60%),
+    /* Secondary fill light from bottom-left */
+    radial-gradient(ellipse 600px 400px at 30% 80%,
+      rgba(200,195,180,0.03) 0%, transparent 50%),
+    /* Deep vignette edges */
+    radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+  animation: spotlightBreath 8s ease-in-out infinite;
+  transition: --spot-x 0.3s ease-out, --spot-y 0.3s ease-out;
+  will-change: opacity;
+}
 
-/* === Canvas layers === */
-#fracture-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
-#chess-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-#particles-layer { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
-#vignette { position: fixed; inset: 0; z-index: 3; pointer-events: none; background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%); }
+/* Grain overlay (low-light camera noise) */
+body::after {
+  content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grainShift 0.5s steps(3) infinite;
+}
+
+@keyframes spotlightBreath {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.9; }
+}
+@keyframes grainShift {
+  0%   { transform: translate(0,0); }
+  33%  { transform: translate(-1px,1px); }
+  66%  { transform: translate(1px,-1px); }
+  100% { transform: translate(0,0); }
+}
 
 #app { position: relative; z-index: 10; }
-
-/* === Scanlines === */
-.scanlines {
-  position: fixed; inset: 0; z-index: 999; pointer-events: none; opacity: 0.02;
-  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px);
-}
 
 /* === Typography === */
 .heading-xl {
@@ -186,12 +205,6 @@ body {
 </head>
 <body>
 
-<div class="scanlines"></div>
-<canvas id="fracture-canvas"></canvas>
-<canvas id="chess-canvas"></canvas>
-<canvas id="particles-layer"></canvas>
-<div id="vignette"></div>
-
 <div id="app">
   <!-- Minimal nav — NO brand name -->
   <nav class="nav">
@@ -220,119 +233,24 @@ window.SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
   onload="window.SB_READY=true"></script>
 
 <script>
-// ==================== arena402 — Fracture Engine ====================
+// ==================== arena402 — Studio Spotlight Engine ====================
 console.log('◈ arena402 booting...');
 
+// Spotlight position drifts with mouse
 (function(){
-  var fC=document.getElementById('fracture-canvas'),fX=fC.getContext('2d');
-  var cC=document.getElementById('chess-canvas'),cX=cC.getContext('2d');
-  var pC=document.getElementById('particles-layer'),pX=pC.getContext('2d');
-  var W,H,mx=0.5,my=0.3,sY=0,t=0;
-
-  function rs(){W=fC.width=cC.width=pC.width=innerWidth;H=fC.height=cC.height=pC.height=innerHeight;}
-  window.addEventListener('resize',rs);rs();
-  document.addEventListener('mousemove',function(e){mx=e.clientX/W;my=e.clientY/H;});
-  window.addEventListener('scroll',function(){sY=scrollY;});
-
-  // ===== FRACTURE LAYER (shattered dimensional plane) =====
-  var fractures=[];
-  for(var i=0;i<50;i++) fractures.push({
-    x:Math.random()*W,y:Math.random()*H,
-    w:Math.random()*120+20,h:Math.random()*8+2,
-    vx:(Math.random()-0.5)*0.4,vy:Math.random()*0.3+0.1,
-    rot:(Math.random()-0.5)*0.3,op:Math.random()*0.3+0.05,
-    delay:Math.random()*200
+  var mx=0.7, my=0.3, tx=0.7, ty=0.3;
+  document.addEventListener('mousemove',function(e){
+    tx=0.6+(e.clientX/window.innerWidth)*0.15;
+    ty=0.2+(e.clientY/window.innerHeight)*0.15;
   });
-
-  function renderFracture(){
-    fX.clearRect(0,0,W,H);
-    // Deep void
-    fX.fillStyle='#000';fX.fillRect(0,0,W,H);
-
-    // Central rupture — converging lines from edges toward center
-    var cx=W/2+(mx-0.5)*60,cy=H/2+(my-0.3)*40-sY*0.3;
-    fX.save();fX.translate(cx,cy);
-
-    // Radiating fracture lines
-    for(var i=0;i<18;i++){
-      var a=(i/18)*Math.PI*2+t*0.001;
-      var r=Math.min(W,H)*0.6+Math.sin(t*0.01+i)*100;
-      var ex=Math.cos(a)*r,ey=Math.sin(a)*r;
-      fX.strokeStyle='rgba(255,255,255,'+(0.06+Math.sin(t*0.02+i)*0.03)+')';
-      fX.lineWidth=Math.random()*2+0.5;fX.beginPath();
-      var sw=Math.random()*30-15;
-      fX.moveTo(sw,sw);fX.lineTo(ex+sw,ey+sw);fX.stroke();
-    }
-
-    // Concentric shattered rings
-    for(var r=60;r<Math.min(W,H);r+=80+Math.sin(t*0.005)*30){
-      fX.strokeStyle='rgba(255,255,255,'+(0.04-r/Math.min(W,H)*0.03)+')';
-      fX.lineWidth=1;fX.beginPath();fX.arc(0,0,r,0,Math.PI*2);fX.stroke();
-      // Break the ring with gaps
-      for(var j=0;j<Math.floor(r/40);j++){
-        var ga=j/Math.floor(r/40)*Math.PI*2+t*0.003;
-        fX.fillStyle='#000';fX.beginPath();fX.arc(Math.cos(ga)*r,Math.sin(ga)*r,6,0,Math.PI*2);fX.fill();
-      }
-    }
-
-    // Glass shards descending
-    fX.globalAlpha=0.6;
-    fractures.forEach(function(f){
-      var y=(f.y-sY*0.4+2000)%(H+400)-200;
-      fX.save();fX.translate(f.x,y);fX.rotate(f.rot);
-      fX.fillStyle='rgba(255,255,255,'+f.op+')';
-      fX.fillRect(-f.w/2,-f.h/2,f.w,f.h);
-      fX.fillStyle='rgba(0,0,0,'+(f.op+0.2)+')';
-      fX.fillRect(-f.w/2+1,-f.h/2+1,f.w-2,f.h-2);
-      fX.restore();
-    });
-    fX.globalAlpha=1;
-    fX.restore();
+  function anim(){
+    mx+=(tx-mx)*0.02; my+=(ty-my)*0.02;
+    document.body.style.setProperty('--spot-x',(mx*100)+'%');
+    document.body.style.setProperty('--spot-y',(my*100)+'%');
+    requestAnimationFrame(anim);
   }
-
-  // ===== CHESS BOARD (low opacity) =====
-  var TS=38;
-  function isoX(x,y){return(x-y)*(TS/2);}function isoY(x,y){return(x+y)*(TS/4);}
-  var pieces=[
-    {x:1,y:6,h:12,g:true},{x:6,y:1,h:10,g:true},{x:2,y:2,h:8,g:false},
-    {x:5,y:5,h:14,g:true},{x:3,y:7,h:8,g:false},{x:7,y:3,h:12,g:true},
-  ];
-  function drawTile2(bx,by,color){
-    var cx=W/2+isoX(bx-3.5,by-3.5),cy=H/2+isoY(bx-3.5,by-3.5)-40;
-    cX.fillStyle=color;cX.beginPath();
-    cX.moveTo(cx,cy-TS/4);cX.lineTo(cx+TS/2,cy);cX.lineTo(cx,cy+TS/4);cX.lineTo(cx-TS/2,cy);cX.closePath();cX.fill();
-  }
-  function drawPiece2(bx,by,color,height,glow){
-    var cx=W/2+isoX(bx-3.5,by-3.5),baseY=H/2+isoY(bx-3.5,by-3.5)-40;
-    cX.fillStyle=color;cX.beginPath();
-    cX.moveTo(cx,baseY-TS/6-height);cX.lineTo(cx+TS/3,baseY-height);cX.lineTo(cx,baseY+TS/6-height);cX.lineTo(cx-TS/3,baseY-height);cX.closePath();
-    if(glow){cX.shadowColor='#fff';cX.shadowBlur=6;}cX.fill();cX.shadowBlur=0;
-    cX.fillRect(cx-2,baseY-height-10,4,10);
-    cX.beginPath();cX.arc(cx,baseY-height-12,5,0,Math.PI*2);cX.fill();
-  }
-  function renderChess(){
-    cX.clearRect(0,0,W,H);
-    var px=(mx-0.5)*30,py=(my-0.3)*20-Math.sin(sY*0.002)*16;
-    cX.save();cX.translate(px,py);cX.globalAlpha=0.5;
-    for(var x=0;x<8;x++)for(var y=0;y<8;y++)drawTile2(x,y,(x+y)%2===0?'rgba(30,30,36,0.8)':'rgba(20,20,26,0.8)');
-    pieces.forEach(function(p){drawPiece2(p.x,p.y,'#fff',p.h+Math.sin(t*0.03+p.x+p.y)*2,p.glow);});
-    cX.globalAlpha=1;cX.restore();
-  }
-
-  // ===== PARTICLES =====
-  var mp=[],bp=[];
-  for(var i=0;i<20;i++)bp.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.2-0.1,s:Math.random()*2+1,c:Math.random()>0.5?'#fff':'#909098'});
-  function renderParticles(){
-    pX.clearRect(0,0,W,H);
-    if(mp.length<40)mp.push({x:mx*W+(Math.random()-0.5)*8,y:my*H+(Math.random()-0.5)*8,vx:(Math.random()-0.5)*1.5,vy:(Math.random()-0.5)*1.5-0.8,life:1,s:Math.random()*2+1});
-    for(var i=mp.length-1;i>=0;i--){var p=mp[i];p.x+=p.vx;p.y+=p.vy;p.life-=0.03;if(p.life<=0){mp.splice(i,1);continue}pX.globalAlpha=p.life;pX.fillStyle='#fff';pX.fillRect(p.x,p.y,p.s,p.s);}
-    bp.forEach(function(p){p.x+=p.vx;p.y+=p.vy;if(p.y<-10)p.y=H+10;if(p.y>H+10)p.y=-10;pX.globalAlpha=0.2;pX.fillStyle=p.c;pX.fillRect(Math.floor(p.x),Math.floor(p.y),p.s,p.s);});
-    pX.globalAlpha=1;
-  }
-
-  function anim(){t++;renderFracture();renderChess();renderParticles();requestAnimationFrame(anim);}
   anim();
-  console.log('◈ Fracture engine running');
+  console.log('◈ Studio spotlight running');
 })();
 
 // ==================== APP ====================
