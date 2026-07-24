@@ -103,3 +103,22 @@ This repo is designed for a split workflow:
 - **Claude Code (DeepSeek)** — JS logic, Supabase CRUD, state management, form validation, error handling, code organization. Work in `js/supabase.js`, `js/app.js`, `js/config.js`.
 
 DeepSeek should NOT touch CSS. Top models should NOT be wasted on Supabase boilerplate.
+
+## Single-source discipline ⚠️ (读我)
+
+历史上这个项目在本机散落成 6 份 clone + 6 个 http.server,导致「改了代码刷新不更新」——因为改的目录和浏览器连的服务器不是同一份。为杜绝复发,任何人（含 AI）在此仓库工作都必须遵守：
+
+1. **唯一本地目录**：`~/arena402`。不要在 Desktop / Documents / /tmp 再 clone。想干活先 `cd ~/arena402`。
+2. **唯一远端**：`github.com/sunruize93-cmyk/arena402`。
+3. **唯一域名**：`arena402.com`（Vercel 绑到本仓库 `main` 分支，只有这一个 Vercel 项目）。
+4. **唯一本地服务器 + 固定端口 4404**。开发前先清旧进程：
+   ```bash
+   pkill -f http.server
+   cd ~/arena402 && python3 -m http.server 4404
+   ```
+   永远访问 `http://localhost:4404`，这样 Supabase 的 Redirect URLs 白名单也只需配这一个地址。
+5. **浏览器只开一个标签**，DevTools 勾上 "Disable cache"（Network 面板），本地不再有缓存问题。
+6. **密钥**：前端只能出现 Supabase `anon` key，**绝不能**出现 `service_role`（会绕过 RLS）。提交前自查：`grep -rn service_role . --include=*.html --include=*.js`。
+
+### 缓存说明
+`vercel.json` 已对 `js/`、`css/` 设 `max-age=0, must-revalidate`（生产不缓存代码）。注意：`vercel.json` **只对线上 Vercel 生效**，本地 `python -m http.server` 完全不读它——本地防缓存靠上面第 5 条。
