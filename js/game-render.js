@@ -1,13 +1,15 @@
 /* ============================================================
    arena402 — Game View renderer (倒爷黑市)
-   Three-column layout: agents / market / negotiation viewer,
-   plus phase strip + countdown on top and log stream below.
-   Reads gameState (js/game-state.js) — pure view, no game logic.
-   Owned by Cursor (CSS + templates). See CLAUDE.md.
+   FRONTEND_GUIDE §11 render side:
+   step 2 skeleton+top bar · 3 agent list · 4 market board ·
+   5 negotiation viewer · 7 animations · 8 result · 9 lobby.
+   Pure view over gameState — no game logic here.
    ============================================================ */
 
 function renderGameView(s) {
   gameEnsureStarted();
+  if (gameState.view === 'lobby')  return gmLobby();
+  if (gameState.view === 'result') return gmResult();
   return '' +
     '<section class="gm">' +
       gmHead() +
@@ -20,14 +22,69 @@ function renderGameView(s) {
     '</section>';
 }
 
-/* ---- head: round, phase machine strip, countdown ---- */
+/* ============================================================
+   STEP 9 — LOBBY (#/game)
+   ============================================================ */
+
+function gmLobby() {
+  gameLobbyFetch(); // idempotent — guarded by lobbyLoaded/_gameLobbyFetching
+  var rows = gameState.lobbyGames.map(function (g) {
+    var st = g.status === 'playing' ? 'LIVE' : g.status === 'finished' ? 'ENDED' : 'WAITING';
+    return '<button type="button" class="gm-lobby-row" onclick="location.hash=\'#/game/' + g.id + (g.status === 'finished' ? '/result' : '') + '\'">' +
+      '<span class="gm-lobby-id">' + escHtml(String(g.id).slice(0, 8)) + '</span>' +
+      '<span class="label">R ' + g.current_round + '/' + g.total_rounds + '</span>' +
+      '<span class="gm-lobby-status is-' + g.status + '">' + st + '</span>' +
+    '</button>';
+  }).join('');
+
+  return '<section class="gm gm-lobby">' +
+    '<header class="gm-head">' +
+      '<div>' +
+        '<p class="label">Black Market &nbsp;•&nbsp; Lobby</p>' +
+        '<h1 class="display gm-title">The Bazaar</h1>' +
+      '</div>' +
+    '</header>' +
+    '<div class="gm-lobby-grid">' +
+      '<div class="gm-lobby-panel">' +
+        '<p class="label gm-col-head">One-line rules</p>' +
+        '<p class="gm-rule">“你的 AI 是个倒爷。每回合决定买、卖、还是观望，进市场配对砍价 2-3 轮，N 回合后按结算价清算，谁钱多谁赢。”</p>' +
+        '<div class="gm-rule-points">' +
+          '<p><span class="label">Equal start</span>同额本金 + 同样初始货 — 胜负 100% 来自 agent 设计</p>' +
+          '<p><span class="label">FCFS</span>决策越快越先配对 — 速度也是竞争力</p>' +
+          '<p><span class="label">x402</span>每笔成交点对点链上结算（Injective）— 平台不碰钱</p>' +
+          '<p><span class="label">Credit</span>谈崩次数公开可见 — 是强硬还是菜，对手自己判断</p>' +
+        '</div>' +
+        '<div class="gm-lobby-actions">' +
+          '<button class="btn" onclick="gameCreate()">+ Create Game</button>' +
+          '<button class="btn ghost" onclick="location.hash=\'#/game/demo\'">▶ Watch Demo Match</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="gm-lobby-panel">' +
+        '<p class="label gm-col-head">Open tables</p>' +
+        '<div class="gm-lobby-list">' +
+          (rows || '<p class="empty">' + (gameState.lobbyLoaded ? 'No games yet — create one or watch the demo' : 'Loading tables…') + '</p>') +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</section>';
+}
+
+/* ============================================================
+   STEP 2 — TOP BAR: round, phase machine, clock, event marquee
+   ============================================================ */
 
 function gmHead() {
   var g = gameState;
   var strip = GAME_PHASES.map(function (p) {
-    var cls = 'gm-phase' + (p === g.phase ? ' active' : '');
-    return '<span class="' + cls + '">' + GAME_PHASE_LABEL[p] + '</span>';
+    return '<span class="gm-phase' + (p === g.phase ? ' active' : '') + '">' + GAME_PHASE_LABEL[p] + '</span>';
   }).join('<span class="gm-phase-arrow" aria-hidden="true">→</span>');
+
+  var lastEv = g.events[g.events.length - 1];
+  var marquee = lastEv
+    ? '<div class="gm-ticker"><div class="gm-ticker-inner">' +
+        new Array(5).join('<span>' + escHtml(lastEv.text) + ' &nbsp;•&nbsp; </span>') +
+      '</div></div>'
+    : '';
 
   return '<header class="gm-head">' +
     '<div>' +
@@ -37,61 +94,95 @@ function gmHead() {
     '<div class="gm-machine">' + strip + '</div>' +
     '<div class="gm-clock">' +
       '<p class="label">Phase clock</p>' +
-      '<p class="gm-clock-time" id="gm-countdown">' + gameFmtCountdown() + '</p>' +
+      '<p class="gm-clock-time' + (g.countdown <= 5 && g.countdown > 0 ? ' warn' : '') + '" id="gm-countdown">' + gameFmtCountdown() + '</p>' +
     '</div>' +
-  '</header>';
+  '</header>' + marquee;
 }
 
-/* ---- column 1: agent roster ---- */
+/* ============================================================
+   STEP 3 — AGENT LIST (decision status, credit, focus)
+   ============================================================ */
 
 function gmAgents() {
   var rows = gameState.agents.map(function (a) {
     var hold = Object.keys(a.holdings).map(function (good) {
-      return a.holdings[good] + gameState.goods[good].sym;
+      var gd = gameState.goods[good];
+      return a.holdings[good] + (gd ? gd.sym : good);
     }).join(' ');
-    return '<div class="gm-agent is-' + a.status + '">' +
+
+    var dec = '';
+    if (gameState.phase !== 'IDLE') {
+      if (a.decision === 'pass') dec = 'PASS';
+      else if (a.decision) dec = a.decision.dir.toUpperCase() + ' ' + (gameState.goods[a.decision.good] ? gameState.goods[a.decision.good].label : a.decision.good);
+      else if (gameState.phase === 'DECIDE') dec = 'DECIDING…';
+    }
+
+    var focused = gameState.focusAgent === a.id;
+    return '<button type="button" class="gm-agent is-' + a.status + (focused ? ' focused' : '') + '" onclick="gmFocusAgent(\'' + a.id + '\')">' +
       '<span class="gm-agent-dot" aria-hidden="true"></span>' +
       '<div class="gm-agent-main">' +
-        '<p class="gm-agent-name">' + escHtml(a.name) + '</p>' +
-        '<p class="gm-agent-meta">' + a.cash.toFixed(1) + ' USDC · ' + hold + '</p>' +
+        '<p class="gm-agent-name">' + escHtml(a.name) + (a.kind === 'rule' ? ' <small class="gm-agent-kind">RULE</small>' : '') + '</p>' +
+        '<p class="gm-agent-meta">' + a.cash.toFixed(1) + ' USDC · ' + hold + (dec ? ' · <em>' + dec + '</em>' : '') + '</p>' +
       '</div>' +
       '<span class="gm-agent-failed" title="failed negotiations">' + a.failed + '×</span>' +
-    '</div>';
+    '</button>';
   }).join('');
 
   return '<p class="label gm-col-head">Agents · ' + gameState.agents.length + '</p>' +
     '<div class="gm-agent-list">' + (rows || '<p class="empty">Waiting for agents</p>') + '</div>';
 }
 
-/* ---- column 2: market panel (goods, events, pools, pairings) ---- */
+function gmFocusAgent(id) {
+  gameState.focusAgent = gameState.focusAgent === id ? null : id;
+  // focusing an agent auto-selects its live pairing
+  if (gameState.focusAgent) {
+    for (var i = 0; i < gameState.pairings.length; i++) {
+      var pg = gameState.pairings[i];
+      if (pg.buyerId === id || pg.sellerId === id) { gameState.selectedPairing = pg.id; break; }
+    }
+  }
+  render();
+}
+
+/* ============================================================
+   STEP 4 — MARKET BOARD (prices+trend, events, pools, pairings)
+   ============================================================ */
 
 function gmMarket() {
   var g = gameState;
 
   var goods = Object.keys(g.goods).map(function (k) {
     var gd = g.goods[k];
+    var up = gd.ref > gd.prev, down = gd.ref < gd.prev;
+    var arrow = up ? '<span class="gm-trend up">↑</span>' : down ? '<span class="gm-trend down">↓</span>' : '';
+    var pool = g.pools[k];
+    var poolInfo = (pool && (pool.buy.length || pool.sell.length))
+      ? '<span class="gm-good-pools label">B' + pool.buy.length + ' / S' + pool.sell.length + '</span>' : '';
     return '<div class="gm-good">' +
       '<span class="gm-good-sym">' + gd.sym + '</span>' +
-      '<span class="gm-good-name">' + gd.label + '</span>' +
-      '<span class="gm-good-ref">' + gd.ref.toFixed(1) + '<small> ref</small></span>' +
+      '<span class="gm-good-name">' + gd.label + poolInfo + '</span>' +
+      '<span class="gm-good-ref">' + gd.ref.toFixed(1) + arrow + '<small> ref</small></span>' +
     '</div>';
   }).join('');
 
   var evs = g.events.slice(-3).reverse().map(function (e) {
-    return '<p class="gm-event' + (e.revealed ? ' revealed' : '') + '">' + escHtml(e.text) + '</p>';
+    var probBar = (e.kind === 'prob' && e.prob && !e.revealed)
+      ? '<span class="gm-event-prob"><span class="gm-event-prob-fill" style="width:' + Math.round(e.prob * 100) + '%"></span></span>'
+      : '';
+    return '<p class="gm-event' + (e.revealed ? ' revealed' : '') + '">' +
+      '<span class="label">' + (e.kind === 'prob' ? 'PROB' : 'CERTAIN') + ' · R' + e.round + '</span><br>' +
+      escHtml(e.text) + probBar + '</p>';
   }).join('') || '<p class="gm-event dim">No events yet — opening prices are reference only</p>';
 
   var pools = Object.keys(g.pools).map(function (k) {
     var p = g.pools[k];
     if (!p.buy.length && !p.sell.length) return '';
     function side(list, dir) {
-      return '<div class="gm-pool-side">' +
-        '<p class="label">' + dir + ' · ' + list.length + '</p>' +
+      return '<div class="gm-pool-side"><p class="label">' + dir + ' · ' + list.length + '</p>' +
         list.map(function (id, i) {
           var a = gameAgent(id);
           return '<span class="gm-pool-chip">' + (i + 1) + '. ' + escHtml(a ? a.name : id) + '</span>';
-        }).join('') +
-      '</div>';
+        }).join('') + '</div>';
     }
     return '<div class="gm-pool">' +
       '<p class="gm-pool-good">' + g.goods[k].sym + ' ' + g.goods[k].label + ' <small>FCFS</small></p>' +
@@ -99,16 +190,24 @@ function gmMarket() {
     '</div>';
   }).join('');
 
+  // pairing progress bar (settled / total)
+  var done = g.pairings.filter(function (pg) { return pg.status !== 'live'; }).length;
+  var progress = g.pairings.length
+    ? '<div class="gm-progress"><span class="label">' + done + ' / ' + g.pairings.length + ' settled</span>' +
+      '<span class="gm-progress-bar"><span class="gm-progress-fill" style="width:' + Math.round(done / g.pairings.length * 100) + '%"></span></span></div>'
+    : '';
+
   var pairs = g.pairings.map(function (pg) {
     var b = gameAgent(pg.buyerId), sl = gameAgent(pg.sellerId);
+    var focused = g.focusAgent && (pg.buyerId === g.focusAgent || pg.sellerId === g.focusAgent);
     var mark = pg.status === 'deal' ? '<span class="gm-pair-mark deal">✓</span>'
              : pg.status === 'bust' ? '<span class="gm-pair-mark bust">✕</span>'
              : '<span class="gm-pair-mark live">⇄</span>';
-    return '<button type="button" class="gm-pair is-' + pg.status + (g.selectedPairing === pg.id ? ' selected' : '') + '"' +
+    return '<button type="button" class="gm-pair is-' + pg.status + (g.selectedPairing === pg.id ? ' selected' : '') + (focused ? ' focused' : '') + '"' +
       ' onclick="gameState.selectedPairing=\'' + pg.id + '\';render()">' +
-      '<span class="gm-pair-name">' + escHtml(b ? b.name : '?') + '</span>' + mark +
-      '<span class="gm-pair-name r">' + escHtml(sl ? sl.name : '?') + '</span>' +
-      '<span class="label gm-pair-good">' + g.goods[pg.good].label + '</span>' +
+      '<span class="gm-pair-name gm-slide-l">' + escHtml(b ? b.name : '?') + '</span>' + mark +
+      '<span class="gm-pair-name r gm-slide-r">' + escHtml(sl ? sl.name : '?') + '</span>' +
+      '<span class="label gm-pair-good">' + (g.goods[pg.good] ? g.goods[pg.good].label : pg.good) + '</span>' +
     '</button>';
   }).join('');
 
@@ -116,11 +215,13 @@ function gmMarket() {
     '<div class="gm-goods">' + goods + '</div>' +
     '<p class="label gm-sub-head">Events</p>' + evs +
     (pools ? '<p class="label gm-sub-head">Pools</p>' + pools : '') +
-    '<p class="label gm-sub-head">Pairings · ' + g.pairings.length + '</p>' +
+    '<p class="label gm-sub-head">Pairings · ' + g.pairings.length + '</p>' + progress +
     '<div class="gm-pairs">' + (pairs || '<p class="empty">Pairs form after DECIDE</p>') + '</div>';
 }
 
-/* ---- column 3: negotiation viewer ---- */
+/* ============================================================
+   STEP 5 — NEGOTIATION VIEWER (turns, timestamps, verdicts, tx)
+   ============================================================ */
 
 function gmNegotiation() {
   var g = gameState;
@@ -131,8 +232,7 @@ function gmNegotiation() {
     return head + '<div class="gm-neg-empty"><p class="empty">Select a pairing to watch the haggle<br><span class="label">max 3 turns · buyer opens · ≤100 chars per line</span></p></div>';
   }
 
-  var pg = null;
-  for (var i = 0; i < g.pairings.length; i++) if (g.pairings[i].id === pid) pg = g.pairings[i];
+  var pg = gamePairingById(pid);
   var neg = g.negotiations[pid];
   var buyer = pg && gameAgent(pg.buyerId), seller = pg && gameAgent(pg.sellerId);
 
@@ -148,7 +248,7 @@ function gmNegotiation() {
       return '<div class="gm-verdict bust' + (isNew ? ' is-new' : '') + '">✕ Rejected — negotiation busted, failed +1 each</div>';
     }
     return '<div class="gm-bubble ' + side + (isNew ? ' is-new' : '') + '">' +
-      '<p class="label">T' + t.turn + ' · ' + escHtml(who ? who.name : t.from) + '</p>' +
+      '<p class="label">T' + t.turn + ' · ' + escHtml(who ? who.name : t.from) + (t.t ? ' · ' + t.t : '') + '</p>' +
       '<p class="gm-bubble-price">' + t.price + '<small> USDC</small></p>' +
       (t.message ? '<p class="gm-bubble-msg">' + escHtml(t.message) + '</p>' : '') +
     '</div>';
@@ -173,15 +273,69 @@ function gmNegotiation() {
     settle;
 }
 
-/* ---- bottom: terminal log stream ---- */
+/* ============================================================
+   STEP 8 — GAME RESULT (#/game/{id}/result)
+   ============================================================ */
+
+function gmResult() {
+  var g = gameState;
+  if (!g.rankings.length && g.agents.length) gameComputeRankings();
+
+  var podium = g.rankings.slice(0, 3).map(function (r, i) {
+    return '<div class="gm-podium-slot p' + (i + 1) + '">' +
+      '<p class="gm-podium-rank">' + ['I', 'II', 'III'][i] + '</p>' +
+      '<p class="gm-podium-name">' + escHtml(r.name) + '</p>' +
+      '<p class="gm-podium-worth">' + r.netWorth.toFixed(1) + '<small> USDC</small></p>' +
+    '</div>';
+  }).join('');
+
+  var rows = g.rankings.map(function (r) {
+    return '<div class="row">' +
+      '<span class="rank' + (r.rank <= 3 ? '' : ' dim') + '">' + gmPad(r.rank) + '</span>' +
+      '<div style="min-width:0"><p class="name">' + escHtml(r.name) + '</p>' +
+      '<p class="meta">cash ' + (r.cash != null ? r.cash.toFixed(1) : '—') + (r.goodsValue != null ? ' · goods ' + r.goodsValue.toFixed(1) : '') + (r.failed != null ? ' · failed ' + r.failed + '×' : '') + '</p></div>' +
+      '<div class="elo">' + r.netWorth.toFixed(1) + '<small>NET</small></div>' +
+    '</div>';
+  }).join('');
+
+  var prices = Object.keys(g.settlePrices).map(function (k) {
+    var gd = g.goods[k] || { label: k, sym: '', ref: 0 };
+    var d = gd.ref ? ((g.settlePrices[k] - gd.ref) / gd.ref * 100) : 0;
+    return '<div class="gm-good">' +
+      '<span class="gm-good-sym">' + gd.sym + '</span>' +
+      '<span class="gm-good-name">' + gd.label + '</span>' +
+      '<span class="gm-good-ref">' + g.settlePrices[k].toFixed(1) +
+        '<small> settle' + (d ? ' · ' + (d > 0 ? '+' : '') + d.toFixed(0) + '% vs ref' : '') + '</small></span>' +
+    '</div>';
+  }).join('') || '<p class="empty">Settle table pending</p>';
+
+  return '<section class="gm gm-result">' +
+    '<header class="gm-head">' +
+      '<div>' +
+        '<p class="label">Black Market &nbsp;•&nbsp; Game ' + escHtml(g.gameId || '—') + ' &nbsp;•&nbsp; Final</p>' +
+        '<h1 class="display gm-title">Clearing</h1>' +
+      '</div>' +
+      '<div class="gm-clock"><p class="label">Rounds played</p><p class="gm-clock-time">' + gmPad(g.round) + '</p></div>' +
+    '</header>' +
+    '<div class="gm-podium">' + (podium || '<p class="empty">Computing ranks…</p>') + '</div>' +
+    '<div class="gm-result-grid">' +
+      '<div class="gm-lobby-panel"><p class="label gm-col-head">Net worth ranking</p><div class="rows">' + rows + '</div></div>' +
+      '<div class="gm-lobby-panel"><p class="label gm-col-head">Settle price table</p><div class="gm-goods">' + prices + '</div>' +
+        '<p class="gm-rule-points" style="margin-top:20px"><span class="label">Formula</span>net worth = cash + Σ(holdings × settle price)</p>' +
+        '<div class="gm-lobby-actions"><button class="btn ghost" onclick="location.hash=\'#/game\'">← Back to lobby</button></div>' +
+      '</div>' +
+    '</div>' +
+  '</section>';
+}
+
+/* ---- bottom log stream ---- */
 
 function gmLog() {
   var lines = gameState.log.slice(-14).map(function (l) {
     return '<p class="gm-log-line ' + l.cls + '"><span class="gm-log-t">' + l.t + '</span>' + escHtml(l.text) + '</p>';
   }).join('');
   return '<div class="gm-log" id="gm-log">' +
-    '<p class="label gm-log-head">$ arena402 --tail log</p>' +
-    lines +
+    '<p class="label gm-log-head">$ arena402 --tail log</p>' + lines +
   '</div>';
 }
 
@@ -189,11 +343,8 @@ function gmPad(n) { return n < 10 ? '0' + n : '' + n; }
 
 /* Keep feeds pinned to the latest entry after each render */
 (function () {
-  var _origRender = null;
-  document.addEventListener('DOMContentLoaded', function () {});
-  // render() is global; wrap once at load time (this file loads after render.js)
   if (typeof render === 'function' && !render.__gmWrapped) {
-    _origRender = render;
+    var _origRender = render;
     render = function () {
       _origRender();
       var feed = document.getElementById('gm-neg-feed');

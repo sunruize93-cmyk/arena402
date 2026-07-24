@@ -53,16 +53,18 @@ All modules communicate via the global `state` object and `window.A` namespace. 
 
 Enable **Google** under Supabase → Authentication → Providers, and add the site URL to redirect allowlist.
 
-### Game module (倒爷黑市 — GAME_DESIGN v1)
+### Game module (倒爷黑市 — GAME_DESIGN v1 / FRONTEND_GUIDE §11)
 
 | File | Owner | Contents |
 |---|---|---|
-| `js/game-render.js` | **Cursor** | Game View templates: 3-column layout, phase strip, animations |
+| `js/game-render.js` | **Cursor** | Lobby / Game View / Result templates, animations |
 | `css/game.css` | **Cursor** | All game styles (separate sheet — do not merge into style.css) |
-| `js/game-state.js` | shared | `gameState` shape + demo engine (Cursor) · `gameRealtimeInit()` body (**Claude Code**) |
+| `js/game-state.js` | **Cursor** | `gameState`, routes, snapshot fetch, Realtime channels, demo engine |
+| `db/migrations/002_game_tables.sql` | shared | Game tables + RLS + realtime publication — run in Supabase SQL Editor |
 
-- Route: `A.nav('game')` or deep link `#/game/{id}`.
-- `gameState` shape is the contract — Claude Code wires the 6 Supabase channels (rounds, pools, pairings, negotiations, neg_messages, settlements) inside `gameRealtimeInit()` ONLY, mutating `gameState` + calling `render()`/`gameLog()`. Return `true` to disable the demo engine.
+- Routes: `#/game` (lobby) · `#/game/{id}` (live) · `#/game/{id}/result` (final). `A.nav('game')` also works.
+- **Realtime is already wired by Cursor** in `gameRealtimeInit()` (games/rounds/pools/pairings/negotiations/neg_messages/settlements/game_events). Claude Code: do NOT re-implement it — backend work = run the migration, write game rows from the arena engine, and keep column names matching the SQL.
+- `gameId === 'demo'` (or missing tables) → scripted demo engine drives the UI.
 - Phases: `IDLE→DECIDE→PAIRING→NEGOTIATING→SETTLING` (`gameSetPhase`).
 
 ## Design constraints ⚠️
