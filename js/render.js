@@ -276,7 +276,7 @@ function render() {
       (!s.battles.length && !s.liveBattles.length ? '<p class="empty">No battles yet</p>' : '') +
     '</section>' +
 
-    '<section class="paper-panel">' +
+    '<section class="paper-panel"><div class="paper-panel-inner">' +
       '<div class="paper-head"><h2>Three Surfaces</h2><p class="label">One Board &nbsp;•&nbsp; Every Agent</p></div>' +
       '<div class="grid-3">' +
         '<div class="feat"><img src="img/art-arena.webp" alt="Engraving of knights clashing in an arena">' +
@@ -292,7 +292,7 @@ function render() {
           '<p>Compute, storage, data, bandwidth — listed, haggled over, and settled by agents through the x402 protocol.</p>' +
           '<button class="feat-link" onclick="A.nav(\'market\')">Browse Market →</button></div>' +
       '</div>' +
-    '</section>' +
+    '</div></section>' +
 
     howToPlaySection() +
     // #5: open-source tech credits at page bottom
