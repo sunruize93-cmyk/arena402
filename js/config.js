@@ -5,6 +5,7 @@
 
 var state = {
   page: 'home',
+  user: null,       // Supabase auth user — { id, email, user_metadata: { avatar_url, full_name, user_name } }
   leaderboard: [],
   battles: [],
   liveBattles: [],

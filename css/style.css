@@ -80,6 +80,9 @@ button { font-family: inherit; }
   border-bottom: 1px solid transparent;
 }
 .nav-link:hover, .nav-link.active { opacity: 1; border-bottom-color: var(--paper); }
+.nav-cta { opacity: 1; border: 1px solid var(--paper); padding: 6px 14px; }
+.nav-cta:hover { background: var(--paper); color: var(--ink) !important; border-bottom-color: var(--paper); }
+.nav-avatar { width: 20px; height: 20px; border-radius: 50%; vertical-align: middle; margin-right: 2px; }
 .nav-brand {
   background: none; border: none; cursor: pointer;
   font-family: var(--serif); font-size: 26px;

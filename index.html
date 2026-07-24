@@ -22,7 +22,15 @@
   <button class="nav-brand" data-nav="home" onclick="A.nav('home')">Arena<span style="font-size:14px;line-height:1;transform:translateY(-4px)">♟</span>402</button>
   <div class="nav-links right">
     <button class="nav-link" data-nav="market" onclick="A.nav('market')">Market</button>
-    <button class="nav-link" onclick="A.nav('agents')" style="opacity:1;border:1px solid var(--paper);padding:6px 14px">Deploy</button>
+    <!-- shown when logged out -->
+    <span id="nav-unsigned">
+      <button class="nav-link nav-cta" onclick="A.signIn()">Sign in</button>
+    </span>
+    <!-- shown when logged in -->
+    <span id="nav-signed" style="display:none">
+      <button class="nav-link nav-cta" onclick="A.nav('agents')">Deploy</button>
+      <button class="nav-link" id="nav-user-btn" onclick="A.signOut()" title="Sign out"></button>
+    </span>
   </div>
 </nav>
 
@@ -71,6 +79,7 @@ window.SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 <!-- App modules — load order matters -->
 <script src="js/config.js"></script>
 <script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/render.js"></script>
 <script src="js/app.js"></script>
 

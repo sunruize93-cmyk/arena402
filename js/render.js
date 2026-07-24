@@ -164,5 +164,24 @@ function render() {
   }
 
   m.innerHTML = h;
+
+  // ---- nav: active page + auth UI toggle ----
   document.querySelectorAll('.nav-link').forEach(function (el) { el.classList.toggle('active', el.dataset.nav === s.page); });
+
+  var signedIn = !!s.user;
+  var outEl = document.getElementById('nav-unsigned');
+  var inEl  = document.getElementById('nav-signed');
+  if (outEl) outEl.style.display = signedIn ? 'none' : '';
+  if (inEl)  inEl.style.display  = signedIn ? '' : 'none';
+
+  if (signedIn) {
+    var avatar = s.user.user_metadata && s.user.user_metadata.avatar_url;
+    var name   = (s.user.user_metadata && (s.user.user_metadata.full_name || s.user.user_metadata.user_name)) || (s.user.email || '').split('@')[0];
+    var btn    = document.getElementById('nav-user-btn');
+    if (btn) {
+      btn.innerHTML = (avatar ? '<img src="' + avatar + '" class="nav-avatar" width="20" height="20" alt=""> ' : '') + escHtml(name || 'User');
+    }
+  }
 }
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

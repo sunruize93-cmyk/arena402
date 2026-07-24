@@ -1,7 +1,7 @@
 /* ============================================================
    arena402 — App Controller
    Global A namespace: navigation, filtering, init sequence.
-   Entry point: A.init() runs on DOMContentLoaded.
+   Entry point: A.init() runs immediately (scripts at bottom of body).
    ============================================================ */
 
 console.log('♟ arena402 booting...');
@@ -24,6 +24,10 @@ var A = window.A = {
     if (state.page === 'market') A.fetchListings(f);
   },
 
+  // auth (implementations in auth.js)
+  signIn:  signInWithGitHub,
+  signOut: signOut,
+
   // data access (implementations in supabase.js)
   fetchLB:       fetchLB,
   fetchBattles:  fetchBattles,
@@ -40,6 +44,10 @@ var A = window.A = {
         console.log('⚠️ Supabase not loaded — showing static page');
         return;
       }
+
+      // Init auth listener (session restore + OAuth callback)
+      try { initAuth(); } catch (e) { console.warn('auth init failed', e); }
+
       try {
         s.channel('live')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'battles' }, function (p) {
