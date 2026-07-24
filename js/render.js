@@ -378,7 +378,7 @@ function render() {
           '</button>' +
         '</div>' +
         '<p class="auth-footnote label">OAuth via Supabase · No passwords stored here</p>' +
-        '<button type="button" class="auth-back" onclick="A.nav(\'home\')">← Return to board</button>' +
+        '<button type="button" class="auth-back" onclick="A.nav(\'home\')" aria-label="Return to board">←</button>' +
       '</div>' +
       '<div class="auth-art" aria-hidden="true">' +
         '<img src="img/art-hero.webp" alt="">' +
