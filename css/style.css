@@ -246,7 +246,7 @@ button { font-family: inherit; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center; gap: 3vw;
-  padding: 120px var(--edge) 60px;
+  padding: 88px var(--edge);
   position: relative;
   max-width: var(--content-max);
   margin: 0 auto;
@@ -255,9 +255,9 @@ button { font-family: inherit; }
 .hero-eyebrow { margin-bottom: 28px; }
 .hero h1 { font-size: clamp(42px, 5.8vw, 96px); margin-bottom: 36px; }
 .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 40px; }
-.hero-art { position: relative; display: flex; align-items: center; justify-content: center; }
+.hero-art { position: relative; display: flex; align-items: center; justify-content: center; align-self: center; }
 .hero-art img {
-  width: 100%; max-height: 74vh; object-fit: contain;
+  width: 100%; max-height: 66vh; object-fit: contain;
   mix-blend-mode: screen;
   filter: grayscale(1) contrast(1.04);
 }
