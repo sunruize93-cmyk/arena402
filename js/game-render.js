@@ -165,14 +165,18 @@ function gmMarket() {
     '</div>';
   }).join('');
 
-  var evs = g.events.slice(-3).reverse().map(function (e) {
+  var evStart = Math.max(0, g.events.length - 3);
+  var evSeen = g._seenEvents || 0;
+  var evs = g.events.slice(evStart).map(function (e, i) {
+    var isNew = (evStart + i) >= evSeen;
     var probBar = (e.kind === 'prob' && e.prob && !e.revealed)
       ? '<span class="gm-event-prob"><span class="gm-event-prob-fill" style="width:' + Math.round(e.prob * 100) + '%"></span></span>'
       : '';
-    return '<p class="gm-event' + (e.revealed ? ' revealed' : '') + '">' +
+    return '<p class="gm-event' + (e.revealed ? ' revealed' : '') + (isNew ? ' is-pinned' : '') + '">' +
       '<span class="label">' + (e.kind === 'prob' ? 'PROB' : 'CERTAIN') + ' · R' + e.round + '</span><br>' +
       escHtml(e.text) + probBar + '</p>';
-  }).join('') || '<p class="gm-event dim">No events yet — opening prices are reference only</p>';
+  }).reverse().join('') || '<p class="gm-event dim">No events yet — opening prices are reference only</p>';
+  g._seenEvents = g.events.length;
 
   var pools = Object.keys(g.pools).map(function (k) {
     var p = g.pools[k];
@@ -226,51 +230,21 @@ function gmMarket() {
 function gmNegotiation() {
   var g = gameState;
   var pid = g.selectedPairing;
-  var head = '<p class="label gm-col-head">Negotiation</p>';
+  var head = '<p class="label gm-col-head">Negotiation · Terminal</p>';
 
   if (!pid || !g.negotiations[pid]) {
-    return head + '<div class="gm-neg-empty"><p class="empty">Select a pairing to watch the haggle<br><span class="label">max 3 turns · buyer opens · ≤100 chars per line</span></p></div>';
+    return head + '<div class="gm-neg-empty"><p class="empty">Select a pairing to open the channel<br><span class="label">max 3 turns · buyer opens · ≤100 chars per line</span></p></div>';
   }
 
   var pg = gamePairingById(pid);
-  var neg = g.negotiations[pid];
   var buyer = pg && gameAgent(pg.buyerId), seller = pg && gameAgent(pg.sellerId);
-
-  var seen = g.seenMsgCount[pid] || 0;
-  var bubbles = neg.turns.map(function (t, idx) {
-    var isNew = idx >= seen;
-    var who = t.from === 'buyer' ? buyer : seller;
-    var side = t.from === 'buyer' ? 'l' : 'r';
-    if (t.type === 'accept') {
-      return '<div class="gm-verdict deal' + (isNew ? ' is-new' : '') + '">✓ Accepted' + (neg.price ? ' @ ' + neg.price : '') + ' — settling on-chain (x402)</div>';
-    }
-    if (t.type === 'reject') {
-      return '<div class="gm-verdict bust' + (isNew ? ' is-new' : '') + '">✕ Rejected — negotiation busted, failed +1 each</div>';
-    }
-    return '<div class="gm-bubble ' + side + (isNew ? ' is-new' : '') + '">' +
-      '<p class="label">T' + t.turn + ' · ' + escHtml(who ? who.name : t.from) + (t.t ? ' · ' + t.t : '') + '</p>' +
-      '<p class="gm-bubble-price">' + t.price + '<small> USDC</small></p>' +
-      (t.message ? '<p class="gm-bubble-msg">' + escHtml(t.message) + '</p>' : '') +
-    '</div>';
-  }).join('');
-  g.seenMsgCount[pid] = neg.turns.length;
-
-  var settle = '';
-  if (neg.result === 'deal') {
-    for (var j = 0; j < g.settlements.length; j++) {
-      if (g.settlements[j].pairingId === pid) {
-        settle = '<p class="gm-tx label">x402 tx ' + escHtml(g.settlements[j].tx) + ' · ' + g.settlements[j].status + '</p>';
-      }
-    }
-  }
 
   return head +
     '<div class="gm-neg-parties">' +
-      '<span>' + escHtml(buyer ? buyer.name : '—') + ' <small class="label">buyer · failed ' + (buyer ? buyer.failed : 0) + '×</small></span>' +
-      '<span class="r"><small class="label">seller · failed ' + (seller ? seller.failed : 0) + '×</small> ' + escHtml(seller ? seller.name : '—') + '</span>' +
+      '<span>' + escHtml(buyer ? buyer.name : '—') + ' <small class="label">buyer</small></span>' +
+      '<span class="r"><small class="label">seller</small> ' + escHtml(seller ? seller.name : '—') + '</span>' +
     '</div>' +
-    '<div class="gm-neg-feed" id="gm-neg-feed">' + (bubbles || '<p class="empty">Waiting for the opening offer…</p>') + '</div>' +
-    settle;
+    termHtml(pid);
 }
 
 /* ============================================================
@@ -347,10 +321,10 @@ function gmPad(n) { return n < 10 ? '0' + n : '' + n; }
     var _origRender = render;
     render = function () {
       _origRender();
-      var feed = document.getElementById('gm-neg-feed');
-      if (feed) feed.scrollTop = feed.scrollHeight;
       var log = document.getElementById('gm-log');
       if (log) log.scrollTop = log.scrollHeight;
+      if (typeof termAfterRender === 'function') termAfterRender();
+      if (typeof entranceMaybePlay === 'function') entranceMaybePlay();
     };
     render.__gmWrapped = true;
   }

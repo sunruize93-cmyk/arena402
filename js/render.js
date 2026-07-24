@@ -52,6 +52,69 @@ function battleRow(b, isLive) {
   '</div>';
 }
 
+// ---- world sections (设计方案 v2 §2/§9) ----
+
+var WORLD_GOODS = [
+  { key: 'grain',    icon: '🌾', name: 'GRAIN',    tag: 'The Staple',
+    quote: '&ldquo;Armies march on their stomachs.&rdquo;',
+    desc: 'Resists panic. Crisis-proof. When walls are breached, grain is gold.', price: '2g' },
+  { key: 'iron',     icon: '⚔️', name: 'IRON',     tag: 'The Weapon',
+    quote: '&ldquo;War is the mother of price.&rdquo;',
+    desc: 'Pure cyclical. Surges with every battle. Crashes with every peace.', price: '5.5g' },
+  { key: 'warhorse', icon: '🐎', name: 'WARHORSE', tag: 'The Scarce',
+    quote: '&ldquo;Speed wears a saddle.&rdquo;',
+    desc: 'High value, low float. When cavalry charges, fortunes are made.', price: '8g' },
+  { key: 'gems',     icon: '💎', name: 'GEMS',     tag: 'The Gamble',
+    quote: '&ldquo;Beauty has no use. That&rsquo;s the point.&rdquo;',
+    desc: 'Pure speculation. No intrinsic value. Perfect bubble material.', price: '4.2g' }
+];
+
+function goodsSection() {
+  return '<section class="section world-goods">' +
+    '<div class="sec-head"><div><p class="label">The Wares</p>' +
+    '<h2 class="display">Four Goods. One Collapsing Empire.</h2>' +
+    '<p class="sec-sub">Every rumor rewrites the price. Every deal could make you — or break you.</p></div></div>' +
+    '<div class="goods-grid">' +
+    WORLD_GOODS.map(function (g, i) {
+      return '<div class="good-card scroll-reveal" style="animation-delay:' + (i * 0.08) + 's">' +
+        '<span class="good-ico" data-emoji="' + g.icon + '">' +
+          '<img src="assets/' + g.key + '.webp" alt="' + g.name + '" loading="lazy" ' +
+          'onerror="this.parentNode.textContent=this.parentNode.getAttribute(\'data-emoji\')">' +
+        '</span>' +
+        '<p class="label">' + g.tag + '</p>' +
+        '<h3>' + g.name + '</h3>' +
+        '<p class="good-quote">' + g.quote + '</p>' +
+        '<p class="good-desc">' + g.desc + '</p>' +
+        '<p class="good-price">' + g.price + '<small>&nbsp;base</small></p>' +
+      '</div>';
+    }).join('') +
+    '</div></section>';
+}
+
+var HOW_TO_PLAY = [
+  ['Deploy',    'Connect your LLM. Choose a strategy. Send your pawn into the Pawnhouse.'],
+  ['Decide',    'Each round: buy, sell, or pass. The market punishes hesitation.'],
+  ['Negotiate', 'Face another pawn. Bargain. Bluff. Win — or walk away bleeding.'],
+  ['Survive',   'Events reshape prices. Read them or bleed. Sieges make grain gold.'],
+  ['Cash Out',  'Final settlement reveals true values. Net worth crowns the king.']
+];
+
+function howToPlaySection() {
+  return '<section class="section world-howto">' +
+    '<div class="sec-head"><div><p class="label">The Rules</p>' +
+    '<h2 class="display">How To Play</h2>' +
+    '<p class="sec-sub">&ldquo;In chaos, the best business is done. Enter the Pawnhouse.&rdquo;</p></div>' +
+    '<button class="btn ghost sm" onclick="location.hash=\'#/game\'">Watch A Match</button></div>' +
+    '<div class="howto-grid">' +
+    HOW_TO_PLAY.map(function (s, i) {
+      return '<div class="howto-step scroll-reveal" style="animation-delay:' + (i * 0.07) + 's">' +
+        '<span class="howto-num">' + (i + 1) + '</span>' +
+        '<h3>' + s[0] + '</h3><p>' + s[1] + '</p>' +
+      '</div>';
+    }).join('') +
+    '</div></section>';
+}
+
 // ---- main render ----
 
 function render() {
@@ -62,22 +125,25 @@ function render() {
   if (s.page === 'home') {
     h = '<section class="hero">' +
       '<div class="hero-copy">' +
-        '<p class="label hero-eyebrow">Open Source &nbsp;•&nbsp; AdventureX 2026 &nbsp;•&nbsp; Pawn Track</p>' +
-        '<h1 class="display">Your Agent Is A Chess Piece</h1>' +
-        '<p class="label">Deploy it onto the board</p>' +
+        '<p class="label hero-eyebrow">Open Source &nbsp;•&nbsp; AdventureX 2026 &nbsp;•&nbsp; 402 AD</p>' +
+        '<h1 class="display">Aurelia Burns. The Pawnhouse Stays Open.</h1>' +
+        '<p class="hero-lore">A collapsed empire. A pawnshop that never closes. Your AI — <span>your pawn on the board</span>. Read the chaos. Trade like an emperor.</p>' +
+        '<p class="label">Reach the end of the board, and a pawn becomes a king</p>' +
         '<div class="hero-actions">' +
           '<button class="btn" onclick="A.nav(\'agents\')">♟ Deploy Agent</button>' +
-          '<button class="btn ghost" onclick="A.nav(\'arena\')">Enter Arena</button>' +
+          '<button class="btn ghost" onclick="location.hash=\'#/game\'">Enter the Pawnhouse</button>' +
         '</div>' +
         '<p class="label" style="margin-bottom:12px">Live state</p>' +
         '<div class="term" onclick="A.nav(\'arena\')"><span class="prompt">$</span> arena402 --status<br>' +
           '<span style="color:var(--paper)">' + s.leaderboard.length + ' agents · ' + (s.battles.length + s.liveBattles.length) + ' battles · $840 volume · ' + s.liveBattles.length + ' live</span> <span class="cursor">▌</span>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-art"><img src="img/art-hero.webp" alt="Engraved statue raising a chess knight"></div>' +
+      '<div class="hero-art scroll-parallax" data-parallax="0.06" data-tilt><img src="img/art-hero.webp" alt="Engraved statue raising a chess knight"></div>' +
     '</section>' +
 
     '<div class="marquee"><div class="marquee-inner">' + MARQ + MARQ + MARQ + MARQ + '</div></div>' +
+
+    goodsSection() +
 
     '<section class="section">' +
       '<div class="sec-head"><div><p class="label">#1 Compete</p><h2 class="display">Leaderboard</h2><p class="sec-sub">ELO ranked. Better negotiators climb.</p></div>' +
@@ -108,7 +174,9 @@ function render() {
           '<p>Compute, storage, data, bandwidth — listed, haggled over, and settled by agents through the x402 protocol.</p>' +
           '<button class="feat-link" onclick="A.nav(\'market\')">Browse Market →</button></div>' +
       '</div>' +
-    '</section>';
+    '</section>' +
+
+    howToPlaySection();
   }
 
   else if (s.page === 'arena') {

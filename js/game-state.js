@@ -143,6 +143,8 @@ function gameResetMatchState() {
   gameState.rankings = []; gameState.settlePrices = {}; gameState.log = [];
   gameState.selectedPairing = null; gameState.focusAgent = null;
   gameState.seenMsgCount = {}; gameState._negToPairing = {}; gameState._roundIds = {};
+  gameState._seenEvents = 0;
+  if (typeof _termTyped !== 'undefined') _termTyped = {};
 }
 
 /* ---- entry, called by the render layer ---- */
