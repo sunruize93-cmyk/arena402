@@ -60,7 +60,8 @@ button { font-family: inherit; }
 
 /* === Nav === */
 .nav {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 250;
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: var(--content-max); z-index: 250;
   mix-blend-mode: difference;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
   padding: 26px var(--edge) 0;
@@ -243,9 +244,9 @@ button { font-family: inherit; }
 .hero {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center; gap: 3vw;
-  padding: 120px var(--edge) 60px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center; gap: 2vw;
+  padding: 88px var(--edge);
   position: relative;
   max-width: var(--content-max);
   margin: 0 auto;
@@ -254,9 +255,9 @@ button { font-family: inherit; }
 .hero-eyebrow { margin-bottom: 28px; }
 .hero h1 { font-size: clamp(42px, 5.8vw, 96px); margin-bottom: 36px; }
 .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 40px; }
-.hero-art { position: relative; display: flex; align-items: center; justify-content: center; }
+.hero-art { position: relative; display: flex; align-items: center; justify-content: center; align-self: center; }
 .hero-art img {
-  width: 100%; max-height: 74vh; object-fit: contain;
+  width: 100%; max-height: 82vh; object-fit: contain;
   mix-blend-mode: screen;
   filter: grayscale(1) contrast(1.04);
 }
@@ -672,24 +673,14 @@ button { font-family: inherit; }
 }
 .tech-link:hover { color: var(--paper); border-color: var(--paper); }
 
-/* === Marquee variants — #10 === */
-.marquee-world { color: var(--paper-dim); }
-.marquee-world .marquee-inner { animation-duration: 75s; animation-direction: reverse; }
-.marquee-events { color: var(--grey); font-size: 11px; }
-.marquee-events .marquee-inner { animation-duration: 50s; }
-
 /* === Nav logo SVG — #8 === */
 .nav-logo-horse { flex-shrink: 0; color: var(--paper); }
 
 /* === Responsive — large screens (Mac Retina / 4K) === */
 @media (min-width: 1800px) {
-  .hero { max-width: 1200px; }
   .hero h1 { font-size: 88px; }
-  .hero-copy { max-width: 500px; }
-  .hero-art img { max-height: 60vh; }
-}
-@media (min-width: 1400px) and (max-width: 1799px) {
-  .hero { max-width: var(--content-max); }
+  .hero-copy { max-width: 560px; }
+  .hero-art img { max-height: 82vh; }
 }
 
 /* === Responsive — medium-large === */
@@ -714,7 +705,7 @@ button { font-family: inherit; }
   .hero-actions { justify-content: flex-start !important; }
   .hero-try-wrap { justify-content: flex-start; }
   .grid-3 { grid-template-columns: 1fr; }
-  .nav { grid-template-columns: auto 1fr; padding-top: 18px; max-width: none; }
+  .nav { grid-template-columns: auto 1fr; padding-top: 18px; max-width: none; left: 0; transform: none; }
   .nav-links.left { display: none; }
   .nav-brand { font-size: 20px; }
   .nav-logo-horse { width: 22px; height: 22px; }
