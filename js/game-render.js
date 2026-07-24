@@ -11,37 +11,12 @@ function renderGameView(s) {
   if (gameState.view === 'lobby')  return gmLobby();
   if (gameState.view === 'result') return gmResult();
 
-  // #7: K-line ticker with live prices
-  var gKline = '';
-  var gKlineGoods = [
-    { sym: '◆RUBY', base: 9.2, vol: 0.25 },
-    { sym: '●GOLD', base: 11.0, vol: 0.35 },
-    { sym: '🌾GRAIN', base: 2.0, vol: 0.06 },
-    { sym: '💎GEMS', base: 4.2, vol: 0.15 }
-  ];
-  for (var ki = 0; ki < 2; ki++) {
-    gKlineGoods.forEach(function(gg) {
-      var price = gg.base + (Math.random() - 0.5) * gg.vol * 2;
-      var delta = ((price - gg.base) / gg.base * 100);
-      var dir = delta >= 0 ? 'up' : 'down';
-      var spark = '';
-      for (var si = 0; si < 12; si++) {
-        var hh = 4 + Math.random() * 10;
-        spark += '<rect x="' + (si * 3) + '" y="' + (14 - hh) + '" width="2" height="' + hh + '" fill="' + (delta >= 0 ? '#9fbf9b' : '#bf8f8b') + '" opacity="' + (0.4 + Math.random() * 0.6) + '"/>';
-      }
-      gKline += '<span class="kline-item">' +
-        '<span class="kline-sym">' + gg.sym + '</span>' +
-        '<span class="kline-price">' + price.toFixed(2) + '</span>' +
-        '<span class="kline-delta ' + dir + '">' + (delta >= 0 ? '+' : '') + delta.toFixed(2) + '%</span>' +
-        '<svg class="kline-spark" viewBox="0 0 36 14">' + spark + '</svg>' +
-      '</span>';
-    });
-  }
-
+  // #7: K-line ticker mounts into this placeholder AFTER render (see gmMountKline).
+  // It's a persistent node so the scroll never resets on demo round rotation.
   return '' +
     '<section class="gm">' +
       '<button type="button" class="back-btn" onclick="A.nav(\'home\')">← Back</button>' +
-      '<div class="kline-ticker" style="margin:8px 0 8px"><div class="kline-ticker-inner">' + gKline + gKline + '</div></div>' +
+      '<div id="gm-kline-mount"></div>' +
       gmHead() +
       '<div class="gm-grid">' +
         '<div class="gm-col gm-col-agents">' + gmAgents() + '</div>' +
@@ -50,6 +25,59 @@ function renderGameView(s) {
       '</div>' +
       gmLog() +
     '</section>';
+}
+
+/* ============================================================
+   Persistent K-line ticker (#7)
+   render() wipes main-content wholesale on every demo tick (~700ms),
+   which would destroy the ticker node and restart its CSS scroll from
+   zero each round. So we build the node ONCE and re-mount the same
+   element after each render — the animation timeline is preserved
+   because the node is never recreated (and it's detached/reattached
+   synchronously within one render, so no frame renders it as "new").
+   ============================================================ */
+
+var _gmKlineNode = null;
+
+function gmKlineContent() {
+  var goods = [
+    { sym: '◆RUBY', base: 9.2, vol: 0.25 },
+    { sym: '●GOLD', base: 11.0, vol: 0.35 },
+    { sym: '🌾GRAIN', base: 2.0, vol: 0.06 },
+    { sym: '💎GEMS', base: 4.2, vol: 0.15 }
+  ];
+  var half = '';
+  for (var ki = 0; ki < 2; ki++) {
+    goods.forEach(function (gg) {
+      var price = gg.base + (Math.random() - 0.5) * gg.vol * 2;
+      var delta = ((price - gg.base) / gg.base * 100);
+      var dir = delta >= 0 ? 'up' : 'down';
+      var spark = '';
+      for (var si = 0; si < 12; si++) {
+        var hh = 4 + Math.random() * 10;
+        spark += '<rect x="' + (si * 3) + '" y="' + (14 - hh) + '" width="2" height="' + hh + '" fill="' + (delta >= 0 ? '#9fbf9b' : '#bf8f8b') + '" opacity="' + (0.4 + Math.random() * 0.6) + '"/>';
+      }
+      half += '<span class="kline-item">' +
+        '<span class="kline-sym">' + gg.sym + '</span>' +
+        '<span class="kline-price">' + price.toFixed(2) + '</span>' +
+        '<span class="kline-delta ' + dir + '">' + (delta >= 0 ? '+' : '') + delta.toFixed(2) + '%</span>' +
+        '<svg class="kline-spark" viewBox="0 0 36 14">' + spark + '</svg>' +
+      '</span>';
+    });
+  }
+  return half + half; // two identical halves → seamless translateX(-50%) loop
+}
+
+function gmMountKline() {
+  var mount = document.getElementById('gm-kline-mount');
+  if (!mount) return;
+  if (!_gmKlineNode) {
+    _gmKlineNode = document.createElement('div');
+    _gmKlineNode.className = 'kline-ticker';
+    _gmKlineNode.style.margin = '8px 0 8px';
+    _gmKlineNode.innerHTML = '<div class="kline-ticker-inner">' + gmKlineContent() + '</div>';
+  }
+  if (_gmKlineNode.parentNode !== mount) mount.appendChild(_gmKlineNode);
 }
 
 /* ============================================================
@@ -352,6 +380,7 @@ function gmPad(n) { return n < 10 ? '0' + n : '' + n; }
     var _origRender = render;
     render = function () {
       _origRender();
+      if (typeof gmMountKline === 'function') gmMountKline();
       var log = document.getElementById('gm-log');
       if (log) log.scrollTop = log.scrollHeight;
       if (typeof termAfterRender === 'function') termAfterRender();
