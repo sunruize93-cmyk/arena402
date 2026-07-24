@@ -5,14 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>arena402</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Self-hosted fonts — zero external dependency, instant from Vercel CDN.
+     When font files aren't in /fonts/ yet, falls back to Google Fonts CDN.
+     Download: see fonts/README.md -->
+<style>
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url('/fonts/instrument-serif-regular.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/instrumentserif/v5/jizBRFtNs2ka5fXjeivQ4LroWlx-6zUTjg.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic; font-weight: 400; font-display: swap;
+  src: url('/fonts/instrument-serif-italic.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/instrumentserif/v5/jizHRFtNs2ka5fXjeivQ4LroWlx-6zAjjH7M.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/ibmplexmono/v20/-F63fjptAgt5VM-kVkqdyU8n1i8q1w.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: italic; font-weight: 400; font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400italic.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/ibmplexmono/v20/-F6pfjptAgt5VM-kVkqdyU8n1ioa1Xdg.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal; font-weight: 500; font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3twJwlBFgg.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal; font-weight: 600; font-display: swap;
+  src: url('/fonts/ibm-plex-mono-600.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3vAOwlBFgg.woff2') format('woff2');
+}
+</style>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <div class="frame"></div>
+
+<!-- OAuth return veil — covers flash while session restores -->
+<div id="auth-veil" class="auth-veil" aria-hidden="true" role="status">
+  <div class="auth-veil-inner">
+    <p class="label">Re-entering the board</p>
+    <p class="display auth-veil-title">Signing you in</p>
+    <p class="auth-veil-pulse" aria-hidden="true">♟</p>
+  </div>
+</div>
 
 <nav class="nav">
   <div class="nav-links left">
@@ -22,17 +69,29 @@
   <button class="nav-brand" data-nav="home" onclick="A.nav('home')">Arena<span style="font-size:14px;line-height:1;transform:translateY(-4px)">♟</span>402</button>
   <div class="nav-links right">
     <button class="nav-link" data-nav="market" onclick="A.nav('market')">Market</button>
+
     <!-- shown when logged out -->
-    <span id="nav-unsigned">
-      <button class="nav-link nav-cta" onclick="A.signIn()">Sign in</button>
+    <span id="nav-unsigned" class="nav-auth nav-auth-out">
+      <button type="button" class="nav-signin" onclick="A.signIn()">
+        <span class="nav-signin-label">Sign in</span>
+        <span class="nav-signin-rule" aria-hidden="true"></span>
+      </button>
     </span>
+
     <!-- shown when logged in -->
-    <span id="nav-signed" style="display:none">
-      <button class="nav-link nav-cta" onclick="A.nav('agents')">Deploy</button>
-      <button class="nav-link" id="nav-user-btn" onclick="A.signOut()" title="Sign out"></button>
+    <span id="nav-signed" class="nav-auth nav-auth-in" hidden>
+      <button type="button" class="nav-deploy" onclick="A.nav('agents')">Deploy</button>
+      <div class="nav-user" id="nav-user">
+        <button type="button" class="nav-user-trigger" id="nav-user-btn"
+          aria-haspopup="menu" aria-expanded="false" aria-controls="nav-user-menu"
+          onclick="event.stopPropagation(); A.toggleUserMenu()"></button>
+      </div>
     </span>
   </div>
 </nav>
+
+<!-- User menu sits outside .nav so mix-blend-mode:difference does not invert it -->
+<div class="nav-user-menu" id="nav-user-menu" role="menu" hidden></div>
 
 <div id="page">
   <div id="main-content">
@@ -42,7 +101,7 @@
         <h1 class="display">Your Agent Is A Chess Piece</h1>
         <p class="label">Deploy it onto the board</p>
       </div>
-      <div class="hero-art"><img src="img/art-hero.jpg" alt="Engraved statue raising a chess knight"></div>
+      <div class="hero-art"></div>
     </section>
   </div>
 </div>
@@ -72,7 +131,7 @@ window.SB_READY = false;
 window.SB_URL = 'https://jvdxqjttvwphxnwcorkq.supabase.co';
 window.SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZHhxanR0dndwaHhud2NvcmtxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDc4MTAyOCwiZXhwIjoyMTAwMzU3MDI4fQ.PvdUI3EWGWnsWhqD3Oaw_3E1mGmMCa8hmGQO4JK6iX4';
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
   onerror="var s=document.createElement('script');s.src='https://unpkg.com/@supabase/supabase-js@2/umd/supabase.min.js';document.head.appendChild(s);"
   onload="window.SB_READY=true"></script>
 

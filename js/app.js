@@ -11,6 +11,7 @@ var A = window.A = {
 
   nav: function (p) {
     state.page = p;
+    state.userMenuOpen = false;
     window.scrollTo(0, 0);
     render();
     if (p === 'arena')   A.fetchLB();
@@ -24,9 +25,17 @@ var A = window.A = {
     if (state.page === 'market') A.fetchListings(f);
   },
 
-  // auth (implementations in auth.js)
-  signIn:  signInWithGitHub,
+  // auth — A.signIn() opens the login surface; providers stay explicit
+  signIn: function (provider) {
+    if (provider === 'github') return signInWithGitHub();
+    if (provider === 'google') return signInWithGoogle();
+    state.userMenuOpen = false;
+    A.nav('signin');
+  },
+  signInWithGitHub: signInWithGitHub,
+  signInWithGoogle: signInWithGoogle,
   signOut: signOut,
+  toggleUserMenu: toggleUserMenu,
 
   // data access (implementations in supabase.js)
   fetchLB:       fetchLB,
@@ -85,3 +94,20 @@ var A = window.A = {
 };
 
 A.init();
+
+// Close avatar menu on outside click / Escape
+document.addEventListener('click', function (e) {
+  if (!state.userMenuOpen) return;
+  var root = document.getElementById('nav-user');
+  var menu = document.getElementById('nav-user-menu');
+  if (root && root.contains(e.target)) return;
+  if (menu && menu.contains(e.target)) return;
+  state.userMenuOpen = false;
+  render();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && state.userMenuOpen) {
+    state.userMenuOpen = false;
+    render();
+  }
+});

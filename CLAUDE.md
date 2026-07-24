@@ -21,26 +21,37 @@ Agent battle protocol: LLM-powered agents compete head-to-head in ELO-ranked neg
 
 ```
 arena402/
-  index.html           ← HTML skeleton only (nav, page wrapper, footer, script tags)
+  index.html           ← HTML skeleton + inline @font-face (self-hosted fonts)
   css/
     style.css          ← ALL styles — design system, typography, components, responsive
   js/
     config.js          ← Global state object (`var state = {...}`)
     supabase.js        ← Supabase client init + fetchLB/fetchBattles/fetchAgents/fetchListings
+    auth.js            ← Auth (initAuth, signInWithGitHub, signInWithGoogle, signOut)
     render.js          ← Template helpers + component factories + main render()
     app.js             ← Global `A` namespace (nav, filter, init) — entry point
-  img/                 ← 4 engraving-style JPG art images
+  img/                 ← 4 engraving-style art images (WebP, ~500KB total)
+  fonts/               ← Self-hosted woff2 font files (see fonts/README.md)
   logo-showcase.html   ← Standalone logo background style picker (12 variants)
-  vercel.json          ← Deployment config + cache headers
+  vercel.json          ← Deployment config + aggressive cache headers
 ```
 
 ### Load order (critical — do not reorder)
 
 ```
-Supabase CDN → config.js → supabase.js → render.js → app.js
+Supabase CDN (defer) → config.js → supabase.js → auth.js → render.js → app.js
 ```
 
 All modules communicate via the global `state` object and `window.A` namespace. No ES modules, no bundler — keep it that way unless there's a strong reason.
+
+### Auth surface (stable)
+
+- `A.signIn()` → opens the `signin` page
+- `A.signIn('github' | 'google')` → starts that OAuth provider
+- `A.signOut()` → clears session
+- Implementations live in `js/auth.js` (`signInWithGitHub`, `signInWithGoogle`, `signOut`, `initAuth`)
+
+Enable **Google** under Supabase → Authentication → Providers, and add the site URL to redirect allowlist.
 
 ## Design constraints ⚠️
 
