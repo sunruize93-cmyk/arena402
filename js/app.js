@@ -43,6 +43,10 @@ var A = window.A = {
   fetchAgents:   fetchAgents,
   fetchListings: fetchListings,
 
+  // world modal (defined in render.js) — #4
+  openWorldModal: function () { if (typeof openWorldModal === 'function') openWorldModal(); },
+  closeWorldModal: function () { if (typeof closeWorldModal === 'function') closeWorldModal(); },
+
   init: function () {
     // Paint shell immediately — never wait on network for first render
     render();

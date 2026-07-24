@@ -53,8 +53,6 @@
 </head>
 <body>
 
-<div class="frame"></div>
-
 <!-- OAuth return veil — covers flash while session restores -->
 <div id="auth-veil" class="auth-veil" aria-hidden="true" role="status">
   <div class="auth-veil-inner">
@@ -70,14 +68,22 @@
     <button class="nav-link" data-nav="agents" onclick="A.nav('agents')">Agents</button>
     <button class="nav-link" data-nav="game" onclick="A.nav('game')">Game</button>
   </div>
-  <button class="nav-brand" data-nav="home" onclick="A.nav('home')">Arena<span style="font-size:14px;line-height:1;transform:translateY(-4px)">♟</span>402</button>
+  <button class="nav-brand" data-nav="home" onclick="A.nav('home')">
+    <svg class="nav-logo-horse" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+      <rect width="32" height="32" rx="4" fill="none" stroke="currentColor" stroke-width="1"/>
+      <path fill="currentColor" d="M16 3 L15 5 L14 3 L13 6 L12 9 L10 12 L10 16 L11 19 L12 22 L14 25 L16 28 L18 28 L20 25 L21 22 L22 19 L22 16 L21 12 L20 9 L19 6 L18 3 Z"/>
+      <circle cx="13" cy="11" r="1.5" fill="#0a0a0b"/>
+      <rect x="12" y="18" width="3" height="2" fill="#0a0a0b" rx="1"/>
+    </svg>
+    Arena 402
+  </button>
   <div class="nav-links right">
     <button class="nav-link" data-nav="market" onclick="A.nav('market')">Market</button>
 
     <!-- shown when logged out -->
     <span id="nav-unsigned" class="nav-auth nav-auth-out">
       <button type="button" class="nav-signin" onclick="A.signIn()">
-        <span class="nav-signin-label">Sign in</span>
+        <span class="nav-signin-label">Try Now</span>
         <span class="nav-signin-rule" aria-hidden="true"></span>
       </button>
     </span>
@@ -102,11 +108,16 @@
     <section class="hero">
       <div class="hero-copy">
         <p class="label hero-eyebrow">Open Source &nbsp;•&nbsp; AdventureX 2026 &nbsp;•&nbsp; 402 AD</p>
-        <h1 class="display">Aurelia Burns. The Pawnhouse Stays Open.</h1>
-        <p class="hero-lore">A collapsed empire. A pawnshop that never closes. Your AI — <span>your pawn on the board</span>. Read the chaos. Trade like an emperor.</p>
-        <p class="label">Reach the end of the board, and a pawn becomes a king</p>
+        <h1 class="display">Can You Trade Your Way To The Throne?</h1>
+        <p class="hero-lore">402 AD. The empire crumbles. The Pawnhouse stays open. Your AI — <span>your pawn on the board</span>. Read the chaos. Bargain like an emperor. A pawn at the far end of the board becomes a king.</p>
+        <div class="hero-try-wrap"><button class="btn-try" onclick="A.signIn()">Try Now</button></div>
+        <div class="hero-actions" style="justify-content:center">
+          <button class="btn ghost sm" onclick="openWorldModal()">⚜ The World</button>
+          <button class="btn ghost sm" onclick="location.hash='#/game/demo'">Watch Demo</button>
+          <button class="btn ghost sm" onclick="A.nav('arena')">Leaderboard</button>
+        </div>
       </div>
-      <div class="hero-art"></div>
+      <div class="hero-art"><img src="img/art-hero.webp" alt="Engraved statue raising a chess knight"></div>
     </section>
   </div>
 </div>

@@ -37,13 +37,8 @@ button { font-family: inherit; }
 ::-webkit-scrollbar-track { background: var(--ink-deep); }
 ::-webkit-scrollbar-thumb { background: var(--grey-dark); }
 
-/* === Viewport frame === */
-.frame {
-  position: fixed; inset: var(--frame);
-  border: 1px solid var(--line-strong);
-  pointer-events: none; z-index: 300;
-  mix-blend-mode: difference;
-}
+/* === Viewport frame (removed — #9) === */
+.frame { display: none; }
 
 /* === Typography === */
 .display {
@@ -64,7 +59,7 @@ button { font-family: inherit; }
 
 /* === Nav === */
 .nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 250;
+  position: absolute; top: 0; left: 0; right: 0; z-index: 250;
   mix-blend-mode: difference;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
   padding: 26px var(--edge) 0;
@@ -548,6 +543,139 @@ button { font-family: inherit; }
 .auth-art-caption {
   position: absolute; left: var(--edge); right: var(--edge); bottom: 48px;
   display: flex; justify-content: space-between;
+}
+
+/* === Back button (sub pages) — #1 === */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--grey); padding: 4px 0;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  margin-bottom: 8px;
+}
+.back-btn:hover { color: var(--paper); border-bottom-color: var(--paper); }
+
+/* === Try Now centered CTA — #6 === */
+.hero-try-wrap { display: flex; justify-content: center; margin: 20px 0 24px; }
+.btn-try {
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  background: var(--paper); color: var(--ink);
+  border: 2px solid var(--paper); cursor: pointer;
+  padding: 16px 48px;
+  transition: all 0.25s ease;
+}
+.btn-try:hover { background: transparent; color: var(--paper); }
+
+/* === K-line ticker — #7 === */
+.kline-ticker {
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  overflow: hidden; white-space: nowrap; padding: 8px 0; background: var(--ink-deep);
+}
+.kline-ticker-inner {
+  display: inline-flex; gap: 44px;
+  animation: scrollx 36s linear infinite;
+  font-family: var(--mono); font-size: 11px;
+}
+.kline-item { display: inline-flex; gap: 8px; align-items: center; }
+.kline-sym { color: var(--paper); letter-spacing: 0.08em; white-space: nowrap; }
+.kline-price { color: var(--paper-dim); font-variant-numeric: tabular-nums; }
+.kline-delta { font-size: 10px; }
+.kline-delta.up { color: #9fbf9b; }
+.kline-delta.down { color: #bf8f8b; }
+.kline-spark { display: inline-block; width: 36px; height: 14px; opacity: 0.55; }
+
+/* === World story modal — #4 === */
+.world-modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(6,6,7,0.93);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  animation: worldFadeIn 0.3s ease;
+}
+@keyframes worldFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.world-modal {
+  background: var(--ink);
+  border: 1px solid var(--line-strong);
+  max-width: 720px; width: 100%; max-height: 82vh; overflow-y: auto;
+  padding: 48px clamp(28px, 5vw, 56px);
+  position: relative;
+}
+.world-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  background: none; border: none; cursor: pointer;
+  color: var(--grey); font-size: 22px;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.2s ease;
+}
+.world-modal-close:hover { color: var(--paper); }
+.world-modal h2 {
+  font-family: var(--serif); font-size: clamp(32px, 4.5vw, 52px);
+  font-weight: 400; text-transform: uppercase;
+  line-height: 0.95; margin-bottom: 28px;
+}
+.world-modal h3 {
+  font-family: var(--serif); font-size: 22px; font-weight: 400;
+  text-transform: uppercase; margin: 26px 0 8px; color: var(--paper);
+}
+.world-modal p { font-size: 13px; line-height: 1.8; color: var(--paper-dim); margin-bottom: 12px; }
+.world-modal .world-quote {
+  font-family: var(--serif); font-size: 20px; font-style: italic;
+  color: var(--paper); text-align: center;
+  padding: 18px 0; margin: 20px 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+
+/* === Open-source tech credits section — #5 === */
+.tech-section {
+  background: var(--ink-deep);
+  padding: 90px var(--edge);
+  border-top: 1px solid var(--line);
+}
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  margin-top: 36px;
+}
+.tech-card {
+  background: var(--ink); padding: 26px 22px;
+  transition: background 0.2s ease;
+}
+.tech-card:hover { background: #0f0f11; }
+.tech-card h4 {
+  font-family: var(--serif); font-size: 22px; font-weight: 400;
+  text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px;
+}
+.tech-card p { font-size: 12px; line-height: 1.7; color: var(--grey); margin-bottom: 16px; }
+.tech-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--paper-dim); text-decoration: none;
+  border-bottom: 1px solid var(--line-strong); padding-bottom: 3px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.tech-link:hover { color: var(--paper); border-color: var(--paper); }
+
+/* === Marquee variants — #10 === */
+.marquee-world { color: var(--paper-dim); }
+.marquee-world .marquee-inner { animation-duration: 75s; animation-direction: reverse; }
+.marquee-events { color: var(--grey); font-size: 11px; }
+.marquee-events .marquee-inner { animation-duration: 50s; }
+
+/* === Nav logo SVG — #8 === */
+.nav-logo-horse { flex-shrink: 0; color: var(--paper); }
+
+/* === Responsive additions === */
+@media (max-width: 960px) {
+  .world-modal { padding: 28px 18px; }
+  .world-modal h2 { font-size: 26px; }
+  .btn-try { padding: 14px 32px; font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

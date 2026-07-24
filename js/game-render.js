@@ -10,8 +10,38 @@ function renderGameView(s) {
   gameEnsureStarted();
   if (gameState.view === 'lobby')  return gmLobby();
   if (gameState.view === 'result') return gmResult();
+
+  // #7: K-line ticker with live prices
+  var gKline = '';
+  var gKlineGoods = [
+    { sym: '◆RUBY', base: 9.2, vol: 0.25 },
+    { sym: '●GOLD', base: 11.0, vol: 0.35 },
+    { sym: '🌾GRAIN', base: 2.0, vol: 0.06 },
+    { sym: '💎GEMS', base: 4.2, vol: 0.15 }
+  ];
+  for (var ki = 0; ki < 2; ki++) {
+    gKlineGoods.forEach(function(gg) {
+      var price = gg.base + (Math.random() - 0.5) * gg.vol * 2;
+      var delta = ((price - gg.base) / gg.base * 100);
+      var dir = delta >= 0 ? 'up' : 'down';
+      var spark = '';
+      for (var si = 0; si < 12; si++) {
+        var hh = 4 + Math.random() * 10;
+        spark += '<rect x="' + (si * 3) + '" y="' + (14 - hh) + '" width="2" height="' + hh + '" fill="' + (delta >= 0 ? '#9fbf9b' : '#bf8f8b') + '" opacity="' + (0.4 + Math.random() * 0.6) + '"/>';
+      }
+      gKline += '<span class="kline-item">' +
+        '<span class="kline-sym">' + gg.sym + '</span>' +
+        '<span class="kline-price">' + price.toFixed(2) + '</span>' +
+        '<span class="kline-delta ' + dir + '">' + (delta >= 0 ? '+' : '') + delta.toFixed(2) + '%</span>' +
+        '<svg class="kline-spark" viewBox="0 0 36 14">' + spark + '</svg>' +
+      '</span>';
+    });
+  }
+
   return '' +
     '<section class="gm">' +
+      '<button type="button" class="back-btn" onclick="A.nav(\'home\')">← Back</button>' +
+      '<div class="kline-ticker" style="margin:8px 0 8px"><div class="kline-ticker-inner">' + gKline + gKline + '</div></div>' +
       gmHead() +
       '<div class="gm-grid">' +
         '<div class="gm-col gm-col-agents">' + gmAgents() + '</div>' +
@@ -38,6 +68,7 @@ function gmLobby() {
   }).join('');
 
   return '<section class="gm gm-lobby">' +
+    '<button type="button" class="back-btn" onclick="A.nav(\'home\')">← Back</button>' +
     '<header class="gm-head">' +
       '<div>' +
         '<p class="label">Black Market &nbsp;•&nbsp; Lobby</p>' +

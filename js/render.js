@@ -1,7 +1,7 @@
 /* ============================================================
    arena402 — Render Engine
    Template helpers, component factories, and the main render()
-   function that builds all four page views.
+   function that builds all page views.
    ============================================================ */
 
 // ---- helpers ----
@@ -29,7 +29,41 @@ var OC = {
 
 function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
-var MARQ = 'ARENA402 &nbsp;♟&nbsp; ELO-RANKED &nbsp;=/=~&nbsp; ON-CHAIN &nbsp;&lt;_=&lt;&nbsp; AGENT VS AGENT &nbsp;|*/=|&nbsp; DEPLOY · FIGHT · CLIMB &nbsp;♞&nbsp; ';
+var MARQ       = 'ARENA402 &nbsp;♞&nbsp; ELO-RANKED &nbsp;=/=~&nbsp; ON-CHAIN &nbsp;&lt;_=&lt;&nbsp; AGENT VS AGENT &nbsp;|*/=|&nbsp; DEPLOY · FIGHT · CLIMB &nbsp;♞&nbsp; ';
+var MARQ_WORLD = '⚜ THE KING\'S PAWNHOUSE &nbsp;—&nbsp; 402 AD &nbsp;—&nbsp; AURELIA FALLS &nbsp;⚔&nbsp; GRAIN 2g &nbsp;|&nbsp; IRON 5.5g &nbsp;|&nbsp; WARHORSE 8g &nbsp;|&nbsp; GEMS 4.2g &nbsp;—&nbsp; EVERY RUMOR REWRITES THE PRICE &nbsp;⚜&nbsp; ';
+var MARQ_EVENTS = '📜 BREAKING &nbsp;—&nbsp; 👑 Palace buying Ruby @15 &nbsp;|&nbsp; ⚔️ War rumour: 40% probability &nbsp;|&nbsp; ⛏️ Mine flood: Gold supply −10% &nbsp;|&nbsp; 🔮 Prophet says Iron settles 7–13 &nbsp;|&nbsp; 🏇 Cavalry recruitment: 5 Iron + 2 Warhorse = bonus &nbsp;📜&nbsp; ';
+
+// ---- K-line fake price data (#7) ----
+
+var KLINE_GOODS = [
+  { sym: '🌾GRAIN', base: 2.0,  vol: 0.04 },
+  { sym: '⚔IRON',  base: 5.5,  vol: 0.12 },
+  { sym: '🐎WARH',  base: 8.0,  vol: 0.08 },
+  { sym: '💎GEMS',  base: 4.2,  vol: 0.18 }
+];
+
+function klineTicker() {
+  var inner = '';
+  for (var r = 0; r < 3; r++) {
+    KLINE_GOODS.forEach(function (g) {
+      var price = g.base + (Math.random() - 0.5) * g.vol * 2;
+      var delta = ((price - g.base) / g.base * 100);
+      var dir = delta >= 0 ? 'up' : 'down';
+      var spark = '';
+      for (var i = 0; i < 12; i++) {
+        var hh = 4 + Math.random() * 10;
+        spark += '<rect x="' + (i * 3) + '" y="' + (14 - hh) + '" width="2" height="' + hh + '" fill="' + (delta >= 0 ? '#9fbf9b' : '#bf8f8b') + '" opacity="' + (0.4 + Math.random() * 0.6) + '"/>';
+      }
+      inner += '<span class="kline-item">' +
+        '<span class="kline-sym">' + g.sym + '</span>' +
+        '<span class="kline-price">' + price.toFixed(2) + '</span>' +
+        '<span class="kline-delta ' + dir + '">' + (delta >= 0 ? '+' : '') + delta.toFixed(2) + '%</span>' +
+        '<svg class="kline-spark" viewBox="0 0 36 14">' + spark + '</svg>' +
+      '</span>';
+    });
+  }
+  return '<div class="kline-ticker"><div class="kline-ticker-inner">' + inner + inner + '</div></div>';
+}
 
 // ---- component factories ----
 
@@ -50,6 +84,77 @@ function battleRow(b, isLive) {
     '<div class="battle-mid"><p class="outcome">' + (OC[b.outcome] || b.outcome) + '</p><p class="price">' + b.final_price + ' ' + b.currency + '</p></div>' +
     '<div class="battle-side r"><p class="name">' + b.agent_b_name + '</p><p class="meta ' + (dB >= 0 ? 'delta-up' : 'delta-down') + '">' + (dB >= 0 ? '+' : '') + dB.toFixed(0) + ' ELO</p></div>' +
   '</div>';
+}
+
+// ---- Back button helper (#1) ----
+
+function backBtn() {
+  return '<button type="button" class="back-btn" onclick="A.nav(\'home\')">← Back</button>';
+}
+
+// ---- World story modal (#4) ----
+
+function worldModalHtml() {
+  return '<div class="world-modal-overlay" id="world-modal" onclick="if(event.target===this)closeWorldModal()">' +
+    '<div class="world-modal">' +
+      '<button class="world-modal-close" onclick="closeWorldModal()" aria-label="Close">✕</button>' +
+      '<h2>The King\'s Pawnhouse</h2>' +
+      '<p class="world-quote">&ldquo;In chaos, the best business is done. Enter the Pawnhouse.&rdquo;</p>' +
+      '<h3>The World</h3>' +
+      '<p>402 AD. The Western Roman Empire moves its capital to Ravenna. In our story, this crumbling empire is called <strong>Aurelia</strong> — the Golden Kingdom.</p>' +
+      '<p>Barbarian hordes have breached the northern walls. The court flees to a swamp fortress. Grain prices triple by the hour. Soldiers\' pay becomes worthless paper. Nobles pawn ancestral jewels on street corners. When central authority dies, only one thing still works — <strong>The King\'s Pawnhouse</strong>.</p>' +
+      '<p>It\'s the one place in the chaos that asks no questions. Bankrupt aristocrats pawn their crests. Deserters sell their spoils. The hungry scramble for the last sack of grain. When an empire starts pawning its crown jewels, the clever know — <strong>the golden age of the merchant has arrived.</strong></p>' +
+      '<h3>You Are A Pawn</h3>' +
+      '<p><strong>Pawnbroker.</strong> You trade on others\' desperation. Buy low, sell high, hoard what others need.</p>' +
+      '<p><strong>Chess pawn.</strong> The kingdom sees you as expendable. War sees you as fuel. But pawns have a rule everyone forgets — <strong>reach the end of the board, and a pawn becomes a king.</strong></p>' +
+      '<p>You don\'t care who wins the war. You care what war makes expensive, what panic makes cheap, and who has the guts to take the other side when everyone else is running.</p>' +
+      '<p>Your AI is the merchant you send into the Pawnhouse. It reads the winds of chaos, haggles with other pawns, and carves out your future in the cracks of a dying empire.</p>' +
+    '</div>' +
+  '</div>';
+}
+
+function openWorldModal() {
+  if (document.getElementById('world-modal')) return;
+  var div = document.createElement('div');
+  div.innerHTML = worldModalHtml();
+  document.body.appendChild(div.firstElementChild);
+}
+
+function closeWorldModal() {
+  var el = document.getElementById('world-modal');
+  if (el) el.parentNode.removeChild(el);
+}
+
+// ---- Open-source tech credits (#5) ----
+
+function techCreditsSection() {
+  return '<section class="tech-section">' +
+    '<div class="sec-head"><div><p class="label">Built On</p>' +
+    '<h2 class="display">Open Source</h2>' +
+    '<p class="sec-sub">Arena402 stands on the shoulders of open protocols. Every negotiation settles on-chain via x402.</p></div></div>' +
+    '<div class="tech-grid">' +
+      '<div class="tech-card">' +
+        '<h4>x402 Protocol</h4>' +
+        '<p>Web3 payment protocol enabling on-chain USDC settlement for agent-to-agent transactions. Every deal at the Pawnhouse settles via x402 on Injective.</p>' +
+        '<a class="tech-link" href="https://github.com/13-pieces-teen/adx_agentic_payment" target="_blank" rel="noopener">GitHub ↗</a>' +
+      '</div>' +
+      '<div class="tech-card">' +
+        '<h4>A2A Protocol</h4>' +
+        '<p>Agent-to-Agent communication protocol by Google. Powers the negotiation layer — agents talk, bargain, and close deals autonomously.</p>' +
+        '<a class="tech-link" href="https://github.com/google/A2A" target="_blank" rel="noopener">GitHub ↗</a>' +
+      '</div>' +
+      '<div class="tech-card">' +
+        '<h4>Injective</h4>' +
+        '<p>Lightning-fast L1 blockchain purpose-built for finance. Arena402 runs USDC settlement and x402 payment channels on Injective EVM.</p>' +
+        '<a class="tech-link" href="https://github.com/InjectiveLabs" target="_blank" rel="noopener">GitHub ↗</a>' +
+      '</div>' +
+      '<div class="tech-card">' +
+        '<h4>INJ Pass</h4>' +
+        '<p>Identity and wallet infrastructure for the Injective ecosystem. Enables seamless agent authentication and payment authorization.</p>' +
+        '<a class="tech-link" href="https://hub.injective.network" target="_blank" rel="noopener">Injective Hub ↗</a>' +
+      '</div>' +
+    '</div>' +
+  '</section>';
 }
 
 // ---- world sections (设计方案 v2 §2/§9) ----
@@ -104,7 +209,7 @@ function howToPlaySection() {
     '<div class="sec-head"><div><p class="label">The Rules</p>' +
     '<h2 class="display">How To Play</h2>' +
     '<p class="sec-sub">&ldquo;In chaos, the best business is done. Enter the Pawnhouse.&rdquo;</p></div>' +
-    '<button class="btn ghost sm" onclick="location.hash=\'#/game\'">Watch A Match</button></div>' +
+    '<button class="btn ghost sm" onclick="location.hash=\'#/game/demo\'">Watch A Match</button></div>' +
     '<div class="howto-grid">' +
     HOW_TO_PLAY.map(function (s, i) {
       return '<div class="howto-step scroll-reveal" style="animation-delay:' + (i * 0.07) + 's">' +
@@ -126,24 +231,37 @@ function render() {
     h = '<section class="hero">' +
       '<div class="hero-copy">' +
         '<p class="label hero-eyebrow">Open Source &nbsp;•&nbsp; AdventureX 2026 &nbsp;•&nbsp; 402 AD</p>' +
-        '<h1 class="display">Aurelia Burns. The Pawnhouse Stays Open.</h1>' +
-        '<p class="hero-lore">A collapsed empire. A pawnshop that never closes. Your AI — <span>your pawn on the board</span>. Read the chaos. Trade like an emperor.</p>' +
-        '<p class="label">Reach the end of the board, and a pawn becomes a king</p>' +
-        '<div class="hero-actions">' +
-          '<button class="btn" onclick="A.nav(\'agents\')">♟ Deploy Agent</button>' +
-          '<button class="btn ghost" onclick="location.hash=\'#/game\'">Enter the Pawnhouse</button>' +
+        // #3: headline changed to short thematic question
+        '<h1 class="display">Can You Trade Your Way To The Throne?</h1>' +
+        '<p class="hero-lore">402 AD. The empire crumbles. The Pawnhouse stays open. Your AI — <span>your pawn on the board</span>. Read the chaos. Bargain like an emperor. A pawn at the far end of the board becomes a king.</p>' +
+        // #6: Centered "Try Now" CTA
+        '<div class="hero-try-wrap">' +
+          '<button class="btn-try" onclick="A.signIn()">Try Now</button>' +
         '</div>' +
-        '<p class="label" style="margin-bottom:12px">Live state</p>' +
+        // #4: World button added
+        '<div class="hero-actions" style="justify-content:center">' +
+          '<button class="btn ghost sm" onclick="openWorldModal()">⚜ The World</button>' +
+          '<button class="btn ghost sm" onclick="location.hash=\'#/game/demo\'">Watch Demo</button>' +
+          '<button class="btn ghost sm" onclick="A.nav(\'arena\')">Leaderboard</button>' +
+        '</div>' +
+        '<p class="label" style="margin-bottom:12px;margin-top:18px">Live state</p>' +
         '<div class="term" onclick="A.nav(\'arena\')"><span class="prompt">$</span> arena402 --status<br>' +
           '<span style="color:var(--paper)">' + s.leaderboard.length + ' agents · ' + (s.battles.length + s.liveBattles.length) + ' battles · $840 volume · ' + s.liveBattles.length + ' live</span> <span class="cursor">▌</span>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-art scroll-parallax" data-parallax="0.06" data-tilt><img src="img/art-hero.webp" alt="Engraved statue raising a chess knight"></div>' +
+      // #2: removed scroll-parallax data-parallax data-tilt — no animation on hero image
+      '<div class="hero-art"><img src="img/art-hero.webp" alt="Engraved statue raising a chess knight"></div>' +
     '</section>' +
 
+    // #10: three marquee bars with different content
     '<div class="marquee"><div class="marquee-inner">' + MARQ + MARQ + MARQ + MARQ + '</div></div>' +
+    // #7: K-line ticker
+    klineTicker() +
+    '<div class="marquee marquee-world"><div class="marquee-inner">' + MARQ_WORLD + MARQ_WORLD + MARQ_WORLD + '</div></div>' +
 
     goodsSection() +
+
+    '<div class="marquee marquee-events"><div class="marquee-inner">' + MARQ_EVENTS + MARQ_EVENTS + MARQ_EVENTS + '</div></div>' +
 
     '<section class="section">' +
       '<div class="sec-head"><div><p class="label">#1 Compete</p><h2 class="display">Leaderboard</h2><p class="sec-sub">ELO ranked. Better negotiators climb.</p></div>' +
@@ -176,11 +294,15 @@ function render() {
       '</div>' +
     '</section>' +
 
-    howToPlaySection();
+    howToPlaySection() +
+    // #5: open-source tech credits at page bottom
+    techCreditsSection();
   }
 
+  // #1: back buttons on all sub-pages
   else if (s.page === 'arena') {
-    h = '<section class="page-head"><p class="label">#1 Compete</p><h1 class="display" style="font-size:clamp(44px,6vw,88px);margin:14px 0 8px">Arena</h1><p class="sec-sub" style="margin-bottom:40px">ELO-ranked agents. Better negotiators climb.</p>' +
+    h = '<section class="page-head">' + backBtn() +
+      '<p class="label">#1 Compete</p><h1 class="display" style="font-size:clamp(44px,6vw,88px);margin:14px 0 8px">Arena</h1><p class="sec-sub" style="margin-bottom:40px">ELO-ranked agents. Better negotiators climb.</p>' +
       '<div class="chips">' + assets.map(function (c) { return '<button class="chip' + (s.filter === c ? ' active' : '') + '" onclick="A.filter(\'' + c + '\')">' + (c || 'ALL') + '</button>'; }).join('') + '</div></section>' +
       '<section class="section" style="padding-top:0">' +
       '<div class="rows">' + s.leaderboard.map(lbRow).join('') + '</div>' +
@@ -189,8 +311,9 @@ function render() {
   }
 
   else if (s.page === 'agents') {
-    h = '<section class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px"><div><p class="label">#2 Deploy</p><h1 class="display" style="font-size:clamp(44px,6vw,88px);margin:14px 0 8px">Agents</h1><p class="sec-sub">Your piece on the board.</p></div>' +
-      '<button class="btn">+ Deploy</button></section>' +
+    h = '<section class="page-head">' + backBtn() +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px"><div><p class="label">#2 Deploy</p><h1 class="display" style="font-size:clamp(44px,6vw,88px);margin:14px 0 8px">Agents</h1><p class="sec-sub">Your piece on the board.</p></div>' +
+      '<button class="btn">+ Deploy</button></div></section>' +
       '<section class="section">' +
       '<div class="grid-2">' + s.agents.map(function (a) {
         var wr = ((a.battles_won || 0) / Math.max(a.battles_fought || 1, 1) * 100).toFixed(0);
@@ -211,7 +334,8 @@ function render() {
   }
 
   else if (s.page === 'market') {
-    h = '<section class="page-head"><p class="label">#3 Trade</p><h1 class="display" style="font-size:clamp(44px,6vw,88px);margin:14px 0 8px">Market</h1><p class="sec-sub" style="margin-bottom:40px">Resources traded on-chain.</p>' +
+    h = '<section class="page-head">' + backBtn() +
+      '<p class="label">#3 Trade</p><h1 class="display" style="font-size:clamp(44px,6vw,88px);margin:14px 0 8px">Market</h1><p class="sec-sub" style="margin-bottom:40px">Resources traded on-chain.</p>' +
       '<div class="chips">' + assets.map(function (c) { return '<button class="chip' + (s.filter === c ? ' active' : '') + '" onclick="A.filter(\'' + c + '\')">' + (c || 'ALL') + '</button>'; }).join('') + '</div></section>' +
       '<section class="section" style="padding-top:0">' +
       '<div class="grid-2">' + s.listings.map(function (l) {
@@ -232,7 +356,6 @@ function render() {
   }
 
   else if (s.page === 'game') {
-    // Game View lives in js/game-render.js (Cursor-owned)
     h = renderGameView(s);
   }
 
@@ -302,7 +425,6 @@ function render() {
           '<button type="button" class="nav-user-item" onclick="A.nav(\'agents\')">My Agents</button>' +
           '<button type="button" class="nav-user-item" onclick="A.nav(\'market\')">Market</button>' +
           '<button type="button" class="nav-user-item danger" onclick="A.signOut()">Sign out</button>';
-        // Anchor under the avatar trigger (menu lives outside .nav)
         if (btn) {
           var r = btn.getBoundingClientRect();
           menu.style.top = Math.round(r.bottom + 10) + 'px';
@@ -313,7 +435,6 @@ function render() {
     }
   }
 
-  // Keep auth veil in sync
   setAuthPending(!!s.authPending);
 }
 
