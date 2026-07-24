@@ -29,9 +29,10 @@ var OC = {
 
 function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
-var MARQ       = 'ARENA402 &nbsp;♞&nbsp; ELO-RANKED &nbsp;=/=~&nbsp; ON-CHAIN &nbsp;&lt;_=&lt;&nbsp; AGENT VS AGENT &nbsp;|*/=|&nbsp; DEPLOY · FIGHT · CLIMB &nbsp;♞&nbsp; ';
-var MARQ_WORLD = '⚜ THE KING\'S PAWNHOUSE &nbsp;—&nbsp; 402 AD &nbsp;—&nbsp; AURELIA FALLS &nbsp;⚔&nbsp; GRAIN 2g &nbsp;|&nbsp; IRON 5.5g &nbsp;|&nbsp; WARHORSE 8g &nbsp;|&nbsp; GEMS 4.2g &nbsp;—&nbsp; EVERY RUMOR REWRITES THE PRICE &nbsp;⚜&nbsp; ';
-var MARQ_EVENTS = '📜 BREAKING &nbsp;—&nbsp; 👑 Palace buying Ruby @15 &nbsp;|&nbsp; ⚔️ War rumour: 40% probability &nbsp;|&nbsp; ⛏️ Mine flood: Gold supply −10% &nbsp;|&nbsp; 🔮 Prophet says Iron settles 7–13 &nbsp;|&nbsp; 🏇 Cavalry recruitment: 5 Iron + 2 Warhorse = bonus &nbsp;📜&nbsp; ';
+// Marquee dividers — word-only, unified style, one per section junction
+var MARQ_ARENA  = 'ELO RANKED &nbsp;·&nbsp; ON CHAIN &nbsp;·&nbsp; AGENT VERSUS AGENT &nbsp;·&nbsp; DEPLOY &nbsp;·&nbsp; FIGHT &nbsp;·&nbsp; CLIMB &nbsp;·&nbsp; ';
+var MARQ_WORLD  = 'THE KINGS PAWNHOUSE &nbsp;·&nbsp; 402 AD &nbsp;·&nbsp; AURELIA FALLS &nbsp;·&nbsp; EVERY RUMOR REWRITES THE PRICE &nbsp;·&nbsp; ';
+var MARQ_EVENTS = 'BREAKING &nbsp;·&nbsp; PALACE BUYING RUBY AT 15 &nbsp;·&nbsp; WAR RUMOUR 40 PERCENT &nbsp;·&nbsp; MINE FLOOD CUTS GOLD 10 PERCENT &nbsp;·&nbsp; PROPHET SETS IRON 7 TO 13 &nbsp;·&nbsp; ';
 
 // ---- K-line fake price data (#7) ----
 
@@ -41,6 +42,11 @@ var KLINE_GOODS = [
   { sym: '🐎WARH',  base: 8.0,  vol: 0.08 },
   { sym: '💎GEMS',  base: 4.2,  vol: 0.18 }
 ];
+
+// Unified word-only marquee divider used at section junctions
+function marquee(text) {
+  return '<div class="marquee"><div class="marquee-inner">' + text + text + text + text + '</div></div>';
+}
 
 function klineTicker() {
   var inner = '';
@@ -179,6 +185,7 @@ function goodsSection() {
     '<div class="sec-head"><div><p class="label">The Wares</p>' +
     '<h2 class="display">Four Goods. One Collapsing Empire.</h2>' +
     '<p class="sec-sub">Every rumor rewrites the price. Every deal could make you — or break you.</p></div></div>' +
+    klineTicker() +
     '<div class="goods-grid">' +
     WORLD_GOODS.map(function (g, i) {
       return '<div class="good-card scroll-reveal" style="animation-delay:' + (i * 0.08) + 's">' +
@@ -253,15 +260,13 @@ function render() {
       '<div class="hero-art"><img src="img/art-hero.webp" alt="Engraved statue raising a chess knight"></div>' +
     '</section>' +
 
-    // #10: three marquee bars with different content
-    '<div class="marquee"><div class="marquee-inner">' + MARQ + MARQ + MARQ + MARQ + '</div></div>' +
-    // #7: K-line ticker
-    klineTicker() +
-    '<div class="marquee marquee-world"><div class="marquee-inner">' + MARQ_WORLD + MARQ_WORLD + MARQ_WORLD + '</div></div>' +
+    // One marquee per section junction — hero → goods
+    marquee(MARQ_ARENA) +
 
     goodsSection() +
 
-    '<div class="marquee marquee-events"><div class="marquee-inner">' + MARQ_EVENTS + MARQ_EVENTS + MARQ_EVENTS + '</div></div>' +
+    // goods → leaderboard
+    marquee(MARQ_WORLD) +
 
     '<section class="section">' +
       '<div class="sec-head"><div><p class="label">#1 Compete</p><h2 class="display">Leaderboard</h2><p class="sec-sub">ELO ranked. Better negotiators climb.</p></div>' +
@@ -275,6 +280,9 @@ function render() {
       '<div class="rows">' + s.liveBattles.concat(s.battles).slice(0, 5).map(function (b) { return battleRow(b, s.liveBattles.some(function (l) { return l.id === b.id; })); }).join('') + '</div>' +
       (!s.battles.length && !s.liveBattles.length ? '<p class="empty">No battles yet</p>' : '') +
     '</section>' +
+
+    // battles → three surfaces
+    marquee(MARQ_EVENTS) +
 
     '<section class="paper-panel"><div class="paper-panel-inner">' +
       '<div class="paper-head"><h2>Three Surfaces</h2><p class="label">One Board &nbsp;•&nbsp; Every Agent</p></div>' +
