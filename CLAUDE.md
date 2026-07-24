@@ -53,6 +53,18 @@ All modules communicate via the global `state` object and `window.A` namespace. 
 
 Enable **Google** under Supabase → Authentication → Providers, and add the site URL to redirect allowlist.
 
+### Game module (倒爷黑市 — GAME_DESIGN v1)
+
+| File | Owner | Contents |
+|---|---|---|
+| `js/game-render.js` | **Cursor** | Game View templates: 3-column layout, phase strip, animations |
+| `css/game.css` | **Cursor** | All game styles (separate sheet — do not merge into style.css) |
+| `js/game-state.js` | shared | `gameState` shape + demo engine (Cursor) · `gameRealtimeInit()` body (**Claude Code**) |
+
+- Route: `A.nav('game')` or deep link `#/game/{id}`.
+- `gameState` shape is the contract — Claude Code wires the 6 Supabase channels (rounds, pools, pairings, negotiations, neg_messages, settlements) inside `gameRealtimeInit()` ONLY, mutating `gameState` + calling `render()`/`gameLog()`. Return `true` to disable the demo engine.
+- Phases: `IDLE→DECIDE→PAIRING→NEGOTIATING→SETTLING` (`gameSetPhase`).
+
 ## Design constraints ⚠️
 
 **The visual identity is LOCKED. Do NOT arbitrarily change:**

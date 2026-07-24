@@ -163,6 +163,11 @@ function render() {
       '</section>';
   }
 
+  else if (s.page === 'game') {
+    // Game View lives in js/game-render.js (Cursor-owned)
+    h = renderGameView(s);
+  }
+
   else if (s.page === 'signin') {
     h = '<section class="auth-page">' +
       '<div class="auth-copy">' +
