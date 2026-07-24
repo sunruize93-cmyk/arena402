@@ -1,0 +1,20 @@
+---
+description: When the user asks to commit, also push to origin in the same turn
+alwaysApply: true
+---
+
+# Commit + Push Together
+
+When the user asks to **commit** (or create a commit), also **push** to the remote in the same turn—do not wait for a separate "push" request.
+
+## Workflow
+
+1. Follow the normal commit protocol (status, diff, log, stage, commit message via HEREDOC)
+2. Immediately after a successful commit: `git push -u origin HEAD` (or `git push` if tracking is set)
+3. Report both the commit hash and the push result (branch + remote URL)
+
+## Exceptions
+
+- Do **not** force-push (`--force` / `-f`) unless the user explicitly asks
+- If push is rejected (e.g. remote ahead), fetch/rebase or pull --rebase as appropriate, resolve conflicts, then push—still finish the push in that turn when safe
+- If there is nothing to commit, say so; do not create an empty commit just to push
