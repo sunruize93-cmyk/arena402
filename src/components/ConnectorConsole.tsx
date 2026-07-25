@@ -480,10 +480,12 @@ function RuntimeRow({
 
 interface ConnectorConsoleProps {
   onReadyChange?: (ready: boolean) => void;
+  onOpenHostedPath?: () => void;
 }
 
 export default function ConnectorConsole({
   onReadyChange,
+  onOpenHostedPath,
 }: ConnectorConsoleProps) {
   const [deviceName, setDeviceName] = useState('My computer');
   const [approvalCode, setApprovalCode] = useState('');
@@ -627,6 +629,7 @@ export default function ConnectorConsole({
   }
 
   async function handleApproveConnectorCode() {
+    if (pairingBusy) return;
     const userCode = approvalCode.trim().toUpperCase();
     if (!userCode) return;
     setPairingBusy(true);
@@ -650,16 +653,25 @@ export default function ConnectorConsole({
   }
 
   async function handleCopyCode() {
-    if (!pairing) return;
-    await navigator.clipboard.writeText(pairing.user_code);
+    if (!pairing || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(pairing.user_code);
+    } catch {
+      return;
+    }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1_500);
   }
 
   async function handleCopyStartCommand() {
-    await navigator.clipboard.writeText(
-      `adx-connector connect --server ${publicOrigin || window.location.origin}`,
-    );
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(
+        `adx-connector connect --server ${publicOrigin || window.location.origin}`,
+      );
+    } catch {
+      return;
+    }
     setCommandCopied(true);
     window.setTimeout(() => setCommandCopied(false), 1_500);
   }
@@ -1013,9 +1025,10 @@ export default function ConnectorConsole({
           </div>
         </div>
 
-        <a
-          href="#platform-agents"
-          className="group glow-card flex min-h-[300px] flex-col justify-between overflow-hidden p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arena-accent"
+        <button
+          type="button"
+          onClick={onOpenHostedPath}
+          className="group glow-card flex min-h-[300px] flex-col justify-between overflow-hidden p-6 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arena-accent"
         >
           <div>
             <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-400/[0.06] text-purple-300">
@@ -1034,7 +1047,7 @@ export default function ConnectorConsole({
             Browse platform agents
             <ArrowRight className="h-4 w-4" />
           </span>
-        </a>
+        </button>
       </div>
 
       {(apiError || notice) && (

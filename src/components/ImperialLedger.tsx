@@ -71,8 +71,12 @@ function TradeRow({
     (trade.priceAtomic !== null ? trade.priceAtomic * trade.quantity : null);
 
   async function copyHash() {
-    if (!trade.txHash) return;
-    await navigator.clipboard?.writeText(trade.txHash);
+    if (!trade.txHash || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(trade.txHash);
+    } catch {
+      return;
+    }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   }

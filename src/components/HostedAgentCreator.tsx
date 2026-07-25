@@ -117,10 +117,12 @@ function formatTimestamp(value: string): string {
 
 interface HostedAgentCreatorProps {
   onReadyChange?: (ready: boolean) => void;
+  onOpenLocalPath?: () => void;
 }
 
 export default function HostedAgentCreator({
   onReadyChange,
+  onOpenLocalPath,
 }: HostedAgentCreatorProps) {
   const apiKeyRef = useRef<HTMLInputElement>(null);
   const credentialRequestKey = useRef('');
@@ -417,12 +419,13 @@ export default function HostedAgentCreator({
                   readinessMessage ||
                   'Use the Local Agent Connector above for now.'}
               </p>
-              <a
-                href="#connect"
+              <button
+                type="button"
+                onClick={onOpenLocalPath}
                 className="mt-3 inline-flex text-sm font-medium text-arena-accent hover:underline"
               >
                 Use a Local Agent
-              </a>
+              </button>
             </div>
           </div>
         </div>
