@@ -6,17 +6,8 @@ export default function GameLobbyPage() {
     <div className="site-main">
       <section className="gm gm-lobby">
         <Link className="back-btn" href="/">
-          ← Back
+          ← Arena
         </Link>
-        <header className="gm-head">
-          <div>
-            <p className="label">Black Market · Lobby</p>
-            <h1 className="display gm-title">The Bazaar</h1>
-            <p className="sec-sub">
-              Open a known Game or watch the deterministic frontend demo.
-            </p>
-          </div>
-        </header>
         <GameLobby />
       </section>
     </div>

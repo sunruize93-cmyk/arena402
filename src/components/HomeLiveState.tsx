@@ -3,141 +3,181 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  Battle,
-  getBattleFeed,
-  getLeaderboard,
-  LeaderboardEntry,
-  subscribeBattles,
-} from '@/lib/arena-api';
+  HostedAgentCapabilities,
+  getHostedAgentCapabilities,
+} from '@/lib/hosted-agent-api';
+import {
+  ArenaHealth,
+  getArenaHealth,
+} from '@/lib/platform-api';
 
-const OUTCOME_LABELS: Record<string, string> = {
-  buyer_win: 'Buyer win',
-  seller_win: 'Seller win',
-  draw: 'Draw',
-  buyer_surrender: 'Surrender',
-  seller_surrender: 'Surrender',
-  timeout: 'Timeout',
-};
+type SurfaceState = 'online' | 'limited' | 'offline';
 
-function Tier({ tier }: { tier: LeaderboardEntry['tier'] }) {
-  return <span className={`tier tier-${tier}`}>{tier}</span>;
+interface Surface {
+  name: string;
+  detail: string;
+  state: SurfaceState;
+  label: string;
 }
 
-function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
+function StatusRow({ surface, rank }: { surface: Surface; rank: number }) {
   return (
     <div className="row">
-      <span className={`rank ${entry.rank > 3 ? 'dim' : ''}`}>
-        {String(entry.rank).padStart(2, '0')}
+      <span className="rank dim">{String(rank).padStart(2, '0')}</span>
+      <span
+        className={`tier ${
+          surface.state === 'online'
+            ? 'tier-gold'
+            : surface.state === 'limited'
+              ? 'tier-silver'
+              : 'tier-bronze'
+        }`}
+      >
+        {surface.label}
       </span>
-      <Tier tier={entry.tier} />
       <div style={{ minWidth: 0 }}>
-        <p className="name">{entry.agent_name}</p>
-        <p className="meta">
-          {entry.battles} battles · {entry.wins} wins ·{' '}
-          {(entry.win_rate * 100).toFixed(0)}%
-        </p>
+        <p className="name">{surface.name}</p>
+        <p className="meta">{surface.detail}</p>
       </div>
       <div className="elo">
-        {entry.elo.toFixed(0)}
-        <small>ELO</small>
+        {surface.state === 'online' ? 'LIVE' : surface.state === 'limited' ? 'BOUND' : 'OFF'}
+        <small>API</small>
       </div>
       <div className="winbar">
         <div className="bar">
-          <div className="bar-fill" style={{ width: `${entry.win_rate * 100}%` }} />
+          <div
+            className="bar-fill"
+            style={{
+              width:
+                surface.state === 'online'
+                  ? '100%'
+                  : surface.state === 'limited'
+                    ? '52%'
+                    : '8%',
+            }}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function BattleRow({ battle, live = false }: { battle: Battle; live?: boolean }) {
-  return (
-    <div className={`battle-row ${live ? 'live' : ''}`}>
-      <div className="battle-side">
-        <p className="name">{battle.agent_a_name}</p>
-        <p className={battle.agent_a_elo_delta >= 0 ? 'delta-up' : 'delta-down'}>
-          {battle.agent_a_elo_delta >= 0 ? '+' : ''}
-          {battle.agent_a_elo_delta.toFixed(0)} ELO
-        </p>
-      </div>
-      <div className="battle-mid">
-        <p className="outcome">
-          {OUTCOME_LABELS[battle.outcome] || battle.outcome}
-        </p>
-        <p className="price">
-          {battle.final_price} {battle.currency}
-        </p>
-      </div>
-      <div className="battle-side r">
-        <p className="name">{battle.agent_b_name}</p>
-        <p className={battle.agent_b_elo_delta >= 0 ? 'delta-up' : 'delta-down'}>
-          {battle.agent_b_elo_delta >= 0 ? '+' : ''}
-          {battle.agent_b_elo_delta.toFixed(0)} ELO
-        </p>
-      </div>
-    </div>
-  );
+function buildSurfaces(
+  health: ArenaHealth | null,
+  hosted: HostedAgentCapabilities | null,
+): Surface[] {
+  if (!health) return [];
+  return [
+    {
+      name: 'Arena API',
+      detail: `Backend ${health.version} · PostgreSQL authority`,
+      state: health.status === 'ok' ? 'online' : 'offline',
+      label: health.status === 'ok' ? 'HEALTHY' : 'ERROR',
+    },
+    {
+      name: 'GitHub identity & Local Connector',
+      detail: `Gateway mode: ${health.connector_gateway}`,
+      state:
+        health.connector_gateway === 'production' ? 'online' : 'limited',
+      label:
+        health.connector_gateway === 'production' ? 'READY' : 'LIMITED',
+    },
+    {
+      name: 'Game participation',
+      detail: health.arena_participation
+        ? 'Authenticated PostgreSQL participation API is mounted'
+        : 'Participation API is not mounted',
+      state: health.arena_participation ? 'online' : 'offline',
+      label: health.arena_participation ? 'READY' : 'OFFLINE',
+    },
+    {
+      name: 'Pawnhouse game projection',
+      detail:
+        health.pawnhouse === 'read_only'
+          ? 'Public state and timeline are read-only'
+          : `Pawnhouse mode: ${health.pawnhouse}`,
+      state: health.pawnhouse === 'off' ? 'offline' : 'limited',
+      label:
+        health.pawnhouse === 'read_only'
+          ? 'READ ONLY'
+          : health.pawnhouse.toUpperCase(),
+    },
+    {
+      name: 'Hosted Agent creation',
+      detail: hosted?.creationEnabled
+        ? `${hosted.models.length} validated model route${hosted.models.length === 1 ? '' : 's'}`
+        : (hosted?.reasonCodes || ['capability unavailable'])
+            .join(' · ')
+            .replaceAll('_', ' '),
+      state: hosted
+        ? hosted.creationEnabled
+          ? 'online'
+          : 'limited'
+        : 'offline',
+      label: hosted?.creationEnabled ? 'READY' : 'DISABLED',
+    },
+  ];
 }
 
 export default function HomeLiveState() {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [battles, setBattles] = useState<Battle[]>([]);
-  const [liveBattles, setLiveBattles] = useState<Battle[]>([]);
+  const [health, setHealth] = useState<ArenaHealth | null>(null);
+  const [hosted, setHosted] = useState<HostedAgentCapabilities | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
-    Promise.all([getLeaderboard('', 0, 5), getBattleFeed(5)])
-      .then(([nextLeaderboard, nextBattles]) => {
+    Promise.allSettled([
+      getArenaHealth(controller.signal),
+      getHostedAgentCapabilities(),
+    ])
+      .then(([healthResult, hostedResult]) => {
         if (cancelled) return;
-        setLeaderboard(nextLeaderboard);
-        setBattles(nextBattles);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
+        if (healthResult.status === 'fulfilled') {
+          setHealth(healthResult.value);
+          setError(false);
+        } else {
+          setError(true);
+        }
+        if (hostedResult.status === 'fulfilled') {
+          setHosted(hostedResult.value);
+        }
       });
-
-    const subscription = subscribeBattles((battle) => {
-      setLiveBattles((current) => [
-        battle,
-        ...current.filter((item) => item.id !== battle.id),
-      ].slice(0, 5));
-    });
-
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      controller.abort();
     };
   }, []);
 
-  const battleRows = [...liveBattles, ...battles]
-    .filter(
-      (battle, index, rows) =>
-        rows.findIndex((candidate) => candidate.id === battle.id) === index,
-    )
-    .slice(0, 5);
+  const surfaces = buildSurfaces(health, hosted);
 
   return (
     <>
       <section className="section">
         <div className="sec-head">
           <div>
-            <p className="label">#1 Compete</p>
-            <h2 className="display">Leaderboard</h2>
-            <p className="sec-sub">Net worth crowns the winner. Better agents climb.</p>
+            <p className="label">#1 Observe</p>
+            <h2 className="display">Live Backend Contract</h2>
+            <p className="sec-sub">
+              This board is read directly from the Arena 402 cloud API.
+            </p>
           </div>
-          <Link className="btn ghost sm" href="/arena">
-            Full List
+          <Link className="btn ghost sm" href="/game">
+            Open Game
           </Link>
         </div>
-        <div className="rows">
-          {leaderboard.map((entry) => (
-            <LeaderboardRow key={entry.agent_id} entry={entry} />
+        <div className="rows" aria-live="polite">
+          {surfaces.map((surface, index) => (
+            <StatusRow
+              key={surface.name}
+              rank={index + 1}
+              surface={surface}
+            />
           ))}
         </div>
-        {leaderboard.length === 0 && (
+        {!health && (
           <p className={`empty ${error ? 'data-state error' : ''}`}>
-            {error ? 'Arena API is not available yet' : 'No agents deployed'}
+            {error ? 'The cloud API could not be reached' : 'Reading the cloud API…'}
           </p>
         )}
       </section>
@@ -145,21 +185,32 @@ export default function HomeLiveState() {
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="sec-head">
           <div>
-            <p className="label">#2 Witness</p>
-            <h2 className="display">Recent Trades</h2>
-            <p className="sec-sub">Accepted deals settle point-to-point on testnet.</p>
+            <p className="label">#2 Integrate</p>
+            <h2 className="display">Current Playable Surface</h2>
+            <p className="sec-sub">
+              Sign in, connect an Agent, then open a known PostgreSQL-backed game.
+            </p>
           </div>
+          <Link className="btn ghost sm" href="/agents">
+            Agent Workshop
+          </Link>
         </div>
         <div className="rows">
-          {battleRows.map((battle) => (
-            <BattleRow
-              key={battle.id}
-              battle={battle}
-              live={liveBattles.some((item) => item.id === battle.id)}
-            />
-          ))}
+          <div className="battle-row">
+            <div className="battle-side">
+              <p className="name">Identity</p>
+              <p className="delta-up">GitHub OAuth</p>
+            </div>
+            <div className="battle-mid">
+              <p className="outcome">Session + CSRF</p>
+              <p className="price">Same-origin API</p>
+            </div>
+            <div className="battle-side r">
+              <p className="name">Game</p>
+              <p className="delta-up">State + timeline</p>
+            </div>
+          </div>
         </div>
-        {battleRows.length === 0 && <p className="empty">No completed trades yet</p>}
       </section>
     </>
   );

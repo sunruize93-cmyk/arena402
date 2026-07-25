@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '@/lib/arena-api';
+import { arenaApiRequest } from '@/lib/platform-api';
 
 export interface PawnhouseGameState {
   gameId: string;
@@ -29,16 +29,24 @@ export interface PawnhouseTimeline {
   schemaVersion: string;
 }
 
+export interface GameParticipation {
+  gameAgentId: string;
+  gameId: string;
+  agentId: string;
+  runtimeBindingId: string;
+  runtimeKind: string;
+  status: string;
+  configHash: string;
+  schemaVersion: string;
+}
+
+interface GameParticipationList {
+  participations: GameParticipation[];
+  total: number;
+}
+
 async function gameGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-    signal,
-  });
-  if (!response.ok) {
-    throw new Error(`Arena game API returned HTTP ${response.status}`);
-  }
-  return response.json() as Promise<T>;
+  return arenaApiRequest<T>(path, { signal });
 }
 
 export function getPawnhouseGame(
@@ -60,5 +68,42 @@ export function getPawnhouseTimeline(
   return gameGet<PawnhouseTimeline>(
     `/api/v1/pawnhouse/games/${encodeURIComponent(gameId)}/timeline?${query}`,
     signal,
+  );
+}
+
+export async function getGameParticipations(): Promise<GameParticipation[]> {
+  const response = await arenaApiRequest<GameParticipationList>(
+    '/api/game-participations?scope=mine',
+  );
+  return response.participations || [];
+}
+
+function readCsrfCookie(): string {
+  if (typeof document === 'undefined') return '';
+  const prefix = 'adx_csrf=';
+  const cookie = document.cookie
+    .split(';')
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(prefix));
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
+}
+
+export function joinPawnhouseGame(
+  gameId: string,
+  agentId: string,
+  idempotencyKey: string,
+): Promise<GameParticipation> {
+  const csrfToken = readCsrfCookie();
+  return arenaApiRequest<GameParticipation>(
+    `/api/games/${encodeURIComponent(gameId)}/participants`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
+      body: JSON.stringify({ agentId }),
+    },
   );
 }

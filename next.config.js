@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const apiProxyTarget = (
   process.env.API_PROXY_TARGET ||
-  (process.env.VERCEL
-    ? 'https://api.arena402.com'
-    : 'http://127.0.0.1:8000')
+  'https://api.arena402.com'
 ).replace(/\/$/, '');
 
 const nextConfig = {

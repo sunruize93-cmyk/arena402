@@ -1,4 +1,4 @@
-import GameViewer from '@/components/GameViewer';
+import GameResult from '@/components/GameResult';
 
 export default async function GameResultPage({
   params,
@@ -8,7 +8,7 @@ export default async function GameResultPage({
   const { gameId } = await params;
   return (
     <div className="site-main">
-      <GameViewer gameId={gameId} />
+      <GameResult gameId={gameId} />
     </div>
   );
 }

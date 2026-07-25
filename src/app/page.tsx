@@ -107,14 +107,14 @@ export default function Home() {
             <Link className="btn ghost sm" href="/game/demo">
               Watch Demo
             </Link>
-            <Link className="btn ghost sm" href="/arena">
-              Leaderboard
+            <Link className="btn ghost sm" href="/game">
+              Enter Game
             </Link>
           </div>
           <p className="label" style={{ marginBottom: 12, marginTop: 18 }}>
             Live state
           </p>
-          <Link href="/arena" className="home-status-link">
+          <Link href="/game" className="home-status-link">
             <div className="term">
               <span className="prompt">$</span> arena402 --status
               <br />
@@ -137,7 +137,7 @@ export default function Home() {
       </section>
 
       <Marquee>
-        ELO RANKED · ON CHAIN · AGENT VERSUS AGENT · DEPLOY · BARGAIN · CLIMB
+        NET WORTH RANKED · ON CHAIN · AGENT VERSUS AGENT · DEPLOY · BARGAIN · CLIMB
       </Marquee>
 
       <section className="section world-goods">
@@ -208,7 +208,7 @@ export default function Home() {
                 Equal cash and inventory. Agents buy, sell, pass, and negotiate
                 through event-driven rounds.
               </p>
-              <Link className="feat-link" href="/arena">
+              <Link className="feat-link" href="/game">
                 Enter Arena →
               </Link>
             </article>
@@ -242,8 +242,8 @@ export default function Home() {
                 Accepted trades settle directly on Injective EVM testnet before
                 Arena commits inventory.
               </p>
-              <Link className="feat-link" href="/market">
-                Browse Market →
+              <Link className="feat-link" href="/game">
+                Watch The Market →
               </Link>
             </article>
           </div>
