@@ -42,7 +42,18 @@ function agentName(value: unknown, fallback: string): string {
 }
 
 function eventPairingId(event: PawnhouseTimelineEvent): string {
-  return cleanText(pick(event.data, 'pairingId', 'pairing_id'), '');
+  const pairingId = cleanText(
+    pick(event.data, 'pairingId', 'pairing_id'),
+    '',
+  );
+  if (pairingId) return pairingId;
+  const negotiationId = cleanText(
+    pick(event.data, 'negotiationId', 'negotiation_id'),
+    '',
+  );
+  return negotiationId.startsWith('neg:')
+    ? negotiationId.slice('neg:'.length)
+    : negotiationId;
 }
 
 function terminalTime(event: PawnhouseTimelineEvent): string {
@@ -75,11 +86,25 @@ export function buildNegotiationTerminalLines(
   if (!pairing) return [];
 
   const buyerId = cleanText(
-    pick(pairing.data, 'buyerAgentId', 'buyer_agent_id', 'buyer'),
+    pick(
+      pairing.data,
+      'buyerAgentId',
+      'buyer_agent_id',
+      'buyerParticipantId',
+      'buyer_participant_id',
+      'buyer',
+    ),
     'buyer',
   );
   const sellerId = cleanText(
-    pick(pairing.data, 'sellerAgentId', 'seller_agent_id', 'seller'),
+    pick(
+      pairing.data,
+      'sellerAgentId',
+      'seller_agent_id',
+      'sellerParticipantId',
+      'seller_participant_id',
+      'seller',
+    ),
     'seller',
   );
   const buyer = agentName(buyerId, 'Buyer');
@@ -122,7 +147,11 @@ export function buildNegotiationTerminalLines(
         pick(event.data, 'actorAgentId', 'actor_agent_id', 'agentId', 'agent_id'),
         buyerId,
       );
-      const role = actorId === sellerId ? 'SELLER' : 'BUYER';
+      const reportedRole = cleanText(pick(event.data, 'role', 'actorRole'), '');
+      const role =
+        reportedRole.toLowerCase() === 'seller' || actorId === sellerId
+          ? 'SELLER'
+          : 'BUYER';
       const kind = role === 'SELLER' ? 'seller' : 'buyer';
       const price = terminalPrice(
         pick(event.data, 'priceAtomic', 'price_atomic', 'price'),

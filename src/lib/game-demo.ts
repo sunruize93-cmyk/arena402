@@ -14,6 +14,63 @@ export const DEMO_PARTICIPANTS = [
   { agent_id: 'octavia', runtime_kind: 'remote', status: 'active' },
 ];
 
+const DEMO_CLOSES = {
+  grain: [2, 3.2, 3.05, 3.15, 3.1, 2.45],
+  iron: [5, 5.1, 7.2, 6.85, 6.7, 6.6],
+  warhorse: [8, 7.9, 8.05, 5.6, 5.85, 5.7],
+  gems: [3, 2.9, 2.95, 2.75, 4.8, 4.55],
+} as const;
+
+const DEMO_WICKS = {
+  grain: [0.12, 0.28, 0.18, 0.16, 0.14],
+  iron: [0.16, 0.34, 0.28, 0.22, 0.18],
+  warhorse: [0.24, 0.26, 0.42, 0.3, 0.24],
+  gems: [0.1, 0.13, 0.16, 0.31, 0.25],
+} as const;
+
+export const DEMO_PRICE_SNAPSHOTS = Object.entries(DEMO_CLOSES).flatMap(
+  ([goodId, values]) =>
+    values.slice(1).map((close, index) => {
+      const open = values[index];
+      const wick =
+        DEMO_WICKS[goodId as keyof typeof DEMO_WICKS][index] || 0.12;
+      return {
+        round: index + 1,
+        goodId,
+        openAtomic: String(Math.round(open * 1_000_000)),
+        highAtomic: String(Math.round((Math.max(open, close) + wick) * 1_000_000)),
+        lowAtomic: String(
+          Math.round(Math.max(0, Math.min(open, close) - wick) * 1_000_000),
+        ),
+        closeAtomic: String(Math.round(close * 1_000_000)),
+        committedTradeCount: 3 + ((index * 2 + goodId.length) % 6),
+      };
+    }),
+);
+
+const DEMO_RANKING_ORDER = [
+  ['cassius', 'livia', 'marius', 'octavia'],
+  ['livia', 'cassius', 'octavia', 'marius'],
+  ['marius', 'livia', 'cassius', 'octavia'],
+  ['octavia', 'livia', 'cassius', 'marius'],
+  ['livia', 'cassius', 'octavia', 'marius'],
+] as const;
+
+function demoLiveRankings(round: number) {
+  const order = DEMO_RANKING_ORDER[Math.max(0, Math.min(round - 1, 4))];
+  return order.map((agentId, index) => ({
+    rank: index + 1,
+    previousRank:
+      round <= 1
+        ? null
+        : DEMO_RANKING_ORDER[round - 2].indexOf(agentId) + 1,
+    agentId,
+    netWorthAtomic: String(
+      Math.round((27.6 - index * 2.7 + round * 0.18) * 1_000_000),
+    ),
+  }));
+}
+
 export interface DemoPlaybackPosition {
   roundIndex: number;
   eventCount: number;
@@ -243,6 +300,10 @@ export function buildDemoGameState(
     roundCount: DEMO_ROUNDS.length,
     eventScheduleCommitment: '0x402d7c88a33b7a16',
     participants: DEMO_PARTICIPANTS,
+    priceSnapshots: DEMO_PRICE_SNAPSHOTS.filter(
+      (snapshot) => snapshot.round <= round.number,
+    ),
+    liveRankings: demoLiveRankings(round.number),
     rounds: DEMO_ROUNDS.map((candidate) => ({
       round_index: candidate.number,
       phase:

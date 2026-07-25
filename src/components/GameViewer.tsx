@@ -283,8 +283,26 @@ function pairingRows(events: PawnhouseTimelineEvent[]) {
           pick(data, 'pairingId', 'pairing_id'),
           `pair-${event.sequence}`,
         ),
-        buyer: shortAgent(pick(data, 'buyerAgentId', 'buyer_agent_id'), 'Buyer'),
-        seller: shortAgent(pick(data, 'sellerAgentId', 'seller_agent_id'), 'Seller'),
+        buyer: shortAgent(
+          pick(
+            data,
+            'buyerAgentId',
+            'buyer_agent_id',
+            'buyerParticipantId',
+            'buyer_participant_id',
+          ),
+          'Buyer',
+        ),
+        seller: shortAgent(
+          pick(
+            data,
+            'sellerAgentId',
+            'seller_agent_id',
+            'sellerParticipantId',
+            'seller_participant_id',
+          ),
+          'Seller',
+        ),
         good: publicText(pick(data, 'goodId', 'good_id', 'good'), 'goods').toUpperCase(),
         active: index === 0,
       };

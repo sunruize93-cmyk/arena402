@@ -114,3 +114,44 @@ test('the terminal ignores messages and settlement events from other pairings', 
 
   assert.doesNotMatch(transcript, /INTRUDER|CHANNEL CLOSED/);
 });
+
+test('the terminal accepts the production public participant and negotiation fields', () => {
+  const { buildNegotiationTerminalLines } = loadTypeScriptModule(
+    new URL('../src/lib/negotiation-terminal.ts', import.meta.url),
+  );
+  const productionEvents = [
+    {
+      sequence: 20,
+      type: 'pairing.created',
+      data: {
+        pairingId: 'pair-live',
+        buyerParticipantId: 'participant-cassius',
+        sellerParticipantId: 'participant-livia',
+        good: 'iron',
+      },
+    },
+    {
+      sequence: 21,
+      type: 'negotiation.message',
+      data: {
+        negotiationId: 'neg:pair-live',
+        role: 'seller',
+        action: 'propose',
+        priceAtomic: '6100000',
+        message: 'The Crown is already paying above six.',
+      },
+    },
+  ];
+
+  const transcript = buildNegotiationTerminalLines(
+    productionEvents,
+    'pair-live',
+  )
+    .map((line) => line.text)
+    .join('\n');
+
+  assert.match(transcript, /BUYER connected — Participant Cassius/);
+  assert.match(transcript, /SELLER connected — Participant Livia/);
+  assert.match(transcript, /SELLER > PROPOSE 6.1 GOLD/);
+  assert.match(transcript, /Crown is already paying/);
+});

@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import AgentDeploymentJourney from '@/components/AgentDeploymentJourney';
+import PlayerArenaObservatory from '@/components/PlayerArenaObservatory';
 
 export default function AgentsPage() {
   return (
@@ -39,6 +40,8 @@ export default function AgentsPage() {
         </div>
         <AgentDeploymentJourney />
       </section>
+
+      <PlayerArenaObservatory />
     </div>
   );
 }

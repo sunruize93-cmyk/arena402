@@ -6,6 +6,8 @@ import './arena402-terminal.css';
 import './arena402-parallax.css';
 import './arena402-integration.css';
 import './arena402-auth.css';
+import './arena402-broadcast.css';
+import './arena402-player.css';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 

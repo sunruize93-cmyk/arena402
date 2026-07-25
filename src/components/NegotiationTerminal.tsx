@@ -22,6 +22,15 @@ export default function NegotiationTerminal({
   const [visibleChars, setVisibleChars] = useState<Record<string, number>>({});
   const [reduceMotion, setReduceMotion] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const matchesPairing = (event: PawnhouseTimelineEvent) => {
+    const direct = String(
+      event.data.pairingId || event.data.pairing_id || '',
+    );
+    const negotiation = String(
+      event.data.negotiationId || event.data.negotiation_id || '',
+    );
+    return direct === pairingId || negotiation === `neg:${pairingId}`;
+  };
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -68,8 +77,7 @@ export default function NegotiationTerminal({
 
   const negotiationEvents = events.filter(
     (event) =>
-      event.type === 'negotiation.message' &&
-      String(event.data.pairingId || event.data.pairing_id || '') === pairingId,
+      event.type === 'negotiation.message' && matchesPairing(event),
   );
   const lastAction = String(
     negotiationEvents.at(-1)?.data.action ||
@@ -84,6 +92,8 @@ export default function NegotiationTerminal({
   const sellerId = String(
     pairingEvent?.data.sellerAgentId ||
       pairingEvent?.data.seller_agent_id ||
+      pairingEvent?.data.sellerParticipantId ||
+      pairingEvent?.data.seller_participant_id ||
       pairingEvent?.data.seller ||
       '',
   );
@@ -95,12 +105,17 @@ export default function NegotiationTerminal({
   const settled = events.some(
     (event) =>
       event.type === 'settlement.inventory_committed' &&
-      String(event.data.pairingId || event.data.pairing_id || '') === pairingId,
+      matchesPairing(event),
   );
+  const reportedRole = String(
+    negotiationEvents.at(-1)?.data.role ||
+      negotiationEvents.at(-1)?.data.actorRole ||
+      '',
+  ).toLowerCase();
   const nextRole =
     negotiationEvents.length === 0
       ? 'BUYER'
-      : lastActorId === sellerId
+      : reportedRole === 'seller' || lastActorId === sellerId
         ? 'BUYER'
         : 'SELLER';
   const waiting = lastAction !== 'accept' && lastAction !== 'reject' && !settled;

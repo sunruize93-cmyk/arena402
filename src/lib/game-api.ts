@@ -20,6 +20,7 @@ export interface PawnhouseTimelineEvent {
   type: string;
   data: Record<string, unknown>;
   occurredAt?: string;
+  createdAt?: string;
 }
 
 export interface PawnhouseTimeline {
