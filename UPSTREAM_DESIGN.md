@@ -42,3 +42,13 @@ requests.
 The backend mounts public game reads only when
 `ADX_ARENA_CORE_ENABLED=true`. This exposes `/api/v1/pawnhouse/*` reads without
 enabling the development mutation surface under `/api/dev/*`.
+
+## Authentication
+
+The primary browser login is GitHub OAuth through same-origin
+`/api/auth/github/*` routes. The backend exchanges the authorization code,
+persists the GitHub subject as an Arena identity, and sets the existing
+HttpOnly session plus CSRF cookies before redirecting to `/agents`.
+
+GitHub's client secret is backend-only. Never add it to this frontend's
+environment files or a `NEXT_PUBLIC_*` variable.

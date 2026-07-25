@@ -5,6 +5,7 @@ import './arena402-game.css';
 import './arena402-terminal.css';
 import './arena402-parallax.css';
 import './arena402-integration.css';
+import './arena402-auth.css';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
         <SiteHeader />
         <div id="page">

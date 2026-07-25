@@ -114,7 +114,13 @@ function formatTimestamp(value: string): string {
   });
 }
 
-export default function HostedAgentCreator() {
+interface HostedAgentCreatorProps {
+  onReadyChange?: (ready: boolean) => void;
+}
+
+export default function HostedAgentCreator({
+  onReadyChange,
+}: HostedAgentCreatorProps) {
   const apiKeyRef = useRef<HTMLInputElement>(null);
   const credentialRequestKey = useRef('');
   const agentRequestKey = useRef('');
@@ -203,6 +209,16 @@ export default function HostedAgentCreator() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    onReadyChange?.(
+      agents.some(
+        (agent) =>
+          agent.provisioningStatus === 'ready' &&
+          agent.routeStatus === 'ready',
+      ),
+    );
+  }, [agents, onReadyChange]);
 
   useEffect(() => {
     if (!selectedCapability || pendingAgent) return;
@@ -422,7 +438,7 @@ export default function HostedAgentCreator() {
                 account.
               </p>
               <a
-                href="/connect"
+                href="/signin?return_to=%2Fagents%23hosted-agents"
                 className="mt-3 inline-flex rounded-lg bg-purple-400/10 px-3 py-2 text-sm font-medium text-purple-200 hover:bg-purple-400/15"
               >
                 Open sign in

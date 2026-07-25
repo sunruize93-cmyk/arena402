@@ -207,6 +207,9 @@ export interface ConnectorAuthUser {
   user_id: string;
   username: string;
   temporary: boolean;
+  auth_provider: 'github' | 'password' | string;
+  display_name?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface ConnectorAuthSession {

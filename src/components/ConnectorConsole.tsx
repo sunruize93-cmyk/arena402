@@ -478,7 +478,13 @@ function RuntimeRow({
   );
 }
 
-export default function ConnectorConsole() {
+interface ConnectorConsoleProps {
+  onReadyChange?: (ready: boolean) => void;
+}
+
+export default function ConnectorConsole({
+  onReadyChange,
+}: ConnectorConsoleProps) {
   const [deviceName, setDeviceName] = useState('My computer');
   const [approvalCode, setApprovalCode] = useState('');
   const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -525,6 +531,12 @@ export default function ConnectorConsole() {
     const refreshTimer = window.setInterval(() => void refresh(true), REFRESH_INTERVAL_MS);
     return () => window.clearInterval(refreshTimer);
   }, [refresh]);
+
+  useEffect(() => {
+    onReadyChange?.(
+      bindings.some((binding) => binding.status !== 'stopped'),
+    );
+  }, [bindings, onReadyChange]);
 
   useEffect(() => {
     if (!pairing) return;

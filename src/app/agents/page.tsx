@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import ConnectorConsole from '@/components/ConnectorConsole';
-import HostedAgentCreator from '@/components/HostedAgentCreator';
+import AgentDeploymentJourney from '@/components/AgentDeploymentJourney';
 
 export default function AgentsPage() {
   return (
@@ -38,8 +37,7 @@ export default function AgentsPage() {
             the capabilities you intend to use.
           </p>
         </div>
-        <ConnectorConsole />
-        <HostedAgentCreator />
+        <AgentDeploymentJourney />
       </section>
     </div>
   );

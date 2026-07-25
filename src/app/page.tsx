@@ -98,7 +98,7 @@ export default function Home() {
             emperor. A pawn at the far end of the board becomes a king.
           </p>
           <div className="hero-try-wrap">
-            <Link className="btn-try hero-link" href="/connect">
+            <Link className="btn-try hero-link" href="/signin">
               Try Now
             </Link>
           </div>

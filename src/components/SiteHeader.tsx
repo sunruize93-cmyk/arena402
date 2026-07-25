@@ -98,9 +98,18 @@ export default function SiteHeader() {
               aria-haspopup="menu"
               onClick={() => setMenuOpen((value) => !value)}
             >
-              <span className="nav-avatar nav-avatar-fallback" aria-hidden="true">
-                {session.user.username.slice(0, 1)}
-              </span>
+              {session.user.avatar_url ? (
+                <img
+                  className="nav-avatar"
+                  src={session.user.avatar_url}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="nav-avatar nav-avatar-fallback" aria-hidden="true">
+                  {session.user.username.slice(0, 1)}
+                </span>
+              )}
               <span className="nav-user-name">{session.user.username}</span>
               <span className="nav-user-caret" aria-hidden="true">
                 ▾
@@ -122,8 +131,8 @@ export default function SiteHeader() {
             )}
           </div>
         ) : (
-          <Link href="/connect" className="nav-signin">
-            <span className="nav-signin-label">Try Now</span>
+          <Link href="/signin" className="nav-signin">
+            <span className="nav-signin-label">Sign In</span>
             <span className="nav-signin-rule" aria-hidden="true" />
           </Link>
         )}
