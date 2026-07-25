@@ -1,4 +1,4 @@
-import { arenaApiRequest } from '@/lib/platform-api';
+import { API_BASE_URL, arenaApiRequest } from '@/lib/platform-api';
 import { getConnectorCsrfToken } from '@/lib/connector-api';
 
 export interface PawnhouseGameState {
@@ -200,6 +200,16 @@ export function preflightCurrentGame(
     { agentId },
     idempotencyKey,
   );
+}
+
+export function getPawnhouseEventsUrl(
+  gameId: string,
+  after = 0,
+): string {
+  const query = new URLSearchParams({ after: String(Math.max(0, after)) });
+  return `${API_BASE_URL}/api/v1/pawnhouse/games/${encodeURIComponent(
+    gameId,
+  )}/events?${query}`;
 }
 
 export async function getActivePaymentMandate(

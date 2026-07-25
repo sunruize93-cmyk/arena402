@@ -13,6 +13,7 @@ import {
 } from '@/lib/game-demo';
 import type { DemoPlaybackPosition } from '@/lib/game-demo';
 import {
+  getPawnhouseEventsUrl,
   getPawnhouseGame,
   getPawnhouseTimeline,
   PawnhouseGameState,
@@ -355,28 +356,36 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     if (demo) return;
     let after = 0;
     let stopped = false;
+    let fallbackTimer: number | undefined;
+    let stateRefreshTimer: number | undefined;
+    let eventSource: EventSource | undefined;
+    const controller = new AbortController();
 
-    async function refresh(signal?: AbortSignal) {
+    function mergeEvents(events: PawnhouseTimelineEvent[], nextAfter?: number) {
+      if (events.length === 0 || stopped) return;
+      after = Math.max(
+        after,
+        nextAfter || 0,
+        ...events.map((event) => Number(event.sequence) || 0),
+      );
+      setLiveEvents((current) => {
+        const merged = [...current, ...events];
+        return merged
+          .filter(
+            (event, index, rows) =>
+              rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
+              index,
+          )
+          .sort((left, right) => left.sequence - right.sequence)
+          .slice(-120);
+      });
+    }
+
+    async function refreshState(signal?: AbortSignal) {
       try {
-        const [nextState, timeline] = await Promise.all([
-          getPawnhouseGame(gameId, signal),
-          getPawnhouseTimeline(gameId, after, signal),
-        ]);
+        const nextState = await getPawnhouseGame(gameId, signal);
         if (stopped) return;
         setLiveState(nextState);
-        if (timeline.events.length > 0) {
-          after = timeline.nextAfter;
-          setLiveEvents((current) => {
-            const merged = [...current, ...timeline.events];
-            return merged
-              .filter(
-                (event, index, rows) =>
-                  rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
-                  index,
-              )
-              .slice(-120);
-          });
-        }
         setError('');
       } catch (cause) {
         if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
@@ -385,13 +394,77 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       }
     }
 
-    const controller = new AbortController();
-    void refresh(controller.signal);
-    const timer = window.setInterval(() => void refresh(), 3_000);
+    async function refreshAll(signal?: AbortSignal) {
+      try {
+        const [nextState, timeline] = await Promise.all([
+          getPawnhouseGame(gameId, signal),
+          getPawnhouseTimeline(gameId, after, signal),
+        ]);
+        if (stopped) return;
+        setLiveState(nextState);
+        mergeEvents(timeline.events, timeline.nextAfter);
+        setError('');
+      } catch (cause) {
+        if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
+          setError('This table is not available from the public Arena API.');
+        }
+      }
+    }
+
+    function startFallback() {
+      if (fallbackTimer !== undefined || stopped) return;
+      fallbackTimer = window.setInterval(() => void refreshAll(), 3_000);
+    }
+
+    function stopFallback() {
+      if (fallbackTimer === undefined) return;
+      window.clearInterval(fallbackTimer);
+      fallbackTimer = undefined;
+    }
+
+    void refreshAll(controller.signal).then(() => {
+      if (stopped) return;
+      if (typeof EventSource === 'undefined') {
+        startFallback();
+        return;
+      }
+
+      eventSource = new EventSource(getPawnhouseEventsUrl(gameId, after));
+      eventSource.onopen = stopFallback;
+      eventSource.onerror = startFallback;
+      eventSource.addEventListener('arena', (message) => {
+        try {
+          const event = JSON.parse(message.data) as PawnhouseTimelineEvent;
+          if (
+            !event ||
+            !Number.isFinite(Number(event.sequence)) ||
+            typeof event.type !== 'string' ||
+            typeof event.data !== 'object'
+          ) {
+            return;
+          }
+          mergeEvents([event]);
+          if (stateRefreshTimer !== undefined) {
+            window.clearTimeout(stateRefreshTimer);
+          }
+          stateRefreshTimer = window.setTimeout(
+            () => void refreshState(),
+            250,
+          );
+        } catch {
+          // Ignore malformed public projection records and keep the stream alive.
+        }
+      });
+    });
+
     return () => {
       stopped = true;
       controller.abort();
-      window.clearInterval(timer);
+      eventSource?.close();
+      stopFallback();
+      if (stateRefreshTimer !== undefined) {
+        window.clearTimeout(stateRefreshTimer);
+      }
     };
   }, [demo, gameId]);
 

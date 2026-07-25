@@ -44,10 +44,14 @@ test('Current Game client uses the single public product endpoint', async () => 
     new URL('../src/lib/game-api.ts', import.meta.url),
     {
       '@/lib/platform-api': {
+        API_BASE_URL: 'https://api.arena402.test',
         arenaApiRequest: async (path, init) => {
           calls.push({ path, init });
           return expected;
         },
+      },
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'csrf-test',
       },
     },
   );
@@ -59,6 +63,10 @@ test('Current Game client uses the single public product endpoint', async () => 
   assert.equal(calls[0].path, '/api/v1/games/current');
   assert.equal(calls[0].init.signal, controller.signal);
   assert.deepEqual(result, expected);
+  assert.equal(
+    gameApi.getPawnhouseEventsUrl('game current', 4),
+    'https://api.arena402.test/api/v1/pawnhouse/games/game%20current/events?after=4',
+  );
 });
 
 test('Current Game lobby keeps 404 as a retrying preparation state', () => {
@@ -72,4 +80,16 @@ test('Current Game lobby keeps 404 as a retrying preparation state', () => {
   assert.match(source, /window\.setInterval/);
   assert.match(source, /status === 'RUNNING'/);
   assert.match(source, /router\.replace/);
+});
+
+test('Live Game viewer uses SSE with a polling fallback', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /new EventSource/);
+  assert.match(source, /getPawnhouseEventsUrl/);
+  assert.match(source, /addEventListener\('arena'/);
+  assert.match(source, /window\.setInterval/);
 });
