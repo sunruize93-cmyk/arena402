@@ -8,6 +8,7 @@ import './arena402-integration.css';
 import './arena402-auth.css';
 import './arena402-broadcast.css';
 import './arena402-player.css';
+import './arena402-wallet.css';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 
