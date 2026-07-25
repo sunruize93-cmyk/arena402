@@ -247,6 +247,7 @@
 .gm-game-search input::placeholder { color: var(--grey-dark); }
 .gm-game-search input:focus { border-color: var(--paper); outline: none; }
 .gm-game-search .btn:disabled { cursor: not-allowed; opacity: 0.35; }
+.gm-primary-action:disabled { cursor: wait; opacity: 0.45; }
 
 .gm-open-note {
   grid-column: 2;
@@ -254,6 +255,99 @@
   color: var(--grey-dark);
   font-size: 9px;
   line-height: 1.8;
+}
+
+.gm-current-table { align-items: start; }
+
+.gm-current-status {
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  padding: 20px 0;
+}
+
+.gm-current-status > p {
+  max-width: 600px;
+  color: var(--grey);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.gm-current-count {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-family: var(--mono);
+  letter-spacing: 0.14em;
+}
+
+.gm-current-count span {
+  color: var(--grey);
+  font-size: 9px;
+}
+
+.gm-current-count strong {
+  color: var(--paper);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.gm-current-participants {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  list-style: none;
+  background: var(--line);
+}
+
+.gm-current-participants li {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--ink-deep);
+  color: var(--paper-dim);
+  font-size: 10px;
+}
+
+.gm-current-participants small {
+  color: var(--grey-dark);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gm-current-participants .gm-current-empty {
+  grid-column: 1 / -1;
+  color: var(--grey);
+}
+
+.gm-known-table {
+  grid-column: 2;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.gm-known-table summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--grey-dark);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.gm-known-table[open] summary {
+  margin-bottom: 14px;
+  color: var(--paper-dim);
 }
 
 /* Live game — shared structure */
@@ -1230,7 +1324,9 @@
   .gm-acts { grid-template-columns: 1fr; }
   .gm-section-intro { position: static; }
   .gm-open-table { grid-template-columns: 1fr; padding: 36px; }
-  .gm-open-note { grid-column: 1; }
+  .gm-open-note,
+  .gm-current-participants,
+  .gm-known-table { grid-column: 1; }
   .gm-live-head { align-items: start; flex-direction: column; }
   .gm-head-status { padding: 15px 0 0; border-top: 1px solid var(--line); border-left: 0; }
   .gm-ritual-step {
@@ -1257,6 +1353,8 @@
   .gm-act { grid-template-columns: 46px minmax(0, 1fr); }
   .gm-open-table { padding: 27px 22px; }
   .gm-game-search { grid-template-columns: 1fr; }
+  .gm-current-status { align-items: flex-start; flex-direction: column; }
+  .gm-current-participants { grid-template-columns: 1fr; }
   .gm-utility-row { align-items: start; flex-direction: column; }
   .gm-price-ticker-set { gap: 28px; padding-right: 28px; }
   .gm-price-ticker-track { animation-duration: 26s; }

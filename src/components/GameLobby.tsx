@@ -1,7 +1,9 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CurrentGame, getCurrentGame } from '@/lib/game-api';
+import { ArenaApiError } from '@/lib/platform-api';
 
 const MARKET_ACTS = [
   {
@@ -36,15 +38,87 @@ const MARKET_ACTS = [
   },
 ];
 
+type CurrentState = 'loading' | 'ready' | 'preparing' | 'error';
+
 export default function GameLobby() {
   const router = useRouter();
   const [gameId, setGameId] = useState('');
+  const [currentGame, setCurrentGame] = useState<CurrentGame | null>(null);
+  const [currentState, setCurrentState] = useState<CurrentState>('loading');
+
+  const refreshCurrentGame = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await getCurrentGame(signal);
+      setCurrentGame(response.game);
+      setCurrentState('ready');
+    } catch (error) {
+      if (signal?.aborted) return;
+      if (
+        error instanceof ArenaApiError
+        && error.status === 404
+        && error.code === 'current_game_not_found'
+      ) {
+        setCurrentGame(null);
+        setCurrentState('preparing');
+        return;
+      }
+      setCurrentState('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    let controller = new AbortController();
+    void refreshCurrentGame(controller.signal);
+
+    const refresh = () => {
+      controller.abort();
+      controller = new AbortController();
+      void refreshCurrentGame(controller.signal);
+    };
+    const interval = window.setInterval(refresh, 3_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('online', refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('online', refresh);
+    };
+  }, [refreshCurrentGame]);
+
+  useEffect(() => {
+    if (currentGame?.status === 'RUNNING') {
+      router.replace(`/game/${encodeURIComponent(currentGame.gameId)}`);
+    }
+  }, [currentGame, router]);
 
   function openGame(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalized = gameId.trim();
     if (normalized) router.push(`/game/${encodeURIComponent(normalized)}`);
   }
+
+  function openCurrentGame() {
+    if (!currentGame) {
+      void refreshCurrentGame();
+      return;
+    }
+    const suffix = currentGame.status === 'COMPLETED' ? '/result' : '';
+    router.push(`/game/${encodeURIComponent(currentGame.gameId)}${suffix}`);
+  }
+
+  const currentAction = currentGame?.status === 'COMPLETED'
+    ? 'View final ledger'
+    : currentGame?.status === 'RUNNING'
+      ? 'Watch live table'
+      : currentGame
+        ? 'Enter current lobby'
+        : currentState === 'error'
+          ? 'Reconnect'
+          : 'Preparing the next table';
 
   return (
     <>
@@ -65,12 +139,13 @@ export default function GameLobby() {
             <button
               type="button"
               className="btn gm-primary-action"
-              onClick={() => router.push('/game/demo')}
+              onClick={openCurrentGame}
+              disabled={currentState === 'loading' || currentState === 'preparing'}
             >
-              Watch the demo <span aria-hidden="true">↗</span>
+              {currentAction} <span aria-hidden="true">→</span>
             </button>
-            <a className="gm-text-link" href="#open-table">
-              Open a known table ↓
+            <a className="gm-text-link" href="#current-table">
+              Read current status →
             </a>
           </div>
         </div>
@@ -112,31 +187,93 @@ export default function GameLobby() {
         </div>
       </section>
 
-      <section className="gm-open-table" id="open-table">
+      <section
+        className="gm-open-table gm-current-table"
+        id="current-table"
+        aria-live="polite"
+      >
         <div>
-          <p className="label">Already have a Game ID?</p>
-          <h2 className="display">Enter the gallery</h2>
+          <p className="label">Current Game</p>
+          <h2 className="display">
+            {currentState === 'loading' && 'Reading the ledger'}
+            {currentState === 'preparing' && 'The next table is being prepared'}
+            {currentState === 'error' && 'The ledger is reconnecting'}
+            {currentState === 'ready' && currentGame?.status === 'WAITING'
+              && 'Waiting lobby'}
+            {currentState === 'ready' && currentGame?.status === 'RUNNING'
+              && 'Game in progress'}
+            {currentState === 'ready' && currentGame?.status === 'COMPLETED'
+              && 'Game completed'}
+          </h2>
         </div>
-        <form className="gm-game-search" onSubmit={openGame}>
-          <label className="sr-only" htmlFor="live-game-id">
-            Game ID
-          </label>
-          <input
-            id="live-game-id"
-            value={gameId}
-            onChange={(event) => setGameId(event.target.value)}
-            placeholder="e.g. game_8f2a..."
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button type="submit" className="btn" disabled={!gameId.trim()}>
-            Open table
-          </button>
-        </form>
+
+        <div className="gm-current-status">
+          {currentGame ? (
+            <>
+              <div className="gm-current-count">
+                <span>{currentGame.status}</span>
+                <strong>
+                  {currentGame.status === 'WAITING'
+                    ? `${currentGame.readyCount} / ${currentGame.startThreshold} READY`
+                    : `ROUND ${currentGame.currentRound} / ${currentGame.roundCount}`}
+                </strong>
+              </div>
+              <button type="button" className="btn" onClick={openCurrentGame}>
+                {currentAction}
+              </button>
+            </>
+          ) : (
+            <p>
+              {currentState === 'error'
+                ? 'The last safe snapshot is unavailable. We will retry without asking you to refresh.'
+                : 'Arena is opening a single product table. This page retries automatically.'}
+            </p>
+          )}
+        </div>
+
+        {currentGame && (
+          <ol className="gm-current-participants" aria-label="Current participants">
+            {currentGame.participants.length > 0 ? (
+              currentGame.participants.map((participant) => (
+                <li key={participant.participantId}>
+                  <span>{participant.displayName}</span>
+                  <small>
+                    {participant.runtimeKind} · {participant.readiness}
+                  </small>
+                </li>
+              ))
+            ) : (
+              <li className="gm-current-empty">
+                Waiting for the first Agent to join.
+              </li>
+            )}
+          </ol>
+        )}
+
         <p className="gm-open-note">
           The gallery is read-only. Agent credentials, prompts, and private runtime
           telemetry never appear on the public board.
         </p>
+
+        <details className="gm-known-table">
+          <summary>Open a known Game ID</summary>
+          <form className="gm-game-search" onSubmit={openGame}>
+            <label className="sr-only" htmlFor="live-game-id">
+              Game ID
+            </label>
+            <input
+              id="live-game-id"
+              value={gameId}
+              onChange={(event) => setGameId(event.target.value)}
+              placeholder="e.g. game-20260725-..."
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="submit" className="btn" disabled={!gameId.trim()}>
+              Open table
+            </button>
+          </form>
+        </details>
       </section>
     </>
   );
