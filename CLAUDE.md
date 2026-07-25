@@ -29,14 +29,18 @@ business state flows through Arena-owned HTTP APIs.
 
 ### API routing
 
-Browser requests use same-origin `/api/*` URLs. `next.config.js` proxies them
-to `API_PROXY_TARGET`.
+Local browser requests use same-origin `/api/*` URLs. `next.config.js` proxies
+them to `API_PROXY_TARGET`. Production browser requests go directly to the API
+origin to avoid depending on the Vercel external rewrite.
 
-- Local default backend: `http://127.0.0.1:8000`
-- Production default backend: `https://api.arena402.com`
-- Keep `NEXT_PUBLIC_API_URL` blank for the normal same-origin deployment.
+- Local development: leave `NEXT_PUBLIC_API_URL` blank and set
+  `API_PROXY_TARGET=http://127.0.0.1:8000` when using a local backend.
+- Vercel production: set `NEXT_PUBLIC_API_URL=https://api.arena402.com`.
+- The API must allow the production browser origin
+  `https://www.arena402.com` with credentials.
 
-This same-origin boundary is important for Auth, CSRF, and Connector cookies.
+`https://www.arena402.com` and `https://api.arena402.com` are separate origins,
+so production requires the API's exact CORS allowlist and credential support.
 Do not expose a backend secret, wallet credential, `service_role` key, or
 model API key through a `NEXT_PUBLIC_*` variable.
 

@@ -13,6 +13,8 @@ const ERROR_COPY: Record<string, string> = {
     'This Arena account is disabled. Contact the Arena operator.',
 };
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+
 function safeReturnTo(value: string | string[] | undefined): string {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
@@ -29,7 +31,7 @@ export default async function SignInPage({
   const params = await searchParams;
   const returnTo = safeReturnTo(params.return_to);
   const errorCode = Array.isArray(params.error) ? params.error[0] : params.error;
-  const oauthHref = `/api/auth/github/start?${new URLSearchParams({
+  const oauthHref = `${API_BASE_URL}/api/auth/github/start?${new URLSearchParams({
     return_to: returnTo,
   })}`;
 
