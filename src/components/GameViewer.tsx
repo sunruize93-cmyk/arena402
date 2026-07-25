@@ -2,6 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import MarketPriceTicker from '@/components/MarketPriceTicker';
+import NegotiationTerminal from '@/components/NegotiationTerminal';
+import {
+  advanceDemoPlayback,
+  buildDemoGameState,
+  DEMO_INITIAL_EVENT_COUNT,
+  DEMO_ROUNDS,
+} from '@/lib/game-demo';
+import type { DemoPlaybackPosition } from '@/lib/game-demo';
 import {
   getPawnhouseGame,
   getPawnhouseTimeline,
@@ -144,96 +153,6 @@ const EVENT_LABELS: Record<string, { title: string; description: string }> = {
   },
 };
 
-const DEMO_STATE: PawnhouseGameState = {
-  gameId: 'demo',
-  phase: 'running',
-  currentRound: 3,
-  roundCount: 5,
-  eventScheduleCommitment: '0x402d7c88a33b7a16',
-  participants: [
-    { agent_id: 'cassius', runtime_kind: 'hosted', status: 'active' },
-    { agent_id: 'livia', runtime_kind: 'hosted', status: 'active' },
-    { agent_id: 'marius', runtime_kind: 'remote', status: 'active' },
-    { agent_id: 'octavia', runtime_kind: 'remote', status: 'active' },
-  ],
-  rounds: [
-    { round_index: 1, phase: 'closed' },
-    { round_index: 2, phase: 'closed' },
-    { round_index: 3, phase: 'negotiating' },
-  ],
-  schemaVersion: 'arena.pawnhouse-game-state.v1',
-};
-
-const DEMO_EVENTS: PawnhouseTimelineEvent[] = [
-  {
-    sequence: 1,
-    type: 'round.started',
-    data: { roundIndex: 3 },
-    occurredAt: '2026-07-25T04:32:10Z',
-  },
-  {
-    sequence: 2,
-    type: 'world.event_revealed',
-    data: { eventId: 'granary-fire', round: 3 },
-    occurredAt: '2026-07-25T04:32:11Z',
-  },
-  {
-    sequence: 3,
-    type: 'decision.applied',
-    data: { agentId: 'cassius', action: 'buy', goodId: 'grain' },
-    occurredAt: '2026-07-25T04:32:17Z',
-  },
-  {
-    sequence: 4,
-    type: 'decision.applied',
-    data: { agentId: 'livia', action: 'sell', goodId: 'grain' },
-    occurredAt: '2026-07-25T04:32:18Z',
-  },
-  {
-    sequence: 5,
-    type: 'decision.applied',
-    data: { agentId: 'marius', action: 'pass' },
-    occurredAt: '2026-07-25T04:32:20Z',
-  },
-  {
-    sequence: 6,
-    type: 'pairing.created',
-    data: {
-      pairingId: 'pair-03-a',
-      buyerAgentId: 'cassius',
-      sellerAgentId: 'livia',
-      goodId: 'grain',
-    },
-    occurredAt: '2026-07-25T04:32:21Z',
-  },
-  {
-    sequence: 7,
-    type: 'negotiation.message',
-    data: {
-      pairingId: 'pair-03-a',
-      actorAgentId: 'cassius',
-      action: 'propose',
-      priceAtomic: '2700000',
-      quantity: 2,
-      message: 'Two sacks before the northern gate closes.',
-    },
-    occurredAt: '2026-07-25T04:32:24Z',
-  },
-  {
-    sequence: 8,
-    type: 'negotiation.message',
-    data: {
-      pairingId: 'pair-03-a',
-      actorAgentId: 'livia',
-      action: 'propose',
-      priceAtomic: '3100000',
-      quantity: 2,
-      message: 'Scarcity has its price. Three and one tenth.',
-    },
-    occurredAt: '2026-07-25T04:32:28Z',
-  },
-];
-
 function pick(record: RecordValue | undefined, ...keys: string[]): unknown {
   if (!record) return undefined;
   for (const key of keys) {
@@ -372,29 +291,6 @@ function pairingRows(events: PawnhouseTimelineEvent[]) {
     });
 }
 
-function negotiationRows(events: PawnhouseTimelineEvent[], pairingId?: string) {
-  return events
-    .filter((event) => {
-      if (event.type !== 'negotiation.message') return false;
-      if (!pairingId) return true;
-      return (
-        publicText(pick(event.data, 'pairingId', 'pairing_id'), pairingId) === pairingId
-      );
-    })
-    .slice(-3)
-    .map((event) => ({
-      sequence: event.sequence,
-      agent: eventAgent(event.data),
-      action: publicText(pick(event.data, 'action'), 'response').toUpperCase(),
-      price: atomicGold(pick(event.data, 'priceAtomic', 'price_atomic', 'price')),
-      quantity: Number(pick(event.data, 'quantity') || 1),
-      message: publicText(
-        pick(event.data, 'message', 'publicMessage', 'public_message'),
-        'Terms submitted under the Arena negotiation contract.',
-      ),
-    }));
-}
-
 function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEvent[]) {
   const participants = Array.isArray(state?.participants) ? state.participants : [];
   return participants.map((participant, index) => {
@@ -418,14 +314,22 @@ function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEv
 
 export default function GameViewer({ gameId }: { gameId: string }) {
   const demo = gameId === 'demo';
-  const [state, setState] = useState<PawnhouseGameState | null>(
-    demo ? DEMO_STATE : null,
-  );
-  const [events, setEvents] = useState<PawnhouseTimelineEvent[]>(
-    demo ? DEMO_EVENTS : [],
-  );
+  const [liveState, setLiveState] = useState<PawnhouseGameState | null>(null);
+  const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
   const [error, setError] = useState('');
   const [auditOpen, setAuditOpen] = useState(false);
+  const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
+    roundIndex: 0,
+    eventCount: DEMO_INITIAL_EVENT_COUNT,
+  });
+
+  useEffect(() => {
+    if (!demo) return;
+    const timer = window.setInterval(() => {
+      setDemoPlayback((current) => advanceDemoPlayback(current));
+    }, 1_900);
+    return () => window.clearInterval(timer);
+  }, [demo]);
 
   useEffect(() => {
     if (demo) return;
@@ -439,10 +343,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           getPawnhouseTimeline(gameId, after, signal),
         ]);
         if (stopped) return;
-        setState(nextState);
+        setLiveState(nextState);
         if (timeline.events.length > 0) {
           after = timeline.nextAfter;
-          setEvents((current) => {
+          setLiveEvents((current) => {
             const merged = [...current, ...timeline.events];
             return merged
               .filter(
@@ -471,13 +375,13 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     };
   }, [demo, gameId]);
 
+  const demoRound = DEMO_ROUNDS[demoPlayback.roundIndex] || DEMO_ROUNDS[0];
+  const demoEvents = demoRound.events.slice(0, demoPlayback.eventCount);
+  const state = demo ? buildDemoGameState(demoRound, demoEvents) : liveState;
+  const events = demo ? demoEvents : liveEvents;
   const phase = currentRoundPhase(state);
   const bulletin = useMemo(() => worldBulletin(events), [events]);
   const pairs = useMemo(() => pairingRows(events), [events]);
-  const messages = useMemo(
-    () => negotiationRows(events, pairs[0]?.id),
-    [events, pairs],
-  );
   const agents = useMemo(() => agentRows(state, events), [state, events]);
   const currentRound = Number(state?.currentRound || 0);
   const totalRounds = Number(state?.roundCount || state?.totalRounds || 0);
@@ -498,6 +402,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           {isComplete ? 'Ledger closed' : demo ? 'Scripted live demo' : 'Public live feed'}
         </div>
       </div>
+
+      {demo && <MarketPriceTicker />}
 
       <header className="gm-live-head">
         <div>
@@ -567,7 +473,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               </h2>
             </div>
             <span className="gm-stage-index label">
-              {String(latestEvent?.sequence || 0).padStart(3, '0')} events
+              {String(demo ? events.length : latestEvent?.sequence || 0).padStart(
+                3,
+                '0',
+              )}{' '}
+              events
             </span>
           </div>
 
@@ -616,25 +526,20 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               </p>
               <p>Buyer speaks first · Three turns maximum</p>
             </div>
-            {messages.length > 0 ? (
-              <div className="gm-offer-list">
-                {messages.map((message, index) => (
-                  <article className="gm-offer" key={message.sequence}>
-                    <div className="gm-offer-turn">
-                      <span className="label">Seal {index + 1}</span>
-                      <strong>{message.agent}</strong>
-                    </div>
-                    <div className="gm-offer-terms">
-                      <span className="label">{message.action}</span>
-                      <strong>
-                        {message.price || '—'} <small>GOLD</small>
-                      </strong>
-                      <p>Quantity {message.quantity}</p>
-                    </div>
-                    <blockquote>“{message.message}”</blockquote>
-                  </article>
-                ))}
-              </div>
+            {pairs[0] ? (
+              <NegotiationTerminal
+                events={events}
+                pairingId={pairs[0].id}
+                onReplay={
+                  demo
+                    ? () =>
+                        setDemoPlayback({
+                          roundIndex: 0,
+                          eventCount: DEMO_INITIAL_EVENT_COUNT,
+                        })
+                    : undefined
+                }
+              />
             ) : (
               <div className="gm-waiting-board">
                 <span className="gm-waiting-mark" aria-hidden="true">
