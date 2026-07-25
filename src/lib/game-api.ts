@@ -41,6 +41,39 @@ export interface GameParticipation {
   schemaVersion: string;
 }
 
+export type CurrentGameStatus = 'WAITING' | 'RUNNING' | 'COMPLETED';
+
+export interface CurrentGameParticipant {
+  participantId: string;
+  agentId: string;
+  displayName: string;
+  runtimeKind: string;
+  readiness: 'PENDING' | 'READY';
+  joinedAt: string;
+}
+
+export interface CurrentGame {
+  gameId: string;
+  status: CurrentGameStatus;
+  readyCount: number;
+  startThreshold: number;
+  maxParticipants: number;
+  roundCount: number;
+  currentRound: number;
+  roundPhase: string | null;
+  joinedByMe: boolean;
+  participants: CurrentGameParticipant[];
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CurrentGameResponse {
+  game: CurrentGame;
+  nextGamePending: boolean;
+  schemaVersion: 'arena.current-game.v1' | string;
+}
+
 interface GameParticipationList {
   participations: GameParticipation[];
   total: number;
@@ -48,6 +81,12 @@ interface GameParticipationList {
 
 async function gameGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   return arenaApiRequest<T>(path, { signal });
+}
+
+export function getCurrentGame(
+  signal?: AbortSignal,
+): Promise<CurrentGameResponse> {
+  return gameGet<CurrentGameResponse>('/api/v1/games/current', signal);
 }
 
 export function getPawnhouseGame(

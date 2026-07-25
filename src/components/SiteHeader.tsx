@@ -15,6 +15,7 @@ const PRIMARY_LINKS = [
   { href: '/arena', label: 'Arena' },
   { href: '/agents', label: 'Agents' },
   { href: '/game', label: 'Game' },
+  { href: '/ledger', label: 'Ledger' },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -101,6 +102,12 @@ export default function SiteHeader() {
         >
           Market
         </Link>
+        <Link
+          href="/wallet"
+          className={`nav-link ${isActive(pathname, '/wallet') ? 'active' : ''}`}
+        >
+          Treasury
+        </Link>
         {loading ? (
           <span className="nav-session-loading" aria-label="Checking session" />
         ) : session ? (
@@ -137,6 +144,9 @@ export default function SiteHeader() {
                 </Link>
                 <Link href="/connect" role="menuitem">
                   Connect computer
+                </Link>
+                <Link href="/wallet" role="menuitem">
+                  Open treasury
                 </Link>
                 <button type="button" role="menuitem" onClick={() => void signOut()}>
                   Sign out
