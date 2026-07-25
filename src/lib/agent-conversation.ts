@@ -16,33 +16,106 @@ export interface AgentConversationEntry {
   occurredAt?: string;
 }
 
-const DISPLAY_FIELDS = [
-  'message',
-  'content',
-  'text',
-  'summary',
-  'action',
-  'status',
-] as const;
+type DisplayField =
+  | 'action'
+  | 'content'
+  | 'message'
+  | 'status'
+  | 'summary'
+  | 'text';
 
-const DISPLAY_EVENT_LABELS: Record<string, string> = {
-  'arena.message': 'ARENA MESSAGE',
-  'command.completed': 'COMMAND COMPLETED',
-  'command.failed': 'COMMAND FAILED',
-  'command.started': 'COMMAND STARTED',
-  'process.completed': 'PROCESS COMPLETED',
-  'process.failed': 'PROCESS FAILED',
-  'process.started': 'PROCESS STARTED',
-  'runtime.message': 'AGENT MESSAGE',
-  'runtime.task.completed': 'TASK COMPLETED',
-  'runtime.task.failed': 'TASK FAILED',
-  'runtime.task.started': 'TASK STARTED',
-  'session.completed': 'SESSION COMPLETED',
-  'session.failed': 'SESSION FAILED',
-  'session.started': 'SESSION STARTED',
-  'task.completed': 'TASK COMPLETED',
-  'task.failed': 'TASK FAILED',
-  'task.started': 'TASK STARTED',
+type DisplayEventDefinition = {
+  fields: readonly DisplayField[];
+  label: string;
+  speaker: AgentConversationEntry['speaker'];
+};
+
+const DISPLAY_EVENTS: Record<string, DisplayEventDefinition> = {
+  'arena.message': {
+    fields: ['message', 'content', 'text'],
+    label: 'ARENA MESSAGE',
+    speaker: 'ARENA',
+  },
+  'command.completed': {
+    fields: ['summary', 'status', 'action'],
+    label: 'COMMAND COMPLETED',
+    speaker: 'ARENA',
+  },
+  'command.failed': {
+    fields: ['summary', 'status', 'action'],
+    label: 'COMMAND FAILED',
+    speaker: 'ARENA',
+  },
+  'command.started': {
+    fields: ['summary', 'status', 'action'],
+    label: 'COMMAND STARTED',
+    speaker: 'ARENA',
+  },
+  'process.completed': {
+    fields: ['summary', 'status'],
+    label: 'PROCESS COMPLETED',
+    speaker: 'RUNTIME',
+  },
+  'process.failed': {
+    fields: ['summary', 'status'],
+    label: 'PROCESS FAILED',
+    speaker: 'RUNTIME',
+  },
+  'process.started': {
+    fields: ['summary', 'status'],
+    label: 'PROCESS STARTED',
+    speaker: 'RUNTIME',
+  },
+  'runtime.message': {
+    fields: ['message', 'content'],
+    label: 'AGENT MESSAGE',
+    speaker: 'AGENT',
+  },
+  'runtime.task.completed': {
+    fields: ['summary', 'status', 'action'],
+    label: 'TASK COMPLETED',
+    speaker: 'ARENA',
+  },
+  'runtime.task.failed': {
+    fields: ['summary', 'status', 'action'],
+    label: 'TASK FAILED',
+    speaker: 'ARENA',
+  },
+  'runtime.task.started': {
+    fields: ['summary', 'status', 'action'],
+    label: 'TASK STARTED',
+    speaker: 'ARENA',
+  },
+  'session.completed': {
+    fields: ['summary', 'status'],
+    label: 'SESSION COMPLETED',
+    speaker: 'RUNTIME',
+  },
+  'session.failed': {
+    fields: ['summary', 'status'],
+    label: 'SESSION FAILED',
+    speaker: 'RUNTIME',
+  },
+  'session.started': {
+    fields: ['summary', 'status'],
+    label: 'SESSION STARTED',
+    speaker: 'RUNTIME',
+  },
+  'task.completed': {
+    fields: ['summary', 'status', 'action'],
+    label: 'TASK COMPLETED',
+    speaker: 'ARENA',
+  },
+  'task.failed': {
+    fields: ['summary', 'status', 'action'],
+    label: 'TASK FAILED',
+    speaker: 'ARENA',
+  },
+  'task.started': {
+    fields: ['summary', 'status', 'action'],
+    label: 'TASK STARTED',
+    speaker: 'ARENA',
+  },
 };
 
 const SENSITIVE_TEXT = [
@@ -60,9 +133,12 @@ function safeDisplayText(value: string): string {
   return next.slice(0, 600);
 }
 
-function displayText(data: Record<string, unknown> | undefined): string {
+function displayText(
+  data: Record<string, unknown> | undefined,
+  fields: readonly DisplayField[],
+): string {
   if (!data) return 'No public message was attached to this event.';
-  for (const field of DISPLAY_FIELDS) {
+  for (const field of fields) {
     const value = data[field];
     if (typeof value === 'string' || typeof value === 'number') {
       const text = String(value).trim();
@@ -70,30 +146,6 @@ function displayText(data: Record<string, unknown> | undefined): string {
     }
   }
   return 'Event recorded. No public transcript text is available.';
-}
-
-function displayEventLabel(value: string): string {
-  const normalized = value.toLowerCase();
-  return DISPLAY_EVENT_LABELS[normalized] || 'RUNTIME EVENT';
-}
-
-function speaker(eventType: string, data?: Record<string, unknown>) {
-  const role = String(data?.role || data?.speaker || '').toLowerCase();
-  if (
-    role === 'assistant' ||
-    role === 'agent' ||
-    eventType.includes('message')
-  ) {
-    return 'AGENT' as const;
-  }
-  if (
-    eventType.includes('task') ||
-    eventType.includes('command') ||
-    eventType.includes('arena')
-  ) {
-    return 'ARENA' as const;
-  }
-  return 'RUNTIME' as const;
 }
 
 export function buildConversationEntries(
@@ -108,13 +160,17 @@ export function buildConversationEntries(
       }
       return Number(left.sequence || 0) - Number(right.sequence || 0);
     })
-    .map((event, index) => {
-      const eventType = String(event.event_type || event.type || 'runtime.event');
+    .flatMap((event, index) => {
+      const eventType = String(
+        event.event_type || event.type || '',
+      ).toLowerCase();
+      const definition = DISPLAY_EVENTS[eventType];
+      if (!definition) return [];
       return {
         id: `runtime-event:${event.sequence ?? index}`,
-        speaker: speaker(eventType, event.data),
-        label: displayEventLabel(eventType),
-        text: displayText(event.data),
+        speaker: definition.speaker,
+        label: definition.label,
+        text: displayText(event.data, definition.fields),
         occurredAt: event.occurred_at || event.received_at,
       };
     });

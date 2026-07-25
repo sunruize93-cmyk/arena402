@@ -60,18 +60,25 @@ test('conversation projection exposes only allowlisted display fields', () => {
         unknown: 'must-not-render-unknown',
       },
     },
+    {
+      event_id: 'runtime-stdout-id',
+      event_type: 'runtime.stdout',
+      data: {
+        text: 'raw runtime output must-not-render-stdout',
+      },
+    },
   ]);
 
-  assert.equal(entries.length, 4);
+  assert.equal(entries.length, 3);
   assert.equal(entries[0].speaker, 'AGENT');
   assert.match(entries[0].text, /hold grain/);
   assert.doesNotMatch(JSON.stringify(entries), /must-not-render|api_key|SECRET/);
   assert.equal(entries[1].speaker, 'ARENA');
   assert.match(entries[2].text, /REDACTED/);
   assert.doesNotMatch(JSON.stringify(entries), /sk-this-value/);
-  assert.equal(entries[3].label, 'RUNTIME EVENT');
+  assert.doesNotMatch(JSON.stringify(entries), /private_key_super_secret/);
   assert.doesNotMatch(
-    JSON.stringify(entries[3]),
-    /private_key_super_secret|runtime.secret-id|public-message|unknown/,
+    JSON.stringify(entries),
+    /runtime\.stdout|runtime-stdout-id/,
   );
 });
