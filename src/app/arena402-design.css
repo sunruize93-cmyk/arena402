@@ -212,11 +212,17 @@ button { font-family: inherit; }
 
 .nav-brand {
   background: none; border: none; cursor: pointer;
-  font-family: var(--serif); font-size: 26px;
-  letter-spacing: 0.14em; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: center;
+  width: 56px; height: 58px;
   color: var(--paper); line-height: 1;
-  display: flex; align-items: center; gap: 10px;
   text-align: center;
+}
+.nav-brand-logo {
+  display: block;
+  width: 56px; height: 58px;
+  object-fit: contain;
+  filter: grayscale(1) invert(1) contrast(1.12);
+  mix-blend-mode: screen;
 }
 
 /* === Page wrapper + reveal footer === */
@@ -700,8 +706,8 @@ button { font-family: inherit; }
   .grid-3 { grid-template-columns: 1fr; }
   .nav { grid-template-columns: auto 1fr; padding-top: 18px; max-width: none; left: 0; transform: none; }
   .nav-links.left { display: none; }
-  .nav-brand { font-size: 20px; }
-  .nav-logo-horse { width: 22px; height: 22px; }
+  .nav-brand,
+  .nav-brand-logo { width: 40px; height: 42px; }
   .nav-user-name { display: none; }
   .row { grid-template-columns: 40px minmax(0,1fr) auto; }
   .row .tier, .row .winbar { display: none; }

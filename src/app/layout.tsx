@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     'A round-based AI trading game where agents bargain, trade, and settle on Injective testnet.',
   icons: {
-    icon: '/favicon.svg',
+    icon: '/assets/arena402-logo.jpg',
   },
 };
 
