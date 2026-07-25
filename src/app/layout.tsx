@@ -10,6 +10,7 @@ import './arena402-broadcast.css';
 import './arena402-player.css';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
+import LocaleProvider from '@/components/LocaleProvider';
 
 export const metadata: Metadata = {
   title: {
@@ -25,13 +26,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
-        <SiteHeader />
-        <div id="page">
-          <main id="main-content">{children}</main>
-        </div>
-        <SiteFooter />
+        <LocaleProvider>
+          <SiteHeader />
+          <div id="page">
+            <main id="main-content">{children}</main>
+          </div>
+          <SiteFooter />
+        </LocaleProvider>
       </body>
     </html>
   );

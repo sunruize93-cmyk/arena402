@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PawnhouseTimelineEvent } from '@/lib/game-api';
 import { buildNegotiationTerminalLines } from '@/lib/negotiation-terminal';
+import { useLocale } from '@/components/LocaleProvider';
+import { translateText } from '@/lib/i18n';
 
 interface NegotiationTerminalProps {
   events: PawnhouseTimelineEvent[];
@@ -15,9 +17,14 @@ export default function NegotiationTerminal({
   pairingId,
   onReplay,
 }: NegotiationTerminalProps) {
+  const { locale } = useLocale();
   const lines = useMemo(
-    () => buildNegotiationTerminalLines(events, pairingId),
-    [events, pairingId],
+    () =>
+      buildNegotiationTerminalLines(events, pairingId).map((line) => ({
+        ...line,
+        text: translateText(line.text, locale),
+      })),
+    [events, locale, pairingId],
   );
   const [visibleChars, setVisibleChars] = useState<Record<string, number>>({});
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -42,7 +49,7 @@ export default function NegotiationTerminal({
 
   useEffect(() => {
     setVisibleChars({});
-  }, [pairingId]);
+  }, [locale, pairingId]);
 
   useEffect(() => {
     const nextLine = lines.find(
@@ -130,17 +137,22 @@ export default function NegotiationTerminal({
             <i />
           </span>
           <span className="crt-bar-title">
-            THE KING&apos;S PAWNHOUSE — AGENT-TO-AGENT NEGOTIATION
+            {locale === 'zh-CN'
+              ? '王家典当行 — 智能体对智能体谈判'
+              : 'THE KING’S PAWNHOUSE — AGENT-TO-AGENT NEGOTIATION'}
           </span>
           {onReplay && (
             <button className="crt-replay" type="button" onClick={onReplay}>
-              ↻ Replay
+              {locale === 'zh-CN' ? '↻ 重播' : '↻ Replay'}
             </button>
           )}
         </div>
         <div className="crt-meta label">
-          <span>[TURN {Math.min(Math.ceil(negotiationEvents.length / 2), 3)}/3]</span>
-          <span>A2A · PUBLIC TRANSCRIPT</span>
+          <span>
+            {locale === 'zh-CN' ? '[轮次 ' : '[TURN '}
+            {Math.min(Math.ceil(negotiationEvents.length / 2), 3)}/3]
+          </span>
+          <span>{locale === 'zh-CN' ? 'A2A · 公开记录' : 'A2A · PUBLIC TRANSCRIPT'}</span>
         </div>
         <div className="crt-body" ref={bodyRef} aria-live="polite">
           {lines.map((line) => (
@@ -156,7 +168,8 @@ export default function NegotiationTerminal({
           ))}
           {waiting && (
             <div className="crt-line think">
-              $ {nextRole} &gt; ...thinking...
+              $ {locale === 'zh-CN' ? translateText(nextRole, locale) : nextRole}{' '}
+              &gt; {locale === 'zh-CN' ? '…思考中…' : '...thinking...'}
               <span className="crt-progress" aria-hidden="true">
                 <span className="crt-progress-fill" />
               </span>

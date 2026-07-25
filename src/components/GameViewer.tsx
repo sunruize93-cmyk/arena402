@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import MarketPriceTicker from '@/components/MarketPriceTicker';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
+import { useLocale } from '@/components/LocaleProvider';
 import {
   advanceDemoPlayback,
   buildDemoGameState,
@@ -331,6 +332,7 @@ function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEv
 }
 
 export default function GameViewer({ gameId }: { gameId: string }) {
+  const { locale } = useLocale();
   const demo = gameId === 'demo';
   const [liveState, setLiveState] = useState<PawnhouseGameState | null>(null);
   const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
@@ -426,10 +428,14 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       <header className="gm-live-head">
         <div>
           <p className="label">
-            Game {publicText(gameId, 'Private table')} · King&apos;s Pawnhouse
+            {locale === 'zh-CN' ? '对局' : 'Game'}{' '}
+            {publicText(gameId, 'Private table')} ·{' '}
+            {locale === 'zh-CN' ? '王家典当行' : 'King’s Pawnhouse'}
           </p>
           <h1 className="display">
-            Round {String(currentRound).padStart(2, '0')}
+            {locale === 'zh-CN' ? '第 ' : 'Round '}
+            {String(currentRound).padStart(2, '0')}
+            {locale === 'zh-CN' ? ' 回合' : ''}
             <span> / {String(totalRounds).padStart(2, '0')}</span>
           </h1>
         </div>
@@ -464,7 +470,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         <div className="gm-bulletin-art" aria-hidden="true" />
         <div className="gm-bulletin-copy">
           <div className="gm-pin" aria-hidden="true" />
-          <p className="label">Royal bulletin · Round {currentRound}</p>
+          <p className="label">
+            {locale === 'zh-CN' ? '王室公告 · 第 ' : 'Royal bulletin · Round '}
+            {currentRound}
+            {locale === 'zh-CN' ? ' 回合' : ''}
+          </p>
           <h2>{bulletin.title}</h2>
           <p>{bulletin.narrative}</p>
           <div className="gm-bulletin-stamp">PUBLIC SIGNAL</div>

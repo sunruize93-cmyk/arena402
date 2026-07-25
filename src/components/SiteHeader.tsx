@@ -8,6 +8,8 @@ import {
   getConnectorAuthSession,
   logoutConnectorUser,
 } from '@/lib/connector-api';
+import { useLocale } from '@/components/LocaleProvider';
+import { localeLabel, localeToggleLabel } from '@/lib/i18n';
 
 const PRIMARY_LINKS = [
   { href: '/arena', label: 'Arena' },
@@ -21,6 +23,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const { locale, toggleLocale } = useLocale();
   const menuRef = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<ConnectorAuthSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +84,17 @@ export default function SiteHeader() {
       </Link>
 
       <div className="nav-links right">
+        <button
+          type="button"
+          className="nav-language"
+          aria-label={localeToggleLabel(locale)}
+          title={localeToggleLabel(locale)}
+          data-i18n-ignore
+          onClick={toggleLocale}
+        >
+          <span aria-hidden="true">文</span>
+          {localeLabel(locale)}
+        </button>
         <Link
           href="/market"
           className={`nav-link ${isActive(pathname, '/market') ? 'active' : ''}`}

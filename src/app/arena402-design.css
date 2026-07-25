@@ -69,6 +69,40 @@ button { font-family: inherit; }
 .nav a, .nav button { color: var(--paper); }
 .nav-links { display: flex; gap: 28px; align-items: center; }
 .nav-links.right { justify-content: flex-end; gap: 22px; }
+.nav-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-bottom: 1px solid var(--grey);
+  background: transparent;
+  padding: 5px 0;
+  color: var(--paper);
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 160ms ease, border-color 160ms ease;
+}
+.nav-language span {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid currentColor;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+.nav-language:hover,
+.nav-language:focus-visible {
+  border-bottom-color: var(--paper);
+  opacity: 1;
+}
+.nav-language:focus-visible {
+  outline: 1px solid var(--paper);
+  outline-offset: 4px;
+}
 .nav-link {
   background: none; border: none; cursor: pointer;
   font-size: 10px; font-weight: 500;
@@ -725,6 +759,8 @@ button { font-family: inherit; }
   .hero h1 { font-size: 34px; }
   .hero-lore { font-size: 13px; }
   .nav-links.right { gap: 12px; }
+  .nav-language { font-size: 9px; }
+  .nav-language span { display: none; }
   .nav-signin { padding: 6px 12px; font-size: 9px; }
   .kline-ticker-inner { gap: 28px; animation-duration: 28s; }
   .gm { padding-left: 14px; padding-right: 14px; }
