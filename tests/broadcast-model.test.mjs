@@ -46,6 +46,7 @@ test('broadcast goods use authoritative round candles when the API supplies them
         highAtomic: '2800000',
         lowAtomic: '2150000',
         closeAtomic: '2700000',
+        lastClearingAtomic: '2750000',
         committedTradeCount: 6,
       },
     ],
@@ -58,6 +59,8 @@ test('broadcast goods use authoritative round candles when the API supplies them
   assert.equal(grain.previousAtomic, 2_200_000);
   assert.equal(grain.candles.length, 2);
   assert.equal(grain.candles[1].high, 2_800_000);
+  assert.equal(grain.lastClearingAtomic, 2_750_000);
+  assert.equal(grain.latestVolume, 6);
   assert.equal(grain.dataQuality, 'authoritative');
   assert.equal(
     buildBroadcastGoods(state, []).find((good) => good.goodId === 'iron')

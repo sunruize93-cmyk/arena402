@@ -1,4 +1,5 @@
 import { arenaApiRequest } from '@/lib/platform-api';
+import type { InitialPortfolio } from '@/lib/initial-loadout';
 
 export interface PawnhouseGameState {
   gameId: string;
@@ -48,8 +49,9 @@ export interface CurrentGameParticipant {
   agentId: string;
   displayName: string;
   runtimeKind: string;
-  readiness: 'PENDING' | 'READY';
+  readiness: 'PENDING' | 'READY' | 'WITHDRAWN';
   joinedAt: string;
+  reputation?: AgentReputation;
 }
 
 export interface CurrentGame {
@@ -77,6 +79,114 @@ export interface CurrentGameResponse {
 interface GameParticipationList {
   participations: GameParticipation[];
   total: number;
+}
+
+export interface AgentReputation {
+  tradeAttempts: number;
+  settledTrades: number;
+  successRateBps: number | null;
+  failedNegotiations: number;
+}
+
+export interface MandateRequirements {
+  chainId: number;
+  tokenAddress: string;
+  tokenSymbol: string;
+  tokenDecimals: number;
+  maxPerPaymentAtomic: string;
+  maxCumulativeAtomic: string;
+  allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT';
+  expiresAt: string;
+}
+
+export interface JoinPreflight {
+  gameId: string;
+  agentId: string;
+  eligible?: boolean;
+  readyToJoin?: boolean;
+  joinAuthorizationId: string;
+  joinAuthorizationExpiresAt?: string;
+  checks: Record<string, string>;
+  mandateRequirements: MandateRequirements;
+  safeErrorCode: string | null;
+  schemaVersion: string;
+}
+
+export function isJoinPreflightReady(
+  preflight: Pick<JoinPreflight, 'eligible' | 'readyToJoin' | 'safeErrorCode'>,
+): boolean {
+  return (
+    preflight.eligible === true
+    && preflight.readyToJoin === true
+    && preflight.safeErrorCode === null
+  );
+}
+
+export interface JoinCurrentGamePayload {
+  agentId: string;
+  joinAuthorizationId: string;
+  paymentMandateId: string;
+  portfolio: InitialPortfolio;
+}
+
+export interface JoinCurrentGameResponse {
+  participant?: CurrentGameParticipant;
+  participantId?: string;
+  gameId?: string;
+  readiness?: 'PENDING' | 'READY';
+  status?: CurrentGameStatus;
+  gameStatus?: CurrentGameStatus;
+  readyCount: number;
+  startThreshold: number;
+  portfolioLockedAt?: string;
+  schemaVersion: string;
+}
+
+export interface ArenaWallet {
+  walletId: string;
+  chainId: number;
+  address: string;
+  custodyMode: string;
+  boundAt: string;
+}
+
+export interface PaymentMandate {
+  mandateId: string;
+  gameId: string;
+  walletId: string;
+  chainId: number;
+  tokenAddress: string;
+  maxPerPaymentAtomic: string;
+  maxCumulativeAtomic: string;
+  reservedAtomic: string;
+  consumedAtomic: string;
+  allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT' | null;
+  joinAuthorizationId: string | null;
+  validFrom: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  status?: string;
+}
+
+export interface CreatePaymentMandatePayload {
+  mandateId: string;
+  gameId: string;
+  joinAuthorizationId: string;
+  chainId: number;
+  tokenAddress: string;
+  maxPerPaymentAtomic: string;
+  maxCumulativeAtomic: string;
+  allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT';
+  validFrom: string;
+  expiresAt: string;
+}
+
+export interface WithdrawCurrentGameResponse {
+  participantId: string;
+  status: 'WITHDRAWN';
+  gameStatus: CurrentGameStatus;
+  readyCount: number;
+  schemaVersion: string;
 }
 
 async function gameGet<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -128,22 +238,83 @@ function readCsrfCookie(): string {
   return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
 }
 
-export function joinPawnhouseGame(
+function mutationHeaders(idempotencyKey: string): Record<string, string> {
+  const csrfToken = readCsrfCookie();
+  return {
+    'Content-Type': 'application/json',
+    'Idempotency-Key': idempotencyKey,
+    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+  };
+}
+
+export function getJoinPreflight(
   gameId: string,
   agentId: string,
   idempotencyKey: string,
-): Promise<GameParticipation> {
-  const csrfToken = readCsrfCookie();
-  return arenaApiRequest<GameParticipation>(
-    `/api/games/${encodeURIComponent(gameId)}/participants`,
+): Promise<JoinPreflight> {
+  return arenaApiRequest<JoinPreflight>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/join-preflight`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-      },
+      headers: mutationHeaders(idempotencyKey),
       body: JSON.stringify({ agentId }),
+    },
+  );
+}
+
+export function joinCurrentGame(
+  gameId: string,
+  payload: JoinCurrentGamePayload,
+  idempotencyKey: string,
+): Promise<JoinCurrentGameResponse> {
+  return arenaApiRequest<JoinCurrentGameResponse>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/participants`,
+    {
+      method: 'POST',
+      headers: mutationHeaders(idempotencyKey),
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function getArenaWallet(signal?: AbortSignal): Promise<{ wallet: ArenaWallet }> {
+  return gameGet<{ wallet: ArenaWallet }>('/api/v1/me/wallet', signal);
+}
+
+export function getPaymentMandate(
+  gameId: string,
+  signal?: AbortSignal,
+): Promise<{ mandate: PaymentMandate | null }> {
+  return gameGet<{ mandate: PaymentMandate | null }>(
+    `/api/v1/me/payment-mandates/${encodeURIComponent(gameId)}`,
+    signal,
+  );
+}
+
+export function createPaymentMandate(
+  payload: CreatePaymentMandatePayload,
+  idempotencyKey: string,
+): Promise<{ mandate: PaymentMandate }> {
+  return arenaApiRequest<{ mandate: PaymentMandate }>(
+    '/api/v1/me/payment-mandates',
+    {
+      method: 'POST',
+      headers: mutationHeaders(idempotencyKey),
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function withdrawCurrentGameParticipant(
+  gameId: string,
+  participantId: string,
+  idempotencyKey: string,
+): Promise<WithdrawCurrentGameResponse> {
+  return arenaApiRequest<WithdrawCurrentGameResponse>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/participants/${encodeURIComponent(participantId)}`,
+    {
+      method: 'DELETE',
+      headers: mutationHeaders(idempotencyKey),
     },
   );
 }

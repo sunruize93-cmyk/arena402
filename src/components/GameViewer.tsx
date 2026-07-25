@@ -1,9 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import AgentReputationCard from '@/components/AgentReputationCard';
 import MarketPriceTicker from '@/components/MarketPriceTicker';
+import MarketIntelligence from '@/components/MarketIntelligence';
+import MatchmakingPool from '@/components/MatchmakingPool';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
+import SettlementRail from '@/components/SettlementRail';
 import { useLocale } from '@/components/LocaleProvider';
 import {
   advanceDemoPlayback,
@@ -15,9 +20,18 @@ import type { DemoPlaybackPosition } from '@/lib/game-demo';
 import {
   getPawnhouseGame,
   getPawnhouseTimeline,
+  getCurrentGame,
+  CurrentGame,
   PawnhouseGameState,
   PawnhouseTimelineEvent,
+  withdrawCurrentGameParticipant,
 } from '@/lib/game-api';
+import { buildLedgerTrades, formatGold } from '@/lib/ledger-model';
+import { readAgentReputation } from '@/lib/reputation';
+import {
+  activePairingIds,
+  visibleReplaySnapshots,
+} from '@/lib/timeline-projection';
 
 type RecordValue = Record<string, unknown>;
 type MarketPhase = 'omen' | 'decide' | 'queue' | 'bargain' | 'seal' | 'closed';
@@ -186,7 +200,7 @@ function shortAgent(value: unknown, fallback = 'Unknown Agent'): string {
 function atomicGold(value: unknown): string | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
-  const gold = Math.abs(numeric) >= 100_000 ? numeric / 1_000_000 : numeric;
+  const gold = numeric / 1_000_000;
   return gold.toLocaleString('en-US', {
     minimumFractionDigits: gold % 1 === 0 ? 0 : 1,
     maximumFractionDigits: 2,
@@ -224,6 +238,16 @@ function currentRoundPhase(state: PawnhouseGameState | null): MarketPhase {
   if (raw.includes('negotiat')) return 'bargain';
   if (raw.includes('settle')) return 'seal';
   if (raw.includes('close') || raw.includes('complete')) return 'closed';
+  return 'omen';
+}
+
+function replayPhase(events: PawnhouseTimelineEvent[]): MarketPhase {
+  const latest = events.at(-1)?.type || '';
+  if (latest === 'game.completed' || latest === 'round.closed') return 'closed';
+  if (latest.startsWith('settlement.')) return 'seal';
+  if (latest === 'negotiation.message') return 'bargain';
+  if (latest.startsWith('pairing.') || latest === 'order.queued') return 'queue';
+  if (latest === 'decision.applied' || latest.startsWith('runtime.')) return 'decide';
   return 'omen';
 }
 
@@ -273,39 +297,47 @@ function eventTime(event: PawnhouseTimelineEvent): string {
 }
 
 function pairingRows(events: PawnhouseTimelineEvent[]) {
+  const activeIds = new Set(activePairingIds(events));
   return events
     .filter((event) => event.type === 'pairing.created')
     .slice(-4)
     .reverse()
-    .map((event, index) => {
+    .map((event) => {
       const data = event.data;
+      const buyerId = String(
+        pick(
+          data,
+          'buyerAgentId',
+          'buyer_agent_id',
+          'buyerParticipantId',
+          'buyer_participant_id',
+        ) || '',
+      );
+      const sellerId = String(
+        pick(
+          data,
+          'sellerAgentId',
+          'seller_agent_id',
+          'sellerParticipantId',
+          'seller_participant_id',
+        ) || '',
+      );
       return {
         id: publicText(
           pick(data, 'pairingId', 'pairing_id'),
           `pair-${event.sequence}`,
         ),
-        buyer: shortAgent(
-          pick(
-            data,
-            'buyerAgentId',
-            'buyer_agent_id',
-            'buyerParticipantId',
-            'buyer_participant_id',
-          ),
-          'Buyer',
-        ),
-        seller: shortAgent(
-          pick(
-            data,
-            'sellerAgentId',
-            'seller_agent_id',
-            'sellerParticipantId',
-            'seller_participant_id',
-          ),
-          'Seller',
-        ),
+        buyerId,
+        sellerId,
+        buyer: shortAgent(buyerId, 'Buyer'),
+        seller: shortAgent(sellerId, 'Seller'),
         good: publicText(pick(data, 'goodId', 'good_id', 'good'), 'goods').toUpperCase(),
-        active: index === 0,
+        active: activeIds.has(
+          publicText(
+            pick(data, 'pairingId', 'pairing_id'),
+            `pair-${event.sequence}`,
+          ),
+        ),
       };
     });
 }
@@ -323,38 +355,58 @@ function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEv
           String(pick(event.data, 'agentId', 'agent_id')) === rawId,
       );
     return {
+      participantId: publicText(
+        pick(participant, 'participantId', 'participant_id', 'gameParticipantId', 'game_participant_id'),
+        '',
+      ),
+      agentId: rawId,
       name: shortAgent(id, `Agent ${String(index + 1).padStart(2, '0')}`),
       kind: publicText(pick(participant, 'runtimeKind', 'runtime_kind'), 'agent'),
+      status: publicText(pick(participant, 'status'), 'waiting').toUpperCase(),
+      readiness: publicText(
+        pick(participant, 'readiness'),
+        '',
+      ).toUpperCase(),
       action: publicText(pick(lastDecision?.data, 'action'), 'waiting').toUpperCase(),
       active: Boolean(lastDecision),
+      reputation: readAgentReputation(participant),
     };
   });
 }
 
 export default function GameViewer({ gameId }: { gameId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { locale } = useLocale();
   const demo = gameId === 'demo';
+  const replayRequested = searchParams.get('replay') === '1';
   const [liveState, setLiveState] = useState<PawnhouseGameState | null>(null);
   const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
+  const [currentProjection, setCurrentProjection] = useState<CurrentGame | null>(null);
   const [error, setError] = useState('');
+  const [feedDelayed, setFeedDelayed] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [myParticipantId, setMyParticipantId] = useState('');
+  const [leavingPool, setLeavingPool] = useState(false);
+  const [replayEventCount, setReplayEventCount] = useState<number | null>(null);
   const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
     roundIndex: 0,
     eventCount: DEMO_INITIAL_EVENT_COUNT,
   });
 
   useEffect(() => {
-    if (!demo) return;
+    if (!demo || replayRequested) return;
     const timer = window.setInterval(() => {
       setDemoPlayback((current) => advanceDemoPlayback(current));
     }, 1_900);
     return () => window.clearInterval(timer);
-  }, [demo]);
+  }, [demo, replayRequested]);
 
   useEffect(() => {
     if (demo) return;
     let after = 0;
     let stopped = false;
+    let hasSnapshot = false;
 
     async function refresh(signal?: AbortSignal) {
       try {
@@ -363,24 +415,34 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           getPawnhouseTimeline(gameId, after, signal),
         ]);
         if (stopped) return;
+        hasSnapshot = true;
         setLiveState(nextState);
+        void getCurrentGame(signal)
+          .then((response) => {
+            if (!stopped && response.game.gameId === gameId) {
+              setCurrentProjection(response.game);
+            }
+          })
+          .catch(() => {
+            // Older and completed tables are not required to be current.
+          });
         if (timeline.events.length > 0) {
           after = timeline.nextAfter;
           setLiveEvents((current) => {
             const merged = [...current, ...timeline.events];
-            return merged
-              .filter(
-                (event, index, rows) =>
-                  rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
-                  index,
-              )
-              .slice(-120);
+            return merged.filter(
+              (event, index, rows) =>
+                rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
+                index,
+            );
           });
         }
         setError('');
+        setFeedDelayed(false);
       } catch (cause) {
         if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
-          setError('This table is not available from the public Arena API.');
+          setFeedDelayed(hasSnapshot);
+          setError(hasSnapshot ? '' : 'This table is not available from the public Arena API.');
         }
       }
     }
@@ -395,21 +457,114 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     };
   }, [demo, gameId]);
 
+  useEffect(() => {
+    if (demo) return;
+    setMyParticipantId(
+      window.localStorage.getItem(`arena402:participant:${gameId}`) || '',
+    );
+  }, [demo, gameId]);
+
   const demoRound = DEMO_ROUNDS[demoPlayback.roundIndex] || DEMO_ROUNDS[0];
   const demoEvents = demoRound.events.slice(0, demoPlayback.eventCount);
   const state = demo ? buildDemoGameState(demoRound, demoEvents) : liveState;
-  const events = demo ? demoEvents : liveEvents;
-  const phase = currentRoundPhase(state);
+  const sourceEvents = demo && replayRequested
+    ? DEMO_ROUNDS.flatMap((round) => round.events)
+    : demo
+      ? demoEvents
+      : liveEvents;
+  const events =
+    replayRequested && replayEventCount !== null
+      ? sourceEvents.slice(0, replayEventCount)
+      : sourceEvents;
+
+  useEffect(() => {
+    if (!replayRequested || sourceEvents.length === 0) {
+      setReplayEventCount(null);
+      return;
+    }
+    setReplayEventCount((current) =>
+      current === null ? 1 : Math.min(current, sourceEvents.length),
+    );
+  }, [replayRequested, sourceEvents.length]);
+
+  useEffect(() => {
+    if (
+      !replayRequested
+      || replayEventCount === null
+      || replayEventCount >= sourceEvents.length
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setReplayEventCount((current) => (current || 0) + 1),
+      650,
+    );
+    return () => window.clearTimeout(timer);
+  }, [replayEventCount, replayRequested, sourceEvents.length]);
+  const phase = replayRequested ? replayPhase(events) : currentRoundPhase(state);
   const bulletin = useMemo(() => worldBulletin(events), [events]);
   const pairs = useMemo(() => pairingRows(events), [events]);
   const agents = useMemo(() => agentRows(state, events), [state, events]);
-  const currentRound = Number(state?.currentRound || 0);
+  const trades = useMemo(() => buildLedgerTrades(events), [events]);
+  const replayRound = [...events]
+    .reverse()
+    .find((event) => event.type === 'round.started');
+  const currentRound = replayRequested
+    ? Number(
+        replayRound?.data.round
+        ?? replayRound?.data.roundIndex
+        ?? replayRound?.data.round_index
+        ?? 0,
+      )
+    : Number(state?.currentRound || 0);
+  const viewState =
+    replayRequested && state
+      ? {
+          ...state,
+          phase: events.at(-1)?.type === 'game.completed' ? 'completed' : 'running',
+          currentRound,
+          priceSnapshots: Array.isArray(state.priceSnapshots)
+            ? visibleReplaySnapshots(
+                state.priceSnapshots.filter(
+                  (snapshot): snapshot is Record<string, unknown> =>
+                    Boolean(snapshot) && typeof snapshot === 'object',
+                ),
+                events,
+              )
+            : state.priceSnapshots,
+        }
+      : state;
   const totalRounds = Number(state?.roundCount || state?.totalRounds || 0);
   const isComplete = String(state?.phase || '').toLowerCase() === 'completed';
   const latestEvent = events[events.length - 1];
-  const settlementState = [...events]
-    .reverse()
-    .find((event) => event.type.startsWith('settlement.'));
+  const registrationOpen = ['registration', 'portfolio_setup'].includes(
+    String(state?.phase || '').toLowerCase(),
+  );
+  const myAgent = myParticipantId
+    ? agents.find((agent) => agent.participantId === myParticipantId)
+    : undefined;
+  const currentPair = pairs.find((pair) => pair.active);
+
+  async function leavePool() {
+    if (!myParticipantId || !registrationOpen || leavingPool) return;
+    if (!window.confirm('Leave this pool and revoke the unused game mandate?')) {
+      return;
+    }
+    setLeavingPool(true);
+    setError('');
+    try {
+      await withdrawCurrentGameParticipant(
+        gameId,
+        myParticipantId,
+        `web-withdraw:${crypto.randomUUID()}`,
+      );
+      window.localStorage.removeItem(`arena402:participant:${gameId}`);
+      router.push('/game');
+    } catch {
+      setError('Arena could not withdraw this seat. The pool remains unchanged.');
+      setLeavingPool(false);
+    }
+  }
 
   return (
     <section className="gm gm-live">
@@ -419,7 +574,13 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </Link>
         <div className="gm-live-mark">
           <span className="gm-live-dot" aria-hidden="true" />
-          {isComplete ? 'Ledger closed' : demo ? 'Scripted live demo' : 'Public live feed'}
+          {isComplete
+            ? 'Ledger closed'
+            : demo
+              ? 'Scripted live demo'
+              : feedDelayed
+                ? 'Feed delayed · last safe snapshot'
+                : 'Public live feed'}
         </div>
       </div>
 
@@ -445,6 +606,127 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </div>
       </header>
 
+      <nav className="gm-view-sections" aria-label="Game sections">
+        <a href="#pool">Pool</a>
+        <a href="#market">Market</a>
+        <a href="#ledger">Ledger</a>
+      </nav>
+
+      {replayRequested && (
+        <div className="gm-replay-control" role="status">
+          <span className="label">Match replay</span>
+          <p>
+            Event {replayEventCount || 0} / {sourceEvents.length}
+          </p>
+          <button
+            type="button"
+            className="gm-text-link"
+            onClick={() => setReplayEventCount(1)}
+          >
+            Replay from opening bell
+          </button>
+        </div>
+      )}
+
+      <section className="gm-participant-pool" id="pool" aria-labelledby="pool-title">
+        <div className="gm-section-heading">
+          <div>
+            <p className="label">Sealed seats · Current game</p>
+            <h2 className="display" id="pool-title">
+              {registrationOpen ? 'The pool is forming.' : 'The pool is locked.'}
+            </h2>
+          </div>
+          <p>
+            {currentProjection
+              ? `${currentProjection.readyCount} of ${currentProjection.startThreshold} ready · ${currentProjection.maxParticipants} seats maximum`
+              : `${agents.length} public seat${agents.length === 1 ? '' : 's'} · threshold awaiting current projection`}
+          </p>
+        </div>
+        <div className="gm-pool-seats">
+          {agents.length > 0 ? (
+            agents.map((agent, index) => {
+              const currentSeat = currentProjection?.participants.find(
+                (participant) => participant.agentId === agent.agentId,
+              );
+              const readiness = currentSeat?.readiness || agent.readiness;
+              const publicStatus = agent.status;
+              const seatState =
+                readiness === 'WITHDRAWN'
+                || ['CANCELLED', 'WITHDRAWN'].includes(publicStatus)
+                  ? 'WITHDRAWN'
+                  : registrationOpen
+                    ? readiness || 'PENDING'
+                    : publicStatus === 'COMPLETED'
+                      ? 'COMPLETED'
+                      : publicStatus === 'ACTIVE'
+                        ? 'ACTIVE'
+                        : publicStatus || 'LOCKED';
+              return (
+                <article
+                  id={agent.participantId ? `participant-${agent.participantId}` : undefined}
+                  className={
+                    myParticipantId && agent.participantId === myParticipantId
+                      ? 'is-mine'
+                      : ''
+                  }
+                  key={agent.participantId || `${agent.agentId}-${index}`}
+                >
+                  <span className="gm-pool-seat-number">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div className="gm-pool-seat-agent">
+                    <span className="label">{agent.kind}</span>
+                    <strong>{currentSeat?.displayName || agent.name}</strong>
+                    {myParticipantId && agent.participantId === myParticipantId
+                      ? <small>Your sealed Agent</small>
+                      : null}
+                  </div>
+                  <AgentReputationCard
+                    reputation={currentSeat?.reputation || agent.reputation}
+                    compact
+                  />
+                  <b>{seatState}</b>
+                </article>
+              );
+            })
+          ) : (
+            <p className="empty">Waiting for the first sealed seat</p>
+          )}
+        </div>
+        <div className="gm-pool-actions">
+          {currentProjection?.joinedByMe && !myParticipantId && (
+            <p className="gm-owner-control-note">
+              Arena confirms your seat, but the current owner projection does not
+              expose its participant ID. Owner controls stay hidden.
+            </p>
+          )}
+          {registrationOpen
+            && currentProjection?.joinedByMe
+            && myParticipantId
+            && (
+            <button
+              type="button"
+              className="gm-text-link"
+              disabled={leavingPool}
+              onClick={() => void leavePool()}
+            >
+              {leavingPool ? 'Leaving pool…' : 'Leave pool'}
+            </button>
+          )}
+          {!registrationOpen
+            && currentProjection?.joinedByMe
+            && myAgent
+            && (
+            <a
+              className="btn gm-primary-action"
+              href={`#agent-${myAgent.participantId}`}
+            >
+              Follow my Agent
+            </a>
+          )}
+        </div>
+      </section>
+
       <nav className="gm-ritual-rail" aria-label="Round progress">
         {PHASES.map((item, index) => {
           const activeIndex = PHASES.findIndex((phaseItem) => phaseItem.id === phase);
@@ -466,7 +748,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
 
       {error && <p className="data-state error">{error}</p>}
 
-      <section className="gm-bulletin">
+      <section className="gm-bulletin" id="market">
         <div className="gm-bulletin-art" aria-hidden="true" />
         <div className="gm-bulletin-copy">
           <div className="gm-pin" aria-hidden="true" />
@@ -509,7 +791,12 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             </span>
           </div>
 
+          <section className="gm-queue" aria-labelledby="market-price-title">
+            <MarketIntelligence state={viewState} events={events} />
+          </section>
+
           <section className="gm-queue" aria-labelledby="queue-title">
+            <MatchmakingPool state={viewState} events={events} />
             <div className="gm-panel-head">
               <p className="label" id="queue-title">
                 FCFS pairing rail
@@ -518,23 +805,37 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             </div>
             {pairs.length > 0 ? (
               <div className="gm-pair-list">
-                {pairs.map((pair) => (
-                  <article className={`gm-pair-card ${pair.active ? 'is-live' : ''}`} key={pair.id}>
-                    <div>
-                      <span className="label">Buyer</span>
-                      <strong>{pair.buyer}</strong>
-                    </div>
-                    <div className="gm-pair-collision" aria-label={`Trading ${pair.good}`}>
-                      <span />
-                      <b>{pair.good}</b>
-                      <span />
-                    </div>
-                    <div>
-                      <span className="label">Seller</span>
-                      <strong>{pair.seller}</strong>
-                    </div>
-                  </article>
-                ))}
+                {pairs.map((pair) => {
+                  const buyer = agents.find(
+                    (agent) =>
+                      agent.agentId === pair.buyerId
+                      || agent.participantId === pair.buyerId,
+                  );
+                  const seller = agents.find(
+                    (agent) =>
+                      agent.agentId === pair.sellerId
+                      || agent.participantId === pair.sellerId,
+                  );
+                  return (
+                    <article className={`gm-pair-card ${pair.active ? 'is-live' : ''}`} key={pair.id}>
+                      <div>
+                        <span className="label">Buyer</span>
+                        <strong>{pair.buyer}</strong>
+                        <AgentReputationCard reputation={buyer?.reputation} compact />
+                      </div>
+                      <div className="gm-pair-collision" aria-label={`Trading ${pair.good}`}>
+                        <span />
+                        <b>{pair.good}</b>
+                        <span />
+                      </div>
+                      <div>
+                        <span className="label">Seller</span>
+                        <strong>{pair.seller}</strong>
+                        <AgentReputationCard reputation={seller?.reputation} compact />
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="gm-waiting-board">
@@ -554,10 +855,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               </p>
               <p>Buyer speaks first · Three turns maximum</p>
             </div>
-            {pairs[0] ? (
+            {currentPair ? (
               <NegotiationTerminal
                 events={events}
-                pairingId={pairs[0].id}
+                pairingId={currentPair.id}
                 onReplay={
                   demo
                     ? () =>
@@ -579,36 +880,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             )}
           </section>
 
-          <section className="gm-settlement-chain" aria-labelledby="settlement-title">
-            <div className="gm-panel-head">
-              <p className="label" id="settlement-title">
-                The seal
-              </p>
-              <p>An accepted price is not yet a completed trade</p>
-            </div>
-            <div className="gm-seal-steps">
-              {[
-                ['01', 'Terms frozen', 'settlement.intent_frozen'],
-                ['02', 'Authorization', 'settlement.approved'],
-                ['03', 'Chain confirmed', 'settlement.chain_confirmed'],
-                ['04', 'Inventory committed', 'settlement.inventory_committed'],
-              ].map(([number, label, type]) => {
-                const typeIndex = events.findIndex((event) => event.type === type);
-                const currentType = settlementState?.type;
-                return (
-                  <div
-                    className={`gm-seal-step ${
-                      typeIndex >= 0 ? 'is-complete' : currentType === type ? 'is-active' : ''
-                    }`}
-                    key={type}
-                  >
-                    <span>{number}</span>
-                    <strong>{label}</strong>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <SettlementRail events={events} pairing={pairs[0]?.id} />
         </main>
 
         <aside className="gm-side-ledger">
@@ -620,11 +892,16 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             <div>
               {agents.length > 0 ? (
                 agents.map((agent, index) => (
-                  <div className={`gm-agent-row ${agent.active ? 'is-active' : ''}`} key={`${agent.name}-${index}`}>
+                  <div
+                    id={agent.participantId ? `agent-${agent.participantId}` : undefined}
+                    className={`gm-agent-row ${agent.active ? 'is-active' : ''}`}
+                    key={`${agent.name}-${index}`}
+                  >
                     <span className="gm-agent-rank">{String(index + 1).padStart(2, '0')}</span>
                     <div>
                       <strong>{agent.name}</strong>
                       <span>{agent.kind.toUpperCase()}</span>
+                      <AgentReputationCard reputation={agent.reputation} compact />
                     </div>
                     <b>{agent.action}</b>
                   </div>
@@ -660,6 +937,60 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           </section>
         </aside>
       </div>
+
+      <section className="gm-game-ledger" id="ledger" aria-labelledby="game-ledger-title">
+        <div className="gm-section-heading">
+          <div>
+            <p className="label">Committed settlement ledger</p>
+            <h2 className="display" id="game-ledger-title">The ledger remembers.</h2>
+          </div>
+          <p>
+            Only inventory committed rows are completed trades. Chain confirmation
+            alone remains pending.
+          </p>
+        </div>
+        <div className="gm-game-ledger-rows">
+          {trades.length > 0 ? (
+            trades.map((trade) => (
+              <article key={trade.pairingId}>
+                <span>R{String(trade.round || 0).padStart(2, '0')}</span>
+                <div>
+                  <strong>{trade.buyer} → {trade.seller}</strong>
+                  <small>{trade.goodId.toUpperCase()} · QTY {trade.quantity}</small>
+                </div>
+                <p>
+                  {formatGold(
+                    trade.amountAtomic
+                      ?? (trade.priceAtomic !== null
+                        ? trade.priceAtomic * trade.quantity
+                        : null),
+                  )}{' '}
+                  <small>GOLD</small>
+                </p>
+                <b className={`is-${trade.status}`}>
+                  {trade.status === 'committed'
+                    ? 'INVENTORY COMMITTED'
+                    : trade.status === 'confirmed'
+                      ? 'CHAIN CONFIRMED'
+                      : trade.status === 'failed'
+                        ? 'NO DEAL'
+                        : 'SETTLING'}
+                </b>
+                <details>
+                  <summary>Inspect settlement</summary>
+                  <p>
+                    {trade.status === 'failed'
+                      ? 'Settlement closed without an inventory change.'
+                      : `Stage ${trade.stageReached + 1} of 5 recorded by Arena.`}
+                  </p>
+                </details>
+              </article>
+            ))
+          ) : (
+            <p className="empty">No settlement has reached the public ledger.</p>
+          )}
+        </div>
+      </section>
 
       <section className={`gm-audit ${auditOpen ? 'is-open' : ''}`}>
         <button

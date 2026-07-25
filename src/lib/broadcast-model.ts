@@ -35,6 +35,7 @@ export interface BroadcastCandle {
   high: number;
   low: number;
   close: number;
+  lastClearing: number | null;
   committedTradeCount: number | null;
   carriedForward: boolean;
 }
@@ -46,6 +47,8 @@ export interface BroadcastGood {
   currentAtomic: number | null;
   previousAtomic: number | null;
   changePercent: number | null;
+  lastClearingAtomic: number | null;
+  latestVolume: number | null;
   candles: BroadcastCandle[];
   dataQuality: BroadcastDataQuality;
 }
@@ -149,12 +152,16 @@ function authoritativeCandles(
       const count = numeric(
         pick(row, 'committedTradeCount', 'committed_trade_count', 'tradeCount'),
       );
+      const lastClearing = numeric(
+        pick(row, 'lastClearingAtomic', 'last_clearing_atomic'),
+      );
       const candle = {
         round,
         open,
         high,
         low,
         close,
+        lastClearing,
         committedTradeCount: count,
         carriedForward:
           Boolean(pick(row, 'carriedForward', 'carried_forward')) ||
@@ -197,6 +204,7 @@ export function buildBroadcastGoods(
           high: Math.max(open, finalPrice),
           low: Math.min(open, finalPrice),
           close: finalPrice,
+          lastClearing: null,
           committedTradeCount: null,
           carriedForward: open === finalPrice,
         });
@@ -215,6 +223,8 @@ export function buildBroadcastGoods(
         previousAtomic === 0
           ? null
           : ((currentAtomic - previousAtomic) / previousAtomic) * 100,
+      lastClearingAtomic: candles.at(-1)?.lastClearing ?? null,
+      latestVolume: candles.at(-1)?.committedTradeCount ?? null,
       candles,
       dataQuality: hasAuthority
         ? 'authoritative'

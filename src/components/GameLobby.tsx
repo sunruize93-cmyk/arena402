@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import GameEntryDesk from '@/components/GameEntryDesk';
 import { CurrentGame, getCurrentGame } from '@/lib/game-api';
 import { ArenaApiError } from '@/lib/platform-api';
 
@@ -45,6 +46,7 @@ export default function GameLobby() {
   const [gameId, setGameId] = useState('');
   const [currentGame, setCurrentGame] = useState<CurrentGame | null>(null);
   const [currentState, setCurrentState] = useState<CurrentState>('loading');
+  const [entryOpen, setEntryOpen] = useState(false);
 
   const refreshCurrentGame = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -109,7 +111,14 @@ export default function GameLobby() {
       return;
     }
     const suffix = currentGame.status === 'COMPLETED' ? '/result' : '';
-    router.push(`/game/${encodeURIComponent(currentGame.gameId)}${suffix}`);
+    if (currentGame.status === 'WAITING' && !currentGame.joinedByMe) {
+      setEntryOpen(true);
+      return;
+    }
+    const hash = currentGame.status === 'WAITING' ? '#pool' : '';
+    router.push(
+      `/game/${encodeURIComponent(currentGame.gameId)}${suffix}${hash}`,
+    );
   }
 
   const currentAction = currentState === 'error'
@@ -253,7 +262,8 @@ export default function GameLobby() {
         )}
 
         <p className="gm-open-note">
-          The gallery is read-only. Agent credentials, prompts, and private runtime
+          Players configure and authorize before entry. Once the seat is locked,
+          the gallery is read-only: Agent credentials, prompts, and private runtime
           telemetry never appear on the public board.
         </p>
 
@@ -277,6 +287,17 @@ export default function GameLobby() {
           </form>
         </details>
       </section>
+
+      {entryOpen && currentGame?.status === 'WAITING' && (
+        <GameEntryDesk
+          game={currentGame}
+          onClose={() => setEntryOpen(false)}
+          onJoined={() => {
+            setEntryOpen(false);
+            router.push(`/game/${encodeURIComponent(currentGame.gameId)}#pool`);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import AgentReputationCard from '@/components/AgentReputationCard';
 import {
   getPawnhouseGame,
   PawnhouseGameState,
 } from '@/lib/game-api';
+import { readAgentReputation } from '@/lib/reputation';
 
 type RecordValue = Record<string, unknown>;
 
@@ -103,9 +105,14 @@ export default function GameResult({ gameId }: { gameId: string }) {
         const tier = String(pick(row, 'tier') || '');
         return {
           rank: Number(pick(row, 'rank') || index + 1),
+          participantId: String(
+            pick(row, 'participantId', 'participant_id', 'gameParticipantId') || '',
+          ),
           name: agentName(pick(row, 'agentId', 'agent_id'), index),
           worth: gold(pick(row, 'netWorthAtomic', 'net_worth_atomic')),
           tier: TIER_MAP[tier] || safeText(tier, 'Arena Merchant'),
+          reputation: readAgentReputation(row),
+          source: row,
         };
       });
   }, [state]);
@@ -122,6 +129,7 @@ export default function GameResult({ gameId }: { gameId: string }) {
   }, [state]);
 
   const winner = rankings[0];
+  const portfolioLabels = ['Initial portfolio', 'Final portfolio'];
 
   return (
     <section className="gm gm-result">
@@ -176,6 +184,7 @@ export default function GameResult({ gameId }: { gameId: string }) {
               <div>
                 <strong>{row.name}</strong>
                 <span>{row.tier}</span>
+                <AgentReputationCard reputation={row.reputation} compact />
               </div>
               <p>
                 {row.worth} <small>GOLD</small>
@@ -183,6 +192,35 @@ export default function GameResult({ gameId }: { gameId: string }) {
             </article>
           ))}
           {rankings.length === 0 && <p className="empty">Waiting for the final ranking</p>}
+        </div>
+      </section>
+
+      <section className="gm-personal-result" aria-labelledby="personal-result-title">
+        <div className="gm-section-heading">
+          <div>
+            <p className="label">Owner result snapshot</p>
+            <h2 className="display" id="personal-result-title">
+              Opening to close
+            </h2>
+          </div>
+          <p>Server snapshots only · old games remain read-only</p>
+        </div>
+        <div className="gm-personal-result-grid">
+          {portfolioLabels.map((label) => (
+            <article key={label}>
+              <p className="label">{label}</p>
+              <p className="empty">
+                Awaiting an authenticated owner-scoped portfolio snapshot from Arena.
+              </p>
+            </article>
+          ))}
+          <article>
+            <p className="label">Final reputation</p>
+            <AgentReputationCard reputation={null} />
+            <p className="empty">
+              Awaiting an authenticated reputation delta from Arena.
+            </p>
+          </article>
         </div>
       </section>
 
@@ -230,11 +268,17 @@ export default function GameResult({ gameId }: { gameId: string }) {
       </div>
 
       <footer className="gm-result-actions">
-        <Link className="btn gm-primary-action" href="/game">
-          Watch another table
+        <Link
+          className="btn gm-primary-action"
+          href={`/game/${encodeURIComponent(gameId)}?replay=1#market`}
+        >
+          View match replay
         </Link>
-        <Link className="gm-text-link" href="/agents">
-          Deploy your Agent ↗
+        <Link className="gm-text-link" href="/">
+          Return to Arena
+        </Link>
+        <Link className="gm-text-link" href="/game">
+          Enter next pool
         </Link>
       </footer>
     </section>
