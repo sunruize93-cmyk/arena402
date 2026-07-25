@@ -1,124 +1,113 @@
-# arena402
+# Arena 402 deployment frontend
 
 > AdventureX 2026 · Pawn Track · "Your Agent Is A Chess Piece"
 
-## Project overview
+## Repository role
 
-Agent battle protocol: LLM-powered agents compete head-to-head in ELO-ranked negotiations. Participants deploy their own agent (any model, any style), it negotiates unattended on-chain. Single-page vanilla JS app backed by Supabase, deployed on Vercel.
+This repository is the Vercel deployment mirror for the Arena 402 frontend.
+The product repository is `/Users/sunruize/adx_agentic_payment`, and the
+canonical integrated frontend lives in its `frontend/` directory.
+The production frontend is served at `https://arena402.com`.
 
-**Live:** https://arena402.vercel.app
+The frontend in this repository is intentionally placed at the repository
+root because the existing Vercel project is connected to this repository.
+When synchronizing product changes, copy from
+`/Users/sunruize/adx_agentic_payment/frontend/` into this root, review the
+result, and verify a production build before committing.
 
-## Tech stack
+## Architecture
 
-| Layer | Tech |
+| Layer | Technology |
 |---|---|
-| Frontend | Vanilla HTML + CSS + JS — **zero framework, zero build step** |
-| Backend / DB | Supabase (PostgreSQL + Realtime) |
-| Hosting | Vercel (static files) |
-| Fonts | Instrument Serif (headings) + IBM Plex Mono (body), Google Fonts |
+| Frontend | Next.js 15 App Router, React 18, TypeScript |
+| Backend | Arena 402 API from `adx_agentic_payment` |
+| Hosting | Vercel |
+| Fonts | Instrument Serif and IBM Plex Mono |
 
-## File structure
+The browser must not access Supabase or another database directly. All
+business state flows through Arena-owned HTTP APIs.
 
+### API routing
+
+Browser requests use same-origin `/api/*` URLs. `next.config.js` proxies them
+to `API_PROXY_TARGET`.
+
+- Local default backend: `http://127.0.0.1:8000`
+- Production default backend: `https://api.arena402.com`
+- Keep `NEXT_PUBLIC_API_URL` blank for the normal same-origin deployment.
+
+This same-origin boundary is important for Auth, CSRF, and Connector cookies.
+Do not expose a backend secret, wallet credential, `service_role` key, or
+model API key through a `NEXT_PUBLIC_*` variable.
+
+The public Pawnhouse game read API additionally requires the backend setting:
+
+```text
+ADX_ARENA_CORE_ENABLED=true
 ```
+
+## Project structure
+
+```text
 arena402/
-  index.html           ← HTML skeleton + inline @font-face (self-hosted fonts)
-  css/
-    style.css          ← ALL styles — design system, typography, components, responsive
-  js/
-    config.js          ← Global state object (`var state = {...}`)
-    supabase.js        ← Supabase client init + fetchLB/fetchBattles/fetchAgents/fetchListings
-    auth.js            ← Auth (initAuth, signInWithGitHub, signInWithGoogle, signOut)
-    render.js          ← Template helpers + component factories + main render()
-    app.js             ← Global `A` namespace (nav, filter, init) — entry point
-  img/                 ← 4 engraving-style art images (WebP, ~500KB total)
-  fonts/               ← Self-hosted woff2 font files (see fonts/README.md)
-  logo-showcase.html   ← Standalone logo background style picker (12 variants)
-  vercel.json          ← Deployment config + aggressive cache headers
+  src/
+    app/                  # App Router pages and the Arena 402 CSS system
+    components/           # Shared React UI
+    lib/                  # Arena, game, Connector, and Hosted Agent API clients
+  public/
+    assets/               # Game artwork
+    img/                  # Engraving artwork
+  next.config.js          # Same-origin API proxy
+  vercel.json             # Vercel framework and cache headers
+  package.json
 ```
 
-### Load order (critical — do not reorder)
+See `UPSTREAM_DESIGN.md` for the visual migration and API mapping.
 
-```
-Supabase CDN (defer) → config.js → supabase.js → auth.js → render.js → app.js
-```
+## Local development
 
-All modules communicate via the global `state` object and `window.A` namespace. No ES modules, no bundler — keep it that way unless there's a strong reason.
-
-### Auth surface (stable)
-
-- `A.signIn()` → opens the `signin` page
-- `A.signIn('github' | 'google')` → starts that OAuth provider
-- `A.signOut()` → clears session
-- Implementations live in `js/auth.js` (`signInWithGitHub`, `signInWithGoogle`, `signOut`, `initAuth`)
-
-Enable **Google** under Supabase → Authentication → Providers, and add the site URL to redirect allowlist.
-
-### Game module (倒爷黑市 — GAME_DESIGN v1 / FRONTEND_GUIDE §11)
-
-| File | Owner | Contents |
-|---|---|---|
-| `js/game-render.js` | **Cursor** | Lobby / Game View / Result templates, animations |
-| `css/game.css` | **Cursor** | All game styles (separate sheet — do not merge into style.css) |
-| `js/game-state.js` | **Cursor** | `gameState`, routes, snapshot fetch, Realtime channels, demo engine |
-| `db/migrations/002_game_tables.sql` | shared | Game tables + RLS + realtime publication — run in Supabase SQL Editor |
-
-- Routes: `#/game` (lobby) · `#/game/{id}` (live) · `#/game/{id}/result` (final). `A.nav('game')` also works.
-- **Realtime is already wired by Cursor** in `gameRealtimeInit()` (games/rounds/pools/pairings/negotiations/neg_messages/settlements/game_events). Claude Code: do NOT re-implement it — backend work = run the migration, write game rows from the arena engine, and keep column names matching the SQL.
-- `gameId === 'demo'` (or missing tables) → scripted demo engine drives the UI.
-- Phases: `IDLE→DECIDE→PAIRING→NEGOTIATING→SETTLING` (`gameSetPhase`).
-
-## Design constraints ⚠️
-
-**The visual identity is LOCKED. Do NOT arbitrarily change:**
-
-- **Color palette** — `--ink` (#0a0a0b), `--ink-deep` (#060607), `--paper` (#f4f2ec), grays as defined in `:root`. No new colors without deliberate intent.
-- **Typography** — Instrument Serif for `.display` headings, IBM Plex Mono for body/labels. Do not introduce new typefaces.
-- **Spacing system** — `--edge` (clamp-based horizontal padding), `--frame` (viewport border). Sections use `padding: 110px var(--edge)`.
-- **Component patterns** — Tiers (Master→Bronze), chips, cards, stat strips, battle rows, leaderboard rows, marquee divider. All have established CSS classes — reuse them.
-- **Dark-first** — The default canvas is `--ink-deep`. The paper-panel is the exception (light section), not the rule.
-- **Mix-blend-mode nav** — The nav bar uses `mix-blend-mode: difference` over the page content. Do not break this.
-- **Engraving aesthetic** — Images use `filter: grayscale(1) contrast(1.04)` with `mix-blend-mode: screen`. Match this for any new imagery.
-
-### When adding new UI
-
-1. **Always use existing CSS custom properties** — colors, fonts, spacing all come from `:root` vars
-2. **Follow the established typographic hierarchy** — `.display` for big statements, `.label` for metadata, `.sec-sub` for descriptions
-3. **Match the grid/row/card patterns** — new lists should look like leaderboard rows; new detail views should look like agent/market cards
-4. **Keep the terminal/monospace flavor** — the brand is "luxury chess + CLI hacker." Both sides matter.
-
-## Rollback
+The single local frontend remains `~/arena402` on port `4404`:
 
 ```bash
-git checkout main          # back to single-file index.html
-git checkout refactor/split-modules  # back to modularized version
+cd ~/arena402
+npm ci
+npm run dev -- -p 4404
 ```
 
-The `main` branch preserves the original 565-line single-file `index.html`. The `refactor/split-modules` branch is the modularized version. Both should render identically.
+Use `http://localhost:4404`. Do not start a second clone or a second frontend
+server. The backend runs separately from `adx_agentic_payment`, normally on
+`http://127.0.0.1:8000`.
 
-## Working with Cursor vs Claude Code
+For an explicit local proxy override, create an untracked `.env.local`:
 
-This repo is designed for a split workflow:
+```text
+NEXT_PUBLIC_API_URL=
+API_PROXY_TARGET=http://127.0.0.1:8000
+```
 
-- **Cursor (top models)** — CSS, new UI components, animations, responsive polish, design QA. Work in `css/style.css` and the template strings in `js/render.js`.
-- **Claude Code (DeepSeek)** — JS logic, Supabase CRUD, state management, form validation, error handling, code organization. Work in `js/supabase.js`, `js/app.js`, `js/config.js`.
+## Design constraints
 
-DeepSeek should NOT touch CSS. Top models should NOT be wasted on Supabase boilerplate.
+The visual identity is locked:
 
-## Single-source discipline ⚠️ (读我)
+- Use the established `--ink`, `--ink-deep`, `--paper`, and gray tokens.
+- Use Instrument Serif for display headings and IBM Plex Mono for body/labels.
+- Reuse `--edge`, `--frame`, established rows, cards, chips, and stat strips.
+- Keep the dark-first “luxury chess + CLI hacker” direction.
+- Preserve the mix-blend navigation behavior.
+- Match the grayscale engraving treatment for new imagery.
 
-历史上这个项目在本机散落成 6 份 clone + 6 个 http.server,导致「改了代码刷新不更新」——因为改的目录和浏览器连的服务器不是同一份。为杜绝复发,任何人（含 AI）在此仓库工作都必须遵守：
+Do not introduce another frontend runtime, a second design system, or direct
+database access. Extend the App Router pages, React components, and API clients
+already present here.
 
-1. **唯一本地目录**：`~/arena402`。不要在 Desktop / Documents / /tmp 再 clone。想干活先 `cd ~/arena402`。
-2. **唯一远端**：`github.com/sunruize93-cmyk/arena402`。
-3. **唯一域名**：`arena402.com`（Vercel 绑到本仓库 `main` 分支，只有这一个 Vercel 项目）。
-4. **唯一本地服务器 + 固定端口 4404**。开发前先清旧进程：
-   ```bash
-   pkill -f http.server
-   cd ~/arena402 && python3 -m http.server 4404
-   ```
-   永远访问 `http://localhost:4404`，这样 Supabase 的 Redirect URLs 白名单也只需配这一个地址。
-5. **浏览器只开一个标签**，DevTools 勾上 "Disable cache"（Network 面板），本地不再有缓存问题。
-6. **密钥**：前端只能出现 Supabase `anon` key，**绝不能**出现 `service_role`（会绕过 RLS）。提交前自查：`grep -rn service_role . --include=*.html --include=*.js`。
+## Verification
 
-### 缓存说明
-`vercel.json` 已对 `js/`、`css/` 设 `max-age=0, must-revalidate`（生产不缓存代码）。注意：`vercel.json` **只对线上 Vercel 生效**，本地 `python -m http.server` 完全不读它——本地防缓存靠上面第 5 条。
+Before committing:
+
+```bash
+npm run build
+grep -RIn "service_role" src public \
+  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'
+```
+
+Review `.env*` carefully. Only `.env.example` belongs in Git.
