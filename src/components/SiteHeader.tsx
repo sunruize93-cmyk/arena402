@@ -13,6 +13,7 @@ const PRIMARY_LINKS = [
   { href: '/arena', label: 'Arena' },
   { href: '/agents', label: 'Agents' },
   { href: '/game', label: 'Game' },
+  { href: '/ledger', label: 'Ledger' },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
