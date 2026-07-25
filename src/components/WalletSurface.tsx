@@ -9,8 +9,9 @@ import {
 } from '@/lib/connector-api';
 import {
   WalletApiError,
+  MyWallet,
   WalletOverview,
-  getWalletBinding,
+  getMyWallet,
   getWalletOverview,
 } from '@/lib/wallet-api';
 
@@ -39,7 +40,12 @@ function formatDate(value: string): string {
 function walletErrorMessage(error: unknown): string {
   if (error instanceof WalletApiError) {
     const messages: Record<string, string> = {
-      wallet_not_bound: 'The Arena treasury has not assigned a wallet to this identity yet.',
+      wallet_pool_exhausted: 'The treasury has no available wallets right now. Contact the Arena crew.',
+      github_identity_required: 'A GitHub-verified Arena identity is required before a wallet can be assigned.',
+      github_identity_conflict: 'This Arena identity does not match its recorded GitHub subject. Contact the Arena crew.',
+      wallet_binding_conflict: 'The treasury hit a binding conflict. Retry in a moment.',
+      wallet_payload_invalid: 'The treasury returned an unexpected wallet payload.',
+      wallet_overview_unavailable: 'Balance reads are not configured yet. The assigned address is still valid.',
       network_unavailable: 'The Arena API is unreachable. Check the local backend and retry.',
     };
     return messages[error.code] || error.message;
@@ -49,6 +55,7 @@ function walletErrorMessage(error: unknown): string {
 
 export default function WalletSurface() {
   const [session, setSession] = useState<ConnectorAuthSession | null>(null);
+  const [wallet, setWallet] = useState<MyWallet | null>(null);
   const [overview, setOverview] = useState<WalletOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -56,14 +63,28 @@ export default function WalletSurface() {
   const [notice, setNotice] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const loadOverview = useCallback(async () => {
+  // GET /api/v1/me/wallet lazily claims an inventory wallet on the first
+  // authenticated call, so a plain read is the whole "binding" flow. A 404
+  // only happens while the backend route is not deployed yet.
+  const loadTreasury = useCallback(async () => {
+    let assigned: MyWallet | null = null;
     try {
-      await getWalletBinding();
-      return await getWalletOverview();
+      assigned = await getMyWallet();
     } catch (walletError) {
-      if (walletError instanceof WalletApiError && walletError.status === 404) return null;
+      if (walletError instanceof WalletApiError && walletError.status === 404) {
+        return { wallet: null, overview: null };
+      }
       throw walletError;
     }
+
+    // Balances are an enhancement; the assignment still renders without them.
+    let balances: WalletOverview | null = null;
+    try {
+      balances = await getWalletOverview();
+    } catch (overviewError) {
+      if (!(overviewError instanceof WalletApiError)) throw overviewError;
+    }
+    return { wallet: assigned, overview: balances };
   }, []);
 
   useEffect(() => {
@@ -76,8 +97,11 @@ export default function WalletSurface() {
         setSession(value);
         if (!value) return;
 
-        const walletOverview = await loadOverview();
-        if (!cancelled) setOverview(walletOverview);
+        const treasury = await loadTreasury();
+        if (!cancelled) {
+          setWallet(treasury.wallet);
+          setOverview(treasury.overview);
+        }
       } catch (loadError) {
         if (!cancelled) setError(walletErrorMessage(loadError));
       } finally {
@@ -89,18 +113,19 @@ export default function WalletSurface() {
     return () => {
       cancelled = true;
     };
-  }, [loadOverview]);
+  }, [loadTreasury]);
 
   async function checkAssignment() {
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      const walletOverview = await loadOverview();
-      setOverview(walletOverview);
+      const treasury = await loadTreasury();
+      setWallet(treasury.wallet);
+      setOverview(treasury.overview);
       setNotice(
-        walletOverview
-          ? 'Treasury wallet found. Balance checked from Injective Testnet.'
+        treasury.wallet
+          ? 'Treasury wallet assigned to this Arena identity.'
           : 'No treasury wallet has been assigned yet. Check again after registration completes.',
       );
     } catch (checkError) {
@@ -118,16 +143,23 @@ export default function WalletSurface() {
       setOverview(await getWalletOverview());
       setNotice('Balance refreshed from Injective Testnet.');
     } catch (refreshError) {
-      setError(walletErrorMessage(refreshError));
+      if (
+        refreshError instanceof WalletApiError &&
+        (refreshError.status === 404 || refreshError.code === 'wallet_overview_unavailable')
+      ) {
+        setNotice('Balance reads are not available yet. The assigned address is still valid.');
+      } else {
+        setError(walletErrorMessage(refreshError));
+      }
     } finally {
       setBusy(false);
     }
   }
 
   async function copyAddress() {
-    if (!navigator.clipboard) return;
+    if (!navigator.clipboard || !wallet) return;
     try {
-      await navigator.clipboard.writeText(overview?.address || '');
+      await navigator.clipboard.writeText(wallet.address);
     } catch {
       return;
     }
@@ -189,18 +221,20 @@ export default function WalletSurface() {
             <span className="label">Wallet seal</span>
             <span className="wallet-seal-mark" aria-hidden="true">402</span>
           </div>
-          <p className="wallet-seal-state">{overview ? 'ASSIGNED' : 'NOT ASSIGNED'}</p>
+          <p className="wallet-seal-state">{wallet ? 'ASSIGNED' : 'NOT ASSIGNED'}</p>
           <h2 id="wallet-seal-title">
-            {overview ? `${overview.address.slice(0, 6)}…${overview.address.slice(-4)}` : 'No treasury wallet has been assigned yet.'}
+            {wallet ? `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}` : 'No treasury wallet has been assigned yet.'}
           </h2>
           <p>
-            {overview
-              ? `Verified ${formatDate(overview.checkedAt)} on ${overview.network}.`
+            {wallet
+              ? overview
+                ? `Verified ${formatDate(overview.checkedAt)} on ${overview.network}.`
+                : `Assigned wallet ${wallet.walletId} on chain ${wallet.chainId}${wallet.boundAt ? ` · ${formatDate(wallet.boundAt)}` : ''}.`
               : 'The Arena treasury custodies an Injective EVM wallet for every registered player. Yours appears here once registration completes.'}
           </p>
           <div className="wallet-seal-actions">
             {session ? (
-              overview ? (
+              wallet ? (
                 <button type="button" className="btn" onClick={() => void refreshOverview()} disabled={busy}>
                   {busy ? 'Checking…' : 'Refresh balance'}
                 </button>
@@ -214,7 +248,7 @@ export default function WalletSurface() {
                 Sign in to continue <ArrowUpRight size={14} aria-hidden="true" />
               </Link>
             )}
-            {overview && (
+            {wallet && (
               <button type="button" className="wallet-copy-action" onClick={() => void copyAddress()}>
                 {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
                 {copied ? 'Copied' : 'Copy address'}
@@ -233,7 +267,9 @@ export default function WalletSurface() {
           <p className="wallet-section-note">
             {overview
               ? `Checked ${formatDate(overview.checkedAt)}. Read-only chain data; no transaction was submitted.`
-              : 'Read-only until the treasury assigns a wallet. Arena never treats an unverified address as a player identity.'}
+              : wallet
+                ? 'Balance reads are pending. The assigned address is already reserved for this identity.'
+                : 'Read-only until the treasury assigns a wallet. Arena never treats an unverified address as a player identity.'}
           </p>
         </div>
         <div className="wallet-asset-grid">
@@ -245,7 +281,9 @@ export default function WalletSurface() {
                 <h3>{asset.balance}</h3>
                 <p className="wallet-asset-detail">{asset.detail}</p>
               </div>
-              <span className="wallet-asset-state">{overview ? 'Server verified' : 'Wallet not assigned'}</span>
+              <span className="wallet-asset-state">
+                {overview ? 'Server verified' : wallet ? 'Awaiting chain read' : 'Wallet not assigned'}
+              </span>
             </article>
           ))}
         </div>

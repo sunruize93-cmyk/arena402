@@ -1,10 +1,11 @@
 import { CONNECTOR_API_BASE_URL, getConnectorCsrfToken } from '@/lib/connector-api';
 
-export interface WalletBinding {
+export interface MyWallet {
+  walletId: string;
   address: string;
   chainId: number;
-  network: string;
-  verifiedAt: string;
+  custodyMode: string;
+  boundAt: string;
 }
 
 export interface WalletOverview {
@@ -78,13 +79,24 @@ async function walletRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-// The Arena custodies every player wallet. The browser only reads the
-// assignment and balances; it never signs, binds, or unbinds anything.
-export function getWalletBinding(): Promise<WalletBinding> {
-  return walletRequest<WalletBinding>('/api/wallet');
+// The Arena treasury custodies every player wallet. GET /api/v1/me/wallet
+// lazily claims one available inventory wallet for the GitHub subject on the
+// first authenticated call; the browser only reads the result, never binds.
+// Errors arrive as string detail codes: wallet_pool_exhausted (409),
+// github_identity_required / github_identity_conflict / wallet_binding_conflict (403).
+export async function getMyWallet(): Promise<MyWallet> {
+  const payload = await walletRequest<{ wallet?: MyWallet }>('/api/v1/me/wallet');
+  const wallet = payload?.wallet;
+  if (!wallet || typeof wallet.address !== 'string' || !wallet.address) {
+    throw new WalletApiError('wallet_payload_invalid', 200, 'wallet_payload_invalid');
+  }
+  return wallet;
 }
 
+// Performs the same lazy allocation, then reads balances over Injective EVM
+// JSON-RPC. Returns 503 { code: "wallet_overview_unavailable" } when the
+// chain reader is not configured; the assignment above still stands.
 export function getWalletOverview(): Promise<WalletOverview> {
-  return walletRequest<WalletOverview>('/api/wallet/overview');
+  return walletRequest<WalletOverview>('/api/v1/me/wallet/overview');
 }
 
