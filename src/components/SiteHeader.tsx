@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -78,14 +77,7 @@ export default function SiteHeader() {
       </div>
 
       <Link href="/" className="nav-brand" aria-label="Arena 402 home">
-        <Image
-          className="nav-brand-logo"
-          src="/assets/arena402-logo.jpg"
-          alt="Arena 402"
-          width={56}
-          height={58}
-          priority
-        />
+        ARENA 402
       </Link>
 
       <div className="nav-links right">
