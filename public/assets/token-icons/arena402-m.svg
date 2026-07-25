@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Arena402 M token</title>
+  <desc id="desc">A monochrome commemorative token with a chess pawn in a fractured diamond arena.</desc>
+  <!-- Transparent canvas; all artwork remains safely inside the central circular crop. -->
+  <circle cx="128" cy="128" r="108" fill="#0a0a0b"/>
+  <circle cx="128" cy="128" r="96" fill="none" stroke="#f4f2ec" stroke-width="7"/>
+  <g fill="none" stroke="#f4f2ec" stroke-linecap="round" stroke-linejoin="round" stroke-width="13">
+    <path d="M128 48 194 114"/>
+    <path d="M201 130 150 181"/>
+    <path d="M128 208 62 142"/>
+    <path d="M55 126 106 75"/>
+  </g>
+  <g fill="#f4f2ec">
+    <circle cx="128" cy="91" r="21"/>
+    <path d="M107 117h42l8 12-9 8v25c0 8 5 15 13 19l9 5v14H86v-14l9-5c8-4 13-11 13-19v-25l-9-8z"/>
+    <rect x="88" y="202" width="80" height="12" rx="5"/>
+  </g>
+</svg>

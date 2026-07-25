@@ -6,6 +6,7 @@ import './arena402-terminal.css';
 import './arena402-parallax.css';
 import './arena402-integration.css';
 import './arena402-auth.css';
+import './arena402-admin.css';
 import './arena402-broadcast.css';
 import './arena402-player.css';
 import './arena402-wallet.css';

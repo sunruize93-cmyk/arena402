@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Arena402 G token</title>
+  <desc id="desc">A monochrome game token with a chess knight in a fractured diamond arena.</desc>
+  <!-- Transparent canvas; all artwork remains safely inside the central circular crop. -->
+  <circle cx="128" cy="128" r="108" fill="#0a0a0b"/>
+  <circle cx="128" cy="128" r="96" fill="none" stroke="#f4f2ec" stroke-width="7"/>
+  <g fill="none" stroke="#f4f2ec" stroke-linecap="round" stroke-width="11">
+    <path d="M128 46v19M210 128h-19M128 210v-19M46 128h19"/>
+  </g>
+  <path fill="#f4f2ec" d="M162 66c-21 5-39 19-51 39l-21-9-13 22 24 13c-8 16-12 34-10 52l-18 20v12h106v-12l-18-20c7-24 1-52-16-72l16-18-19-15zm-44 57 11-9 17 7-9 13-19 3z"/>
+  <path fill="#0a0a0b" d="m118 123 11-9 17 7-9 13-19 3z"/>
+  <rect x="82" y="202" width="92" height="12" rx="5" fill="#f4f2ec"/>
+</svg>

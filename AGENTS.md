@@ -4,68 +4,78 @@
 
 ## Project overview
 
-Agent battle protocol: LLM-powered agents compete head-to-head in ELO-ranked negotiations. Participants deploy their own agent (any model, any style), it negotiates unattended on-chain. Single-page vanilla JS app backed by Supabase, deployed on Vercel.
+Agent battle protocol: LLM-powered agents compete head-to-head in ELO-ranked negotiations. Participants deploy their own agent (any model, any style), it negotiates unattended on-chain.
 
-**Live:** https://arena402.vercel.app
+This repository is the Vercel deployment mirror for the Arena 402 frontend. The product repository is `/Users/sunruize/adx_agentic_payment`, and the canonical integrated frontend lives in its `frontend/` directory. Product changes are synchronized into this repository root and verified here before deployment.
+
+**Production:** https://arena402.com
 
 ## Tech stack
 
 | Layer | Tech |
 |---|---|
-| Frontend | Vanilla HTML + CSS + JS — **zero framework, zero build step** |
-| Backend / DB | Supabase (PostgreSQL + Realtime) |
-| Hosting | Vercel (static files) |
+| Frontend | Next.js 15 App Router, React 18, TypeScript |
+| Backend | Arena 402 HTTP API from `adx_agentic_payment` |
+| Hosting | Vercel |
 | Fonts | Instrument Serif (headings) + IBM Plex Mono (body), Google Fonts |
 
 ## File structure
 
 ```
 arena402/
-  index.html           ← HTML skeleton + inline @font-face (self-hosted fonts)
-  css/
-    style.css          ← ALL styles — design system, typography, components, responsive
-  js/
-    config.js          ← Global state object (`var state = {...}`)
-    supabase.js        ← Supabase client init + fetchLB/fetchBattles/fetchAgents/fetchListings
-    auth.js            ← Auth (initAuth, signInWithGitHub, signInWithGoogle, signOut)
-    render.js          ← Template helpers + component factories + main render()
-    app.js             ← Global `A` namespace (nav, filter, init) — entry point
-  img/                 ← 4 engraving-style art images (WebP, ~500KB total)
-  fonts/               ← Self-hosted woff2 font files (see fonts/README.md)
-  logo-showcase.html   ← Standalone logo background style picker (12 variants)
-  vercel.json          ← Deployment config + aggressive cache headers
+  src/
+    app/                  ← App Router routes and Arena 402 CSS sheets
+    components/           ← Shared React UI
+    lib/                  ← Arena, game, Connector, Hosted Agent API clients
+  public/
+    assets/               ← Game and auth artwork
+    img/                  ← Engraving artwork
+  next.config.js          ← Same-origin /api proxy in local development
+  vercel.json             ← Vercel framework and immutable asset headers
+  package.json
 ```
 
-### Load order (critical — do not reorder)
+See `UPSTREAM_DESIGN.md` for the visual migration and API mapping.
 
-```
-Supabase CDN (defer) → config.js → supabase.js → auth.js → render.js → app.js
-```
+## Architecture
 
-All modules communicate via the global `state` object and `window.A` namespace. No ES modules, no bundler — keep it that way unless there's a strong reason.
+The browser must not access Supabase or another database directly. All business state flows through Arena-owned HTTP APIs.
 
-### Auth surface (stable)
+### API routing
 
-- `A.signIn()` → opens the `signin` page
-- `A.signIn('github' | 'google')` → starts that OAuth provider
-- `A.signOut()` → clears session
-- Implementations live in `js/auth.js` (`signInWithGitHub`, `signInWithGoogle`, `signOut`, `initAuth`)
+- Local browser requests use same-origin `/api/*` URLs.
+- `next.config.js` proxies local requests to `API_PROXY_TARGET` (default: `https://api.arena402.com`).
+- Set `API_PROXY_TARGET=http://127.0.0.1:8000` only when deliberately testing the local product backend.
+- In Vercel production, set `NEXT_PUBLIC_API_URL=https://api.arena402.com`.
+- The API must allow the exact credentialed browser origin used in production.
 
-Enable **Google** under Supabase → Authentication → Providers, and add the site URL to redirect allowlist.
+Do not expose backend secrets, wallet credentials, Supabase `service_role` keys, or model API keys through `NEXT_PUBLIC_*` variables.
 
-### Game module (倒爷黑市 — GAME_DESIGN v1 / FRONTEND_GUIDE §11)
+### Authentication
 
-| File | Owner | Contents |
-|---|---|---|
-| `js/game-render.js` | **Cursor** | Lobby / Game View / Result templates, animations |
-| `css/game.css` | **Cursor** | All game styles (separate sheet — do not merge into style.css) |
-| `js/game-state.js` | **Cursor** | `gameState`, routes, snapshot fetch, Realtime channels, demo engine |
-| `db/migrations/002_game_tables.sql` | shared | Game tables + RLS + realtime publication — run in Supabase SQL Editor |
+The primary browser login is GitHub OAuth through the Arena API. The backend owns the OAuth client secret, immutable GitHub subject mapping, HttpOnly session, CSRF validation, and authorization decisions. Frontend visibility checks are only presentation concerns and never replace server-side authorization.
 
-- Routes: `#/game` (lobby) · `#/game/{id}` (live) · `#/game/{id}/result` (final). `A.nav('game')` also works.
-- **Realtime is already wired by Cursor** in `gameRealtimeInit()` (games/rounds/pools/pairings/negotiations/neg_messages/settlements/game_events). Codex: do NOT re-implement it — backend work = run the migration, write game rows from the arena engine, and keep column names matching the SQL.
-- `gameId === 'demo'` (or missing tables) → scripted demo engine drives the UI.
-- Phases: `IDLE→DECIDE→PAIRING→NEGOTIATING→SETTLING` (`gameSetPhase`).
+### Game frontend
+
+| Concern | Implementation |
+|---|---|
+| Routes | `src/app/game/page.tsx`, `src/app/game/[gameId]/page.tsx`, `src/app/game/[gameId]/result/page.tsx` |
+| State/API | `src/lib/game-api.ts` and React components |
+| Views | `src/components/GameLobby.tsx`, `GameViewer.tsx`, `GameResult.tsx` |
+| Styles | `src/app/arena402-game.css`, `src/app/arena402-terminal.css` |
+
+The public game projection is read-only. Do not reintroduce browser-side Supabase access or a second state runtime.
+
+### Admin surface
+
+Arena administration is split across repositories:
+
+- Management APIs belong to the product/backend repository and use `/api/v1/admin/*`.
+- Management pages belong in this frontend repository under `/admin/*`.
+- Every admin API must authorize the immutable GitHub subject on the server.
+- Mutations must reuse the existing session, CSRF, and audit mechanisms.
+- Never render wallet private keys, seed phrases, raw CSV rows, SecretStore contents, or copyable secret handles.
+- Frontend route hiding is not an authorization boundary.
 
 ## Design constraints ⚠️
 
@@ -88,21 +98,7 @@ Enable **Google** under Supabase → Authentication → Providers, and add the s
 
 ## Rollback
 
-```bash
-git checkout main          # back to single-file index.html
-git checkout refactor/split-modules  # back to modularized version
-```
-
-The `main` branch preserves the original 565-line single-file `index.html`. The `refactor/split-modules` branch is the modularized version. Both should render identically.
-
-## Working with Cursor vs Codex
-
-This repo is designed for a split workflow:
-
-- **Cursor (top models)** — CSS, new UI components, animations, responsive polish, design QA. Work in `css/style.css` and the template strings in `js/render.js`.
-- **Codex (DeepSeek)** — JS logic, Supabase CRUD, state management, form validation, error handling, code organization. Work in `js/supabase.js`, `js/app.js`, `js/config.js`.
-
-DeepSeek should NOT touch CSS. Top models should NOT be wasted on Supabase boilerplate.
+Use Git history and normal branch-based review. Do not use the obsolete `refactor/split-modules` instructions from the retired vanilla frontend.
 
 ## Single-source discipline ⚠️ (读我)
 
@@ -111,14 +107,31 @@ DeepSeek should NOT touch CSS. Top models should NOT be wasted on Supabase boile
 1. **唯一本地目录**：`~/arena402`。不要在 Desktop / Documents / /tmp 再 clone。想干活先 `cd ~/arena402`。
 2. **唯一远端**：`github.com/sunruize93-cmyk/arena402`。
 3. **唯一域名**：`arena402.com`（Vercel 绑到本仓库 `main` 分支，只有这一个 Vercel 项目）。
-4. **唯一本地服务器 + 固定端口 4404**。开发前先清旧进程：
+4. **唯一本地服务器 + 固定端口 4404**。开发前先清旧 Next.js 进程：
    ```bash
-   pkill -f http.server
-   cd ~/arena402 && python3 -m http.server 4404
+   pkill -f "next dev"
+   cd ~/arena402 && npm run dev -- -p 4404
    ```
-   永远访问 `http://localhost:4404`，这样 Supabase 的 Redirect URLs 白名单也只需配这一个地址。
-5. **浏览器只开一个标签**，DevTools 勾上 "Disable cache"（Network 面板），本地不再有缓存问题。
-6. **密钥**：前端只能出现 Supabase `anon` key，**绝不能**出现 `service_role`（会绕过 RLS）。提交前自查：`grep -rn service_role . --include=*.html --include=*.js`。
+   永远访问 `http://localhost:4404`。
+5. **浏览器只开一个标签**，DevTools 勾上 "Disable cache"（Network 面板）。
+6. **密钥**：前端不能出现 `service_role`、OAuth client secret、钱包私钥、助记词或模型 API key。提交前自查：
+   ```bash
+   grep -RIn "service_role" src public \
+     --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'
+   ```
 
 ### 缓存说明
-`vercel.json` 已对 `js/`、`css/` 设 `max-age=0, must-revalidate`（生产不缓存代码）。注意：`vercel.json` **只对线上 Vercel 生效**，本地 `python -m http.server` 完全不读它——本地防缓存靠上面第 5 条。
+
+`vercel.json` only assigns immutable caching to versioned artwork under `/img/` and `/assets/`. Next.js owns application asset hashing and cache behavior; do not add blanket immutable headers for application routes.
+
+## Verification
+
+Before committing:
+
+```bash
+npm run build
+grep -RIn "service_role" src public \
+  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'
+```
+
+Review `.env*` carefully. Only `.env.example` belongs in Git.
