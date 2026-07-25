@@ -63,7 +63,12 @@ export default function WalletSurface() {
   }, []);
 
   async function copyLabel() {
-    await navigator.clipboard?.writeText('Wallet binding pending');
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText('Wallet binding pending');
+    } catch {
+      return;
+    }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   }

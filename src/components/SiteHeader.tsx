@@ -47,6 +47,12 @@ export default function SiteHeader() {
     };
   }, [pathname]);
 
+  // The header persists across route changes, so the dropdown must close
+  // itself after a menu item navigates away.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
   useEffect(() => {
     if (!menuOpen) return;
     function closeMenu(event: MouseEvent) {

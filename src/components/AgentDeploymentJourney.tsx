@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ConnectorConsole from '@/components/ConnectorConsole';
 import HostedAgentCreator from '@/components/HostedAgentCreator';
 import {
@@ -17,6 +17,8 @@ export default function AgentDeploymentJourney() {
   const [path, setPath] = useState<DeploymentPath>('local');
   const [localReady, setLocalReady] = useState(false);
   const [hostedReady, setHostedReady] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const hashApplied = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +36,24 @@ export default function AgentDeploymentJourney() {
       cancelled = true;
     };
   }, []);
+
+  // Landing on /agents#hosted-agents (e.g. after sign-in) must open the
+  // hosted tab first — the anchor target only exists once that tab renders.
+  useEffect(() => {
+    if (loading || !session || hashApplied.current) return;
+    if (window.location.hash !== '#hosted-agents') return;
+    if (path !== 'hosted') {
+      setPath('hosted');
+      return;
+    }
+    hashApplied.current = true;
+    document.getElementById('hosted-agents')?.scrollIntoView({ block: 'start' });
+  }, [loading, session, path]);
+
+  function openDeploymentPath(next: DeploymentPath) {
+    setPath(next);
+    workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   if (loading) {
     return (
@@ -112,7 +132,7 @@ export default function AgentDeploymentJourney() {
         </button>
       </div>
 
-      <div className="deployment-workspace">
+      <div className="deployment-workspace" ref={workspaceRef}>
         {path === 'local' ? (
           <>
             <div className="deployment-workspace-head">
@@ -124,17 +144,23 @@ export default function AgentDeploymentJourney() {
                 Approve pairing code
               </Link>
             </div>
-            <ConnectorConsole onReadyChange={setLocalReady} />
+            <ConnectorConsole
+              onReadyChange={setLocalReady}
+              onOpenHostedPath={() => openDeploymentPath('hosted')}
+            />
           </>
         ) : (
           <>
-            <div className="deployment-workspace-head" id="hosted-agents">
+            <div className="deployment-workspace-head">
               <div>
                 <p className="label">Step 02 · Hosted piece</p>
                 <h3>Hosted Forge</h3>
               </div>
             </div>
-            <HostedAgentCreator onReadyChange={setHostedReady} />
+            <HostedAgentCreator
+              onReadyChange={setHostedReady}
+              onOpenLocalPath={() => openDeploymentPath('local')}
+            />
           </>
         )}
       </div>

@@ -102,7 +102,9 @@ export default function GameLobby() {
   }
 
   function openCurrentGame() {
-    if (!currentGame) {
+    // In the error state any cached game is stale; retry the snapshot instead
+    // of navigating to a table that may no longer exist.
+    if (currentState === 'error' || !currentGame) {
       void refreshCurrentGame();
       return;
     }
@@ -110,14 +112,14 @@ export default function GameLobby() {
     router.push(`/game/${encodeURIComponent(currentGame.gameId)}${suffix}`);
   }
 
-  const currentAction = currentGame?.status === 'COMPLETED'
-    ? 'View final ledger'
-    : currentGame?.status === 'RUNNING'
-      ? 'Watch live table'
-      : currentGame
-        ? 'Enter current lobby'
-        : currentState === 'error'
-          ? 'Reconnect'
+  const currentAction = currentState === 'error'
+    ? 'Reconnect'
+    : currentGame?.status === 'COMPLETED'
+      ? 'View final ledger'
+      : currentGame?.status === 'RUNNING'
+        ? 'Watch live table'
+        : currentGame
+          ? 'Enter current lobby'
           : 'Preparing the next table';
 
   return (
