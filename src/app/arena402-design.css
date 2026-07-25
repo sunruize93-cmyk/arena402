@@ -254,7 +254,13 @@ button { font-family: inherit; }
 .hero-copy { max-width: 560px; }
 .hero-eyebrow { margin-bottom: 28px; }
 .hero h1 { font-size: clamp(42px, 5.8vw, 96px); margin-bottom: 36px; }
-.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 40px; }
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 26px 0 32px;
+}
 .hero-art { position: relative; display: flex; align-items: center; justify-content: center; align-self: center; }
 .hero-art img {
   width: 100%; max-height: 82vh; object-fit: contain;
@@ -569,18 +575,6 @@ button { font-family: inherit; }
 }
 .back-btn:hover { color: var(--paper); border-bottom-color: var(--paper); }
 
-/* === Try Now centered CTA — #6 === */
-.hero-try-wrap { display: flex; justify-content: center; margin: 20px 0 24px; }
-.btn-try {
-  font-family: var(--mono); font-size: 13px; font-weight: 600;
-  letter-spacing: 0.22em; text-transform: uppercase;
-  background: var(--paper); color: var(--ink);
-  border: 2px solid var(--paper); cursor: pointer;
-  padding: 16px 48px;
-  transition: all 0.25s ease;
-}
-.btn-try:hover { background: transparent; color: var(--paper); }
-
 /* === K-line ticker — #7 === */
 .kline-ticker {
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
@@ -703,7 +697,6 @@ button { font-family: inherit; }
   .hero-art { order: -1; }
   .hero-art img { max-height: 44vh; }
   .hero-actions { justify-content: flex-start !important; }
-  .hero-try-wrap { justify-content: flex-start; }
   .grid-3 { grid-template-columns: 1fr; }
   .nav { grid-template-columns: auto 1fr; padding-top: 18px; max-width: none; left: 0; transform: none; }
   .nav-links.left { display: none; }
@@ -722,7 +715,6 @@ button { font-family: inherit; }
   .auth-art { display: none; }
   .world-modal { padding: 28px 18px; }
   .world-modal h2 { font-size: 26px; }
-  .btn-try { padding: 14px 32px; font-size: 12px; }
   .section, .paper-panel, .page-head { max-width: none; }
   .paper-panel-inner { max-width: none; }
 }
@@ -731,7 +723,6 @@ button { font-family: inherit; }
 @media (max-width: 560px) {
   .hero h1 { font-size: 34px; }
   .hero-lore { font-size: 13px; }
-  .hero-try-wrap { margin: 14px 0 18px; }
   .nav-links.right { gap: 12px; }
   .nav-signin { padding: 6px 12px; font-size: 9px; }
   .kline-ticker-inner { gap: 28px; animation-duration: 28s; }

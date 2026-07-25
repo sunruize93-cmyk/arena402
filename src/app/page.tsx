@@ -97,12 +97,7 @@ export default function Home() {
             <span> your pawn on the board</span>. Read the chaos. Bargain like an
             emperor. A pawn at the far end of the board becomes a king.
           </p>
-          <div className="hero-try-wrap">
-            <Link className="btn-try hero-link" href="/signin">
-              Try Now
-            </Link>
-          </div>
-          <div className="hero-actions" style={{ justifyContent: 'center' }}>
+          <div className="hero-actions">
             <WorldStoryButton />
             <Link className="btn ghost sm" href="/game/demo">
               Watch Demo
