@@ -7,16 +7,6 @@ export interface WalletBinding {
   verifiedAt: string;
 }
 
-export interface WalletChallenge {
-  challengeId: string;
-  address: string;
-  chainId: number;
-  network: string;
-  nonce: string;
-  message: string;
-  expiresAt: string;
-}
-
 export interface WalletOverview {
   address: string;
   chainId: number;
@@ -88,37 +78,13 @@ async function walletRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+// The Arena custodies every player wallet. The browser only reads the
+// assignment and balances; it never signs, binds, or unbinds anything.
 export function getWalletBinding(): Promise<WalletBinding> {
   return walletRequest<WalletBinding>('/api/wallet');
 }
 
-export function createWalletChallenge(input: {
-  address: string;
-  chainId: number;
-}): Promise<WalletChallenge> {
-  return walletRequest<WalletChallenge>('/api/wallet/challenge', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export function verifyWalletChallenge(input: {
-  challengeId: string;
-  address: string;
-  message: string;
-  signature: string;
-}): Promise<{ wallet: WalletBinding }> {
-  return walletRequest<{ wallet: WalletBinding }>('/api/wallet/verify', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
 export function getWalletOverview(): Promise<WalletOverview> {
   return walletRequest<WalletOverview>('/api/wallet/overview');
-}
-
-export function deleteWalletBinding(): Promise<void> {
-  return walletRequest<void>('/api/wallet', { method: 'DELETE' });
 }
 

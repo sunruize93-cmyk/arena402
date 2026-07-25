@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowUpRight, Check, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ConnectorAuthSession,
   getConnectorAuthSession,
@@ -10,11 +10,8 @@ import {
 import {
   WalletApiError,
   WalletOverview,
-  createWalletChallenge,
-  deleteWalletBinding,
   getWalletBinding,
   getWalletOverview,
-  verifyWalletChallenge,
 } from '@/lib/wallet-api';
 
 const NETWORK_FACTS = [
@@ -23,19 +20,6 @@ const NETWORK_FACTS = [
   ['Settlement', 'x402 / EIP-3009'],
   ['Explorer', 'Testnet Blockscout'],
 ] as const;
-
-const INJECTIVE_CHAIN_ID = 1439;
-const INJECTIVE_CHAIN_ID_HEX = '0x59f';
-
-type EthereumProvider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-};
-
-declare global {
-  interface Window {
-    ethereum?: EthereumProvider;
-  }
-}
 
 function shortUser(session: ConnectorAuthSession | null): string {
   return session?.user.display_name || session?.user.username || 'Unclaimed player';
@@ -55,25 +39,12 @@ function formatDate(value: string): string {
 function walletErrorMessage(error: unknown): string {
   if (error instanceof WalletApiError) {
     const messages: Record<string, string> = {
-      wallet_not_bound: 'No wallet is linked to this Arena identity yet.',
-      unsupported_wallet_chain: 'Switch your wallet to Injective EVM Testnet (chain 1439).',
-      wallet_signature_invalid: 'The wallet signature could not be verified.',
-      wallet_signature_address_mismatch: 'The signature does not belong to this wallet address.',
-      challenge_message_mismatch: 'The wallet challenge expired or was changed.',
-      wallet_already_bound: 'This Arena identity already has a wallet linked.',
-      wallet_address_already_bound: 'This wallet is already linked to another Arena identity.',
+      wallet_not_bound: 'The Arena treasury has not assigned a wallet to this identity yet.',
       network_unavailable: 'The Arena API is unreachable. Check the local backend and retry.',
     };
     return messages[error.code] || error.message;
   }
-  return error instanceof Error ? error.message : 'Wallet binding failed. Please retry.';
-}
-
-function ethereumProvider(): EthereumProvider {
-  if (!window.ethereum) {
-    throw new Error('No browser wallet was found. Install MetaMask or use WalletConnect.');
-  }
-  return window.ethereum;
+  return error instanceof Error ? error.message : 'The treasury check failed. Please retry.';
 }
 
 export default function WalletSurface() {
@@ -85,6 +56,16 @@ export default function WalletSurface() {
   const [notice, setNotice] = useState('');
   const [copied, setCopied] = useState(false);
 
+  const loadOverview = useCallback(async () => {
+    try {
+      await getWalletBinding();
+      return await getWalletOverview();
+    } catch (walletError) {
+      if (walletError instanceof WalletApiError && walletError.status === 404) return null;
+      throw walletError;
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -95,14 +76,8 @@ export default function WalletSurface() {
         setSession(value);
         if (!value) return;
 
-        try {
-          await getWalletBinding();
-          const walletOverview = await getWalletOverview();
-          if (!cancelled) setOverview(walletOverview);
-        } catch (walletError) {
-          if (walletError instanceof WalletApiError && walletError.status === 404) return;
-          throw walletError;
-        }
+        const walletOverview = await loadOverview();
+        if (!cancelled) setOverview(walletOverview);
       } catch (loadError) {
         if (!cancelled) setError(walletErrorMessage(loadError));
       } finally {
@@ -114,45 +89,22 @@ export default function WalletSurface() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadOverview]);
 
-  async function linkWallet() {
+  async function checkAssignment() {
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      const provider = ethereumProvider();
-      const accounts = await provider.request({ method: 'eth_requestAccounts' });
-      const address = Array.isArray(accounts) && typeof accounts[0] === 'string'
-        ? accounts[0]
-        : '';
-      if (!address) throw new Error('The wallet did not return an address.');
-
-      const chainId = await provider.request({ method: 'eth_chainId' });
-      if (typeof chainId !== 'string' || chainId.toLowerCase() !== INJECTIVE_CHAIN_ID_HEX) {
-        throw new Error(`Switch your wallet to Injective EVM Testnet (chain ${INJECTIVE_CHAIN_ID}).`);
-      }
-
-      const challenge = await createWalletChallenge({
-        address,
-        chainId: INJECTIVE_CHAIN_ID,
-      });
-      const signature = await provider.request({
-        method: 'personal_sign',
-        params: [challenge.message, address],
-      });
-      if (typeof signature !== 'string') throw new Error('The wallet did not return a signature.');
-
-      await verifyWalletChallenge({
-        challengeId: challenge.challengeId,
-        address,
-        message: challenge.message,
-        signature,
-      });
-      setOverview(await getWalletOverview());
-      setNotice('Wallet linked and balance checked from Injective Testnet.');
-    } catch (linkError) {
-      setError(walletErrorMessage(linkError));
+      const walletOverview = await loadOverview();
+      setOverview(walletOverview);
+      setNotice(
+        walletOverview
+          ? 'Treasury wallet found. Balance checked from Injective Testnet.'
+          : 'No treasury wallet has been assigned yet. Check again after registration completes.',
+      );
+    } catch (checkError) {
+      setError(walletErrorMessage(checkError));
     } finally {
       setBusy(false);
     }
@@ -172,25 +124,10 @@ export default function WalletSurface() {
     }
   }
 
-  async function unlinkWallet() {
-    setBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      await deleteWalletBinding();
-      setOverview(null);
-      setNotice('Wallet unlinked from this Arena identity.');
-    } catch (unlinkError) {
-      setError(walletErrorMessage(unlinkError));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function copyAddress() {
     if (!navigator.clipboard) return;
     try {
-      await navigator.clipboard.writeText(overview?.address || 'Wallet binding pending');
+      await navigator.clipboard.writeText(overview?.address || '');
     } catch {
       return;
     }
@@ -236,7 +173,7 @@ export default function WalletSurface() {
             <span className="wallet-status-dot" aria-hidden="true" />
             <span>{loading ? 'Checking Arena identity…' : shortUser(session)}</span>
             <span className="wallet-identity-separator">/</span>
-            <span>{session ? 'Arena session found' : 'Sign in to bind a wallet'}</span>
+            <span>{session ? 'Arena session found' : 'Sign in to view your treasury wallet'}</span>
           </div>
           {(error || notice) && (
             <p className={`wallet-feedback ${error ? 'wallet-feedback-error' : ''}`} role={error ? 'alert' : 'status'}>
@@ -252,29 +189,24 @@ export default function WalletSurface() {
             <span className="label">Wallet seal</span>
             <span className="wallet-seal-mark" aria-hidden="true">402</span>
           </div>
-          <p className="wallet-seal-state">{overview ? 'LINKED' : 'NOT LINKED'}</p>
+          <p className="wallet-seal-state">{overview ? 'ASSIGNED' : 'NOT ASSIGNED'}</p>
           <h2 id="wallet-seal-title">
-            {overview ? `${overview.address.slice(0, 6)}…${overview.address.slice(-4)}` : 'No address has claimed this treasury.'}
+            {overview ? `${overview.address.slice(0, 6)}…${overview.address.slice(-4)}` : 'No treasury wallet has been assigned yet.'}
           </h2>
           <p>
             {overview
               ? `Verified ${formatDate(overview.checkedAt)} on ${overview.network}.`
-              : 'Link a player-owned Injective EVM address before Arena can read balances or associate settlement receipts with this identity.'}
+              : 'The Arena treasury custodies an Injective EVM wallet for every registered player. Yours appears here once registration completes.'}
           </p>
           <div className="wallet-seal-actions">
             {session ? (
               overview ? (
-                <>
-                  <button type="button" className="btn" onClick={() => void refreshOverview()} disabled={busy}>
-                    {busy ? 'Checking…' : 'Refresh balance'}
-                  </button>
-                  <button type="button" className="wallet-copy-action" onClick={() => void unlinkWallet()} disabled={busy}>
-                    Unlink wallet
-                  </button>
-                </>
+                <button type="button" className="btn" onClick={() => void refreshOverview()} disabled={busy}>
+                  {busy ? 'Checking…' : 'Refresh balance'}
+                </button>
               ) : (
-                <button type="button" className="btn" onClick={() => void linkWallet()} disabled={busy}>
-                  {busy ? 'Waiting for wallet…' : 'Link wallet'} <ArrowUpRight size={14} aria-hidden="true" />
+                <button type="button" className="btn" onClick={() => void checkAssignment()} disabled={busy}>
+                  {busy ? 'Checking…' : 'Check assignment'} <ArrowUpRight size={14} aria-hidden="true" />
                 </button>
               )
             ) : (
@@ -282,10 +214,12 @@ export default function WalletSurface() {
                 Sign in to continue <ArrowUpRight size={14} aria-hidden="true" />
               </Link>
             )}
-            <button type="button" className="wallet-copy-action" onClick={() => void copyAddress()}>
-              {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
-              {copied ? 'Copied' : 'Copy address'}
-            </button>
+            {overview && (
+              <button type="button" className="wallet-copy-action" onClick={() => void copyAddress()}>
+                {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                {copied ? 'Copied' : 'Copy address'}
+              </button>
+            )}
           </div>
         </aside>
       </section>
@@ -299,7 +233,7 @@ export default function WalletSurface() {
           <p className="wallet-section-note">
             {overview
               ? `Checked ${formatDate(overview.checkedAt)}. Read-only chain data; no transaction was submitted.`
-              : 'Read-only until a wallet is linked. Arena never treats an unverified address as a player identity.'}
+              : 'Read-only until the treasury assigns a wallet. Arena never treats an unverified address as a player identity.'}
           </p>
         </div>
         <div className="wallet-asset-grid">
@@ -311,7 +245,7 @@ export default function WalletSurface() {
                 <h3>{asset.balance}</h3>
                 <p className="wallet-asset-detail">{asset.detail}</p>
               </div>
-              <span className="wallet-asset-state">{overview ? 'Server verified' : 'Wallet not linked'}</span>
+              <span className="wallet-asset-state">{overview ? 'Server verified' : 'Wallet not assigned'}</span>
             </article>
           ))}
         </div>
@@ -335,7 +269,7 @@ export default function WalletSurface() {
             ))}
           </dl>
           <p className="wallet-panel-footnote">
-            The server checks the chain before displaying the balance. Wallet keys never enter Arena.
+            The server checks the chain before displaying the balance. Wallet keys stay in the Arena treasury and never reach the browser.
           </p>
         </article>
 
@@ -359,8 +293,8 @@ export default function WalletSurface() {
       </section>
 
       <section className="wallet-principles" aria-label="Wallet principles">
-        <div><span>01</span><strong>Player custody</strong><p>Your signing key stays in your wallet.</p></div>
-        <div><span>02</span><strong>Server verification</strong><p>A claimed address is checked before it becomes identity.</p></div>
+        <div><span>01</span><strong>Arena custody</strong><p>The treasury holds and signs for every player wallet.</p></div>
+        <div><span>02</span><strong>Server verification</strong><p>Balances are read from the chain, never from a database ledger.</p></div>
         <div><span>03</span><strong>Public receipts</strong><p>Settlement is only final after the chain confirms it.</p></div>
       </section>
     </div>
