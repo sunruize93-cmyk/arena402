@@ -1,4 +1,5 @@
 import type { PawnhouseTimelineEvent } from '@/lib/game-api';
+import type { LedgerApiTrade } from '@/lib/ledger-api';
 
 // Public chain facts. The explorer base stays overridable so the backend (or a
 // mainnet switch) can supply the canonical URL without a frontend change.
@@ -55,6 +56,14 @@ export interface LedgerTrade {
   sequence: number;
   confirmedAt: string | null;
   verifiable: boolean;
+  // Chain-receipt fields carried only by the ledger API projection. The
+  // timeline replay leaves them unset and the UI renders them as absent.
+  tradeId?: string;
+  gameId?: string;
+  blockNumber?: string | null;
+  buyerAddress?: string | null;
+  sellerAddress?: string | null;
+  facilitatorAddress?: string | null;
 }
 
 export interface LedgerStats {
@@ -92,6 +101,35 @@ export function isVerifiableTxHash(hash: string): boolean {
 
 export function explorerTxUrl(hash: string): string | null {
   return isVerifiableTxHash(hash) ? `${LEDGER_EXPLORER_BASE}/tx/${hash}` : null;
+}
+
+// The backend now delivers its canonical template
+// (`https://…/tx/{txHash}`). It wins over the build-time base so a mainnet
+// switch needs no frontend change; invalid hashes still never earn a link.
+export function explorerTxUrlFromTemplate(
+  template: string | null | undefined,
+  hash: string,
+): string | null {
+  if (!isVerifiableTxHash(hash)) return null;
+  if (template && template.split('{txHash}').length === 2) {
+    return template.replace('{txHash}', hash);
+  }
+  return `${LEDGER_EXPLORER_BASE}/tx/${hash}`;
+}
+
+export function isAccountAddress(value: unknown): value is string {
+  return typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value);
+}
+
+export function explorerAddressUrlFromTemplate(
+  template: string | null | undefined,
+  address: string,
+): string | null {
+  if (!isAccountAddress(address)) return null;
+  const marker = template ? template.indexOf('/tx/{txHash}') : -1;
+  const base =
+    template && marker > 0 ? template.slice(0, marker) : LEDGER_EXPLORER_BASE;
+  return `${base}/address/${address}`;
 }
 
 export function explorerTokenUrl(address: string): string {
@@ -276,4 +314,82 @@ export function buildLedgerStats(trades: LedgerTrade[]): LedgerStats {
   }
 
   return { sealedCount, settledAtomic, failedCount, lastConfirmedAt };
+}
+
+// Authoritative settlement statuses (db/migrations/009) collapsed onto the
+// four display states and the furthest completed lifecycle stage.
+const API_STATUS_MAP: Record<
+  string,
+  { status: LedgerTradeStatus; stage: number }
+> = {
+  authorization_requested: { status: 'pending', stage: 0 },
+  submitted: { status: 'pending', stage: 2 },
+  chain_confirmed_uncommitted: { status: 'confirmed', stage: 3 },
+  inventory_committed: { status: 'committed', stage: 4 },
+  authorization_failed: { status: 'failed', stage: 0 },
+  expired: { status: 'failed', stage: 0 },
+  submission_failed: { status: 'failed', stage: 1 },
+  confirmation_timeout: { status: 'failed', stage: 2 },
+  reverted: { status: 'failed', stage: 2 },
+};
+
+// Maps one ledger-API row onto the shared display shape. Unknown statuses
+// degrade to a pending row instead of guessing a chain outcome.
+export function mapLedgerApiTrade(trade: LedgerApiTrade): LedgerTrade {
+  const mapped = API_STATUS_MAP[trade.status] || {
+    status: 'pending' as LedgerTradeStatus,
+    stage: 0,
+  };
+  const txHash = cleanText(trade.txHash, '');
+  const round = Number(trade.round);
+  return {
+    pairingId: cleanText(trade.pairingId, ''),
+    tradeId: cleanText(trade.tradeId, ''),
+    gameId: cleanText(trade.gameId, ''),
+    round: Number.isFinite(round) && round > 0 ? round : null,
+    goodId: cleanText(trade.goodId, ''),
+    quantity:
+      Number.isFinite(trade.quantity) && trade.quantity > 0
+        ? trade.quantity
+        : 1,
+    priceAtomic: asAtomic(trade.priceAtomic),
+    amountAtomic: asAtomic(trade.amountAtomic),
+    buyer: displayAgent(
+      trade.buyer?.displayName || trade.buyer?.agentId,
+      'Buyer',
+    ),
+    seller: displayAgent(
+      trade.seller?.displayName || trade.seller?.agentId,
+      'Seller',
+    ),
+    buyerAddress: isAccountAddress(trade.buyer?.accountAddress)
+      ? trade.buyer.accountAddress
+      : null,
+    sellerAddress: isAccountAddress(trade.seller?.accountAddress)
+      ? trade.seller.accountAddress
+      : null,
+    facilitatorAddress: isAccountAddress(trade.facilitatorAddress)
+      ? trade.facilitatorAddress
+      : null,
+    blockNumber: cleanText(trade.blockNumber, '') || null,
+    txHash,
+    status: mapped.status,
+    stageReached: mapped.stage,
+    sequence: 0,
+    confirmedAt: cleanText(trade.chainConfirmedAt, '') || null,
+    verifiable: isVerifiableTxHash(txHash),
+  };
+}
+
+// Keeps the newest-first server order while replacing refreshed head rows and
+// preserving already-paginated tail rows by tradeId.
+export function mergeLedgerHead(
+  head: LedgerTrade[],
+  existing: LedgerTrade[],
+): LedgerTrade[] {
+  const headIds = new Set(head.map((trade) => trade.tradeId));
+  return [
+    ...head,
+    ...existing.filter((trade) => !headIds.has(trade.tradeId)),
+  ];
 }
