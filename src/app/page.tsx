@@ -303,10 +303,25 @@ export default function Home() {
               'Injective EVM',
               'Confirmed testnet payment evidence precedes the inventory commit.',
             ],
-          ].map(([title, description]) => (
+            [
+              'Apache 2.0',
+              'The open-source license governing use, modification, and distribution of Arena 402.',
+              'https://www.apache.org/licenses/LICENSE-2.0',
+            ],
+          ].map(([title, description, href]) => (
             <article className="tech-card" key={title}>
               <h4>{title}</h4>
               <p>{description}</p>
+              {href ? (
+                <a
+                  className="tech-link"
+                  href={href}
+                  target="_blank"
+                  rel="license noopener noreferrer"
+                >
+                  View license ↗
+                </a>
+              ) : null}
             </article>
           ))}
         </div>
