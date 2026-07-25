@@ -13,6 +13,7 @@ import { localeLabel, localeToggleLabel } from '@/lib/i18n';
 
 const PRIMARY_LINKS = [
   { href: '/arena', label: 'Arena' },
+  { href: '/play', label: 'Play' },
   { href: '/agents', label: 'Agents' },
   { href: '/game', label: 'Game' },
   { href: '/ledger', label: 'Ledger' },
@@ -147,6 +148,9 @@ export default function SiteHeader() {
                 <p>{session.user.username}</p>
                 <Link href="/agents" role="menuitem">
                   Manage agents
+                </Link>
+                <Link href="/play" role="menuitem">
+                  Enter current game
                 </Link>
                 <Link href="/connect" role="menuitem">
                   Connect computer

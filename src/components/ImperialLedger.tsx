@@ -258,7 +258,13 @@ type FeedSource = 'resolving' | 'ledger' | 'timeline' | 'demo';
 
 const LEDGER_PAGE_SIZE = 25;
 
-export default function ImperialLedger({ requestedGameId }: { requestedGameId?: string }) {
+export default function ImperialLedger({
+  requestedGameId,
+  requestedAgentId,
+}: {
+  requestedGameId?: string;
+  requestedAgentId?: string;
+}) {
   const [source, setSource] = useState<FeedSource>('resolving');
   const [gameId, setGameId] = useState('');
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
@@ -288,7 +294,11 @@ export default function ImperialLedger({ requestedGameId }: { requestedGameId?: 
     }
     let cancelled = false;
     setSource('resolving');
-    getLedgerTrades({ gameId: requestedGameId, limit: 1 })
+    getLedgerTrades({
+      gameId: requestedGameId,
+      agentId: requestedAgentId,
+      limit: 1,
+    })
       .then(() => {
         if (cancelled) return;
         setGameId(requestedGameId || '');
@@ -321,7 +331,7 @@ export default function ImperialLedger({ requestedGameId }: { requestedGameId?: 
     return () => {
       cancelled = true;
     };
-  }, [requestedGameId]);
+  }, [requestedAgentId, requestedGameId]);
 
   const simulated = source === 'demo';
   const ledgerMode = source === 'ledger';
@@ -339,6 +349,7 @@ export default function ImperialLedger({ requestedGameId }: { requestedGameId?: 
 
     const query = {
       gameId: requestedGameId || undefined,
+      agentId: requestedAgentId || undefined,
       goodId: filter === 'all' ? undefined : filter,
       limit: LEDGER_PAGE_SIZE,
     };
@@ -373,7 +384,7 @@ export default function ImperialLedger({ requestedGameId }: { requestedGameId?: 
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [ledgerMode, requestedGameId, filter]);
+  }, [ledgerMode, requestedAgentId, requestedGameId, filter]);
 
   async function loadMore() {
     if (!nextAfter || loadingMore) return;
@@ -381,6 +392,7 @@ export default function ImperialLedger({ requestedGameId }: { requestedGameId?: 
     try {
       const page = await getLedgerTrades({
         gameId: requestedGameId || undefined,
+        agentId: requestedAgentId || undefined,
         goodId: filter === 'all' ? undefined : filter,
         after: nextAfter,
         limit: LEDGER_PAGE_SIZE,
@@ -484,7 +496,9 @@ export default function ImperialLedger({ requestedGameId }: { requestedGameId?: 
                   ? 'Public feed unreachable · showing last known entries'
                   : ledgerMode
                     ? requestedGameId
-                      ? `Public trade ledger · game ${requestedGameId}`
+                      ? requestedAgentId
+                        ? `Player ledger · ${requestedAgentId} · game ${requestedGameId}`
+                        : `Public trade ledger · game ${requestedGameId}`
                       : 'Public trade ledger · all games'
                     : `Public live feed · game ${gameId}`}
           </span>

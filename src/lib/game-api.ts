@@ -1,4 +1,5 @@
 import { arenaApiRequest } from '@/lib/platform-api';
+import { getConnectorCsrfToken } from '@/lib/connector-api';
 
 export interface PawnhouseGameState {
   gameId: string;
@@ -50,6 +51,17 @@ export interface CurrentGameParticipant {
   runtimeKind: string;
   readiness: 'PENDING' | 'READY';
   joinedAt: string;
+  isOfficial: boolean;
+}
+
+export interface CurrentGameMatchmaking {
+  targetSeats: number;
+  humanReadyCount: number;
+  officialReadyCount: number;
+  firstHumanReadyAt: string | null;
+  fillAt: string | null;
+  fillStatus: 'IDLE' | 'COLLECTING' | 'FILLING' | 'READY' | 'BLOCKED';
+  serverTime: string;
 }
 
 export interface CurrentGame {
@@ -63,6 +75,7 @@ export interface CurrentGame {
   roundPhase: string | null;
   joinedByMe: boolean;
   participants: CurrentGameParticipant[];
+  matchmaking: CurrentGameMatchmaking;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -118,32 +131,125 @@ export async function getGameParticipations(): Promise<GameParticipation[]> {
   return response.participations || [];
 }
 
-function readCsrfCookie(): string {
-  if (typeof document === 'undefined') return '';
-  const prefix = 'adx_csrf=';
-  const cookie = document.cookie
-    .split(';')
-    .map((value) => value.trim())
-    .find((value) => value.startsWith(prefix));
-  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
+async function idempotentMutation<T>(
+  path: string,
+  body: Record<string, unknown>,
+  idempotencyKey?: string,
+): Promise<T> {
+  const csrfToken = await getConnectorCsrfToken();
+  return arenaApiRequest<T>(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+    },
+    body: JSON.stringify(body),
+  });
 }
 
-export function joinPawnhouseGame(
+export interface JoinPreflight {
+  gameId: string;
+  agentId: string;
+  joinAuthorizationId: string;
+  checks: Record<string, string>;
+  mandateRequirements: {
+    chainId: number;
+    tokenAddress: string;
+    tokenSymbol: string;
+    tokenDecimals: number;
+    maxPerPaymentAtomic: string;
+    maxCumulativeAtomic: string;
+    allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT';
+    expiresAt: string;
+  };
+  portfolioRequirements: {
+    initialNetWorthAtomic: string;
+    goldDecimals: number;
+    allowedGoods: string[];
+    defaultPortfolio: {
+      cashAtomic: string;
+      holdings: Record<string, number>;
+    };
+  };
+}
+
+export interface PaymentMandate {
+  mandateId: string;
+  gameId: string;
+  joinAuthorizationId: string | null;
+  expiresAt: string;
+}
+
+export interface JoinCurrentGameResponse {
+  gameId: string;
+  participantId: string;
+  readiness: 'READY';
+  status: CurrentGameStatus;
+  readyCount: number;
+  startThreshold: number;
+}
+
+export function preflightCurrentGame(
   gameId: string,
   agentId: string,
   idempotencyKey: string,
-): Promise<GameParticipation> {
-  const csrfToken = readCsrfCookie();
-  return arenaApiRequest<GameParticipation>(
-    `/api/games/${encodeURIComponent(gameId)}/participants`,
+): Promise<JoinPreflight> {
+  return idempotentMutation<JoinPreflight>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/join-preflight`,
+    { agentId },
+    idempotencyKey,
+  );
+}
+
+export async function getActivePaymentMandate(
+  gameId: string,
+): Promise<PaymentMandate | null> {
+  const value = await gameGet<{ mandate: PaymentMandate | null }>(
+    `/api/v1/me/payment-mandates/${encodeURIComponent(gameId)}`,
+  );
+  return value.mandate;
+}
+
+export async function createCurrentGameMandate(
+  gameId: string,
+  preflight: JoinPreflight,
+  mandateId: string,
+): Promise<PaymentMandate> {
+  const value = await idempotentMutation<{ mandate: PaymentMandate }>(
+    '/api/v1/me/payment-mandates',
     {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-      },
-      body: JSON.stringify({ agentId }),
+      mandateId,
+      gameId,
+      chainId: preflight.mandateRequirements.chainId,
+      tokenAddress: preflight.mandateRequirements.tokenAddress,
+      maxPerPaymentAtomic:
+        preflight.mandateRequirements.maxPerPaymentAtomic,
+      maxCumulativeAtomic:
+        preflight.mandateRequirements.maxCumulativeAtomic,
+      allowedPayees: [],
+      allowedPayeeRule:
+        preflight.mandateRequirements.allowedPayeeRule,
+      joinAuthorizationId: preflight.joinAuthorizationId,
+      validFrom: new Date(Date.now() - 5_000).toISOString(),
+      expiresAt: preflight.mandateRequirements.expiresAt,
+    },
+  );
+  return value.mandate;
+}
+
+export function joinCurrentGame(
+  gameId: string,
+  agentId: string,
+  joinAuthorizationId: string,
+  paymentMandateId: string,
+): Promise<JoinCurrentGameResponse> {
+  return idempotentMutation<JoinCurrentGameResponse>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/participants`,
+    {
+      agentId,
+      joinAuthorizationId,
+      paymentMandateId,
     },
   );
 }
