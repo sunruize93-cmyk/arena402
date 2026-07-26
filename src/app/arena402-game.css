@@ -277,6 +277,13 @@
   line-height: 1.8;
 }
 
+.gm-current-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .gm-current-count {
   display: flex;
   flex-direction: column;
@@ -2455,6 +2462,7 @@
   .gm-open-table { padding: 27px 22px; }
   .gm-game-search { grid-template-columns: 1fr; }
   .gm-current-status { align-items: flex-start; flex-direction: column; }
+  .gm-current-actions { justify-content: flex-start; }
   .gm-current-participants { grid-template-columns: 1fr; }
   .gm-utility-row { align-items: start; flex-direction: column; }
   .gm-lobby-count { min-height: 190px; padding: 30px 24px; }

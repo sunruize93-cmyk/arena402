@@ -87,4 +87,20 @@ test('Chinese translation covers waiting-room and matchmaking states', () => {
     ),
     '匹配尚未开始。首位玩家确认席位后，将启动五分钟官方补位计时。',
   );
+  assert.equal(translateText('Join matchmaking', 'zh-CN'), '参加匹配');
+  assert.equal(translateText('Review my ready seat', 'zh-CN'), '查看我的就绪席位');
+  assert.equal(translateText('View waiting room', 'zh-CN'), '查看等待室');
+  assert.equal(translateText('Matchmaking receipt', 'zh-CN'), '匹配凭证');
+  assert.equal(
+    translateText('Your Agent is READY in the waiting game.', 'zh-CN'),
+    '你的智能体已进入等待游戏，并处于就绪状态。',
+  );
+  assert.equal(
+    translateText('Arena starts automatically at', 'zh-CN'),
+    '竞技场将在达到以下条件时自动开局：',
+  );
+  assert.equal(
+    translateText('No player start button is required.', 'zh-CN'),
+    '玩家不需要点击开始按钮。',
+  );
 });

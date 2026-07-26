@@ -245,6 +245,12 @@ test('Current Game lobby keeps 404 as a retrying preparation state', () => {
   assert.match(source, /window\.setInterval/);
   assert.match(source, /status === 'RUNNING'/);
   assert.match(source, /router\.replace/);
+  assert.match(source, /Join matchmaking/);
+  assert.match(source, /Review my ready seat/);
+  assert.match(source, /View waiting room/);
+  assert.match(source, /Opening the waiting room does not reserve a seat/);
+  assert.match(source, /setEntryOpen\(true\)/);
+  assert.match(source, /function viewCurrentGame/);
 });
 
 test('Live Game viewer uses SSE with a polling fallback', () => {
@@ -290,6 +296,11 @@ test('Play loads entry resources independently and exposes retryable failures', 
   assert.match(source, /Retry entry checks/);
   assert.match(source, /Retry the entry checks before waiting for matchmaking\./);
   assert.match(source, /Official pool unavailable/);
+  assert.match(source, /Matchmaking receipt/);
+  assert.match(source, /Your Agent is READY in the waiting game\./);
+  assert.match(source, /Arena starts automatically at/);
+  assert.match(source, /router\.replace/);
+  assert.match(source, /game\.status === 'RUNNING'/);
   assert.doesNotMatch(source, /Twenty seats/);
 });
 

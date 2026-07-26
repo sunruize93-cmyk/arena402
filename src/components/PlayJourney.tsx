@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import HostedAgentCreator from '@/components/HostedAgentCreator';
 import {
@@ -90,6 +91,7 @@ function formatCountdown(milliseconds: number): string {
 }
 
 export default function PlayJourney() {
+  const router = useRouter();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [session, setSession] = useState<ConnectorAuthSession | null>(null);
   const [wallet, setWallet] = useState<MyWallet | null>(null);
@@ -110,6 +112,7 @@ export default function PlayJourney() {
       ),
     [agents],
   );
+  const joined = Boolean(joinedAgentId || game?.joinedByMe);
 
   const refresh = useCallback(async () => {
     try {
@@ -199,6 +202,11 @@ export default function PlayJourney() {
     const timer = window.setInterval(() => void refresh(), 3_000);
     return () => window.clearInterval(timer);
   }, [game, refresh]);
+
+  useEffect(() => {
+    if (!joined || !game || game.status !== 'RUNNING') return;
+    router.replace(`/game/${encodeURIComponent(game.gameId)}`);
+  }, [game?.gameId, game?.status, joined, router]);
 
   const fillRemaining = useMemo(() => {
     const fillAt = game?.matchmaking?.fillAt;
@@ -290,8 +298,10 @@ export default function PlayJourney() {
     );
   }
 
-  const joined = Boolean(joinedAgentId || game?.joinedByMe);
   const activeAgentId = joinedAgentId || selectedAgentId;
+  const activeAgent = readyAgents.find(
+    (agent) => agent.agentId === activeAgentId,
+  );
   const busy = !['idle', 'joined'].includes(joinStage);
 
   return (
@@ -401,6 +411,53 @@ export default function PlayJourney() {
 
         {game && (
           <>
+            {joined && game.status === 'WAITING' && (
+              <section
+                className="play-seat-receipt"
+                aria-labelledby="matchmaking-receipt-title"
+                aria-live="polite"
+              >
+                <div>
+                  <p className="label">Matchmaking receipt</p>
+                  <h3 id="matchmaking-receipt-title">
+                    Your Agent is READY in the waiting game.
+                  </h3>
+                  <p>
+                    {game.matchmaking.fillStatus === 'BLOCKED' ? (
+                      <>
+                        Automatic official fill is unavailable. The game will
+                        wait for more human Agents.
+                      </>
+                    ) : (
+                      <>
+                        Arena starts automatically at{' '}
+                        <strong>{game.startThreshold} READY</strong>.{' '}
+                        <span>No player start button is required.</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Your Agent</dt>
+                    <dd>{activeAgent?.displayName || activeAgentId}</dd>
+                  </div>
+                  <div>
+                    <dt>Seat state</dt>
+                    <dd>READY</dd>
+                  </div>
+                  <div>
+                    <dt>Ready seats</dt>
+                    <dd>{game.readyCount} / {game.startThreshold}</dd>
+                  </div>
+                  <div>
+                    <dt>Still needed</dt>
+                    <dd>{Math.max(0, game.startThreshold - game.readyCount)}</dd>
+                  </div>
+                </dl>
+              </section>
+            )}
+
             <div className="play-matchmaking-grid">
               <div>
                 <span>Human Agents</span>

@@ -546,6 +546,67 @@
   border: 1px solid var(--line);
 }
 
+.play-seat-receipt {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+  gap: 34px;
+  margin-bottom: 18px;
+  padding: 28px;
+  border: 1px solid var(--paper-dim);
+  background: rgba(244, 242, 236, 0.035);
+}
+
+.play-seat-receipt h3 {
+  margin: 13px 0 12px;
+  font-family: var(--serif);
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.play-seat-receipt > div > p:last-child {
+  max-width: 720px;
+  color: var(--grey);
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.play-seat-receipt > div > p strong {
+  color: var(--paper);
+  font-weight: 500;
+}
+
+.play-seat-receipt dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.play-seat-receipt dl > div {
+  min-width: 0;
+  padding: 15px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.play-seat-receipt dt {
+  color: var(--grey-dark);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.play-seat-receipt dd {
+  overflow: hidden;
+  margin: 8px 0 0;
+  color: var(--paper);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .play-matchmaking-grid > div {
   min-height: 120px;
   padding: 24px;
@@ -625,7 +686,8 @@
   }
 
   .play-identity-card,
-  .play-section-head {
+  .play-section-head,
+  .play-seat-receipt {
     grid-template-columns: 1fr;
   }
 

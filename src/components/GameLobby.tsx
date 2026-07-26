@@ -110,15 +110,27 @@ export default function GameLobby() {
       void refreshCurrentGame();
       return;
     }
-    const suffix = currentGame.status === 'COMPLETED' ? '/result' : '';
     if (currentGame.status === 'WAITING' && !currentGame.joinedByMe) {
       setEntryOpen(true);
       return;
     }
+    viewCurrentGame();
+  }
+
+  function viewCurrentGame() {
+    if (currentState === 'error' || !currentGame) {
+      void refreshCurrentGame();
+      return;
+    }
+    const suffix = currentGame.status === 'COMPLETED' ? '/result' : '';
     const hash = currentGame.status === 'WAITING' ? '#pool' : '';
     router.push(
       `/game/${encodeURIComponent(currentGame.gameId)}${suffix}${hash}`,
     );
+  }
+
+  function openPrimaryAction() {
+    openCurrentGame();
   }
 
   const currentAction = currentState === 'error'
@@ -128,7 +140,9 @@ export default function GameLobby() {
       : currentGame?.status === 'RUNNING'
         ? 'Watch live table'
         : currentGame
-          ? 'Enter current lobby'
+          ? currentGame.joinedByMe
+            ? 'Review my ready seat'
+            : 'Join matchmaking'
           : 'Preparing the next table';
 
   return (
@@ -150,7 +164,7 @@ export default function GameLobby() {
             <button
               type="button"
               className="btn gm-primary-action"
-              onClick={openCurrentGame}
+              onClick={openPrimaryAction}
               disabled={currentState === 'loading' || currentState === 'preparing'}
             >
               {currentAction} <span aria-hidden="true">→</span>
@@ -222,16 +236,39 @@ export default function GameLobby() {
           {currentGame ? (
             <>
               <div className="gm-current-count">
-                <span>{currentGame.status}</span>
+                <span>
+                  {currentGame.status === 'WAITING' && currentGame.joinedByMe
+                    ? 'YOUR SEAT · READY'
+                    : currentGame.status}
+                </span>
                 <strong>
                   {currentGame.status === 'WAITING'
                     ? `${currentGame.readyCount} / ${currentGame.startThreshold} READY`
                     : `ROUND ${currentGame.currentRound} / ${currentGame.roundCount}`}
                 </strong>
               </div>
-              <button type="button" className="btn" onClick={openCurrentGame}>
-                {currentAction}
-              </button>
+              <div className="gm-current-actions">
+                {currentGame.status === 'WAITING' ? (
+                  <>
+                    <button type="button" className="btn" onClick={openPrimaryAction}>
+                      {currentGame.joinedByMe
+                        ? 'Review my ready seat'
+                        : 'Join matchmaking'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={viewCurrentGame}
+                    >
+                      View waiting room
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="btn" onClick={openCurrentGame}>
+                    {currentAction}
+                  </button>
+                )}
+              </div>
             </>
           ) : (
             <p>
@@ -262,9 +299,10 @@ export default function GameLobby() {
         )}
 
         <p className="gm-open-note">
-          Players configure and authorize before entry. Once the seat is locked,
-          the gallery is read-only: Agent credentials, prompts, and private runtime
-          telemetry never appear on the public board.
+          Opening the waiting room does not reserve a seat. Use Join matchmaking
+          to configure, authorize, and lock your Agent&apos;s seat. The gallery
+          remains read-only and never exposes Agent credentials, prompts, or
+          private runtime telemetry.
         </p>
 
         <details className="gm-known-table">
