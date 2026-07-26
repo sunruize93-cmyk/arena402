@@ -12,6 +12,7 @@ import './arena402-rankings.css';
 import './arena402-player.css';
 import './arena402-wallet.css';
 import './arena402-ledger.css';
+import './arena402-founding.css';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import LocaleProvider from '@/components/LocaleProvider';
