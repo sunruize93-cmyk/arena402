@@ -15,6 +15,7 @@ import {
   getGameParticipations,
   joinCurrentGame,
   preflightCurrentGame,
+  revokeCurrentGameMandate,
 } from '@/lib/game-api';
 import {
   HostedAgentSummary,
@@ -50,6 +51,8 @@ function joinError(error: unknown): string {
       runtime_not_ready: 'This Agent is still provisioning. Retry when it is ready.',
       wallet_not_ready: 'Your treasury wallet is not ready for this game.',
       mandate_not_ready: 'The payment mandate expired. Start the entry seal again.',
+      join_authorization_expired: 'The entry authorization expired. Arena renewed it automatically; try again.',
+      active_game_mandate_exists: 'The previous payment mandate is still closing. Try again.',
       game_already_started: 'This table has already started.',
       game_participant_limit_reached: 'This table is full.',
       idempotency_conflict: 'The entry request changed. Reload and try once more.',
@@ -207,24 +210,47 @@ export default function PlayJourney() {
     if (!game || !selectedAgentId || joinStage !== 'idle') return;
     setError('');
     const storageKey = `arena402:join:${game.gameId}:${selectedAgentId}`;
+    const preflightKey = `${storageKey}:preflight`;
+    const mandateKey = `${storageKey}:mandate`;
     try {
       setJoinStage('preflight');
-      const preflight = await preflightCurrentGame(
-        game.gameId,
-        selectedAgentId,
-        stableSessionId(`${storageKey}:preflight`, 'join-preflight'),
-      );
+      let preflight;
+      try {
+        preflight = await preflightCurrentGame(
+          game.gameId,
+          selectedAgentId,
+          stableSessionId(preflightKey, 'join-preflight'),
+        );
+      } catch (cause) {
+        if (
+          !(cause instanceof ArenaApiError)
+          || cause.code !== 'join_authorization_expired'
+        ) {
+          throw cause;
+        }
+        window.sessionStorage.removeItem(preflightKey);
+        window.sessionStorage.removeItem(mandateKey);
+        preflight = await preflightCurrentGame(
+          game.gameId,
+          selectedAgentId,
+          stableSessionId(preflightKey, 'join-preflight'),
+        );
+      }
 
       setJoinStage('mandate');
       let mandate = await getActivePaymentMandate(game.gameId);
-      if (
-        !mandate
-        || mandate.joinAuthorizationId !== preflight.joinAuthorizationId
-      ) {
+      if (mandate?.joinAuthorizationId !== preflight.joinAuthorizationId) {
+        if (mandate) {
+          await revokeCurrentGameMandate(mandate.mandateId);
+        }
+        window.sessionStorage.removeItem(mandateKey);
+        mandate = null;
+      }
+      if (!mandate) {
         mandate = await createCurrentGameMandate(
           game.gameId,
           preflight,
-          stableSessionId(`${storageKey}:mandate`, 'mandate'),
+          stableSessionId(mandateKey, 'mandate'),
         );
       }
 
@@ -391,7 +417,9 @@ export default function PlayJourney() {
               <div>
                 <span>Official fill in</span>
                 <strong>
-                  {fillRemaining === null
+                  {game.matchmaking.fillStatus === 'BLOCKED'
+                    ? 'Official pool unavailable'
+                    : fillRemaining === null
                     ? 'Starts after first entry'
                     : fillRemaining <= 0
                       ? 'Filling now'

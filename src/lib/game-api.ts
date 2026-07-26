@@ -248,6 +248,16 @@ export async function createCurrentGameMandate(
   return value.mandate;
 }
 
+export async function revokeCurrentGameMandate(
+  mandateId: string,
+): Promise<PaymentMandate> {
+  const value = await idempotentMutation<{ mandate: PaymentMandate }>(
+    `/api/v1/me/payment-mandates/${encodeURIComponent(mandateId)}/revoke`,
+    {},
+  );
+  return value.mandate;
+}
+
 export function joinCurrentGame(
   gameId: string,
   agentId: string,

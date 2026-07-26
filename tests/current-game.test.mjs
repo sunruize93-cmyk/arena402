@@ -110,6 +110,8 @@ test('registration renders an explicit waiting room instead of a live round', ()
     source,
     /demo \? events\.length : latestEvent\?\.sequence/,
   );
+  assert.match(source, /fillStatus === 'BLOCKED'/);
+  assert.match(source, /Official Agent pool is unavailable/);
 });
 
 test('Play loads entry resources independently and exposes retryable failures', () => {
@@ -122,5 +124,18 @@ test('Play loads entry resources independently and exposes retryable failures', 
   assert.match(source, /Some entry checks need attention\./);
   assert.match(source, /Retry entry checks/);
   assert.match(source, /Retry the entry checks before waiting for matchmaking\./);
+  assert.match(source, /Official pool unavailable/);
   assert.doesNotMatch(source, /Twenty seats/);
+});
+
+test('Play renews expired entry authorization and replaces a mismatched mandate', () => {
+  const source = readFileSync(
+    new URL('../src/components/PlayJourney.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /join_authorization_expired/);
+  assert.match(source, /window\.sessionStorage\.removeItem/);
+  assert.match(source, /revokeCurrentGameMandate/);
+  assert.match(source, /mandate\?\.joinAuthorizationId !== preflight\.joinAuthorizationId/);
 });

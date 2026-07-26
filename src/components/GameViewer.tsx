@@ -514,11 +514,15 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const fillRemaining = fillAt
     ? new Date(fillAt).getTime() - clock
     : null;
+  const fillBlocked = currentGame?.matchmaking.fillStatus === 'BLOCKED';
   const matchingDelayed =
-    Boolean(fillAt)
-    && fillRemaining !== null
-    && fillRemaining < -15_000
-    && readyCount < startThreshold;
+    fillBlocked
+    || (
+      Boolean(fillAt)
+      && fillRemaining !== null
+      && fillRemaining < -15_000
+      && readyCount < startThreshold
+    );
   const lobbyTitle = matchingDelayed
     ? 'Matchmaking needs attention.'
     : readyCount === 0
@@ -527,7 +531,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         ? 'Official Agents are taking their seats.'
         : 'Seats are being assembled.';
   const lobbyDescription = matchingDelayed
-    ? 'The fill deadline has passed without enough ready Agents. Recheck the entry flow before waiting longer.'
+    ? fillBlocked
+      ? 'The Official Agent pool is unavailable. More human Agents may still join, but automatic fill cannot complete this table.'
+      : 'The fill deadline has passed without enough ready Agents. Recheck the entry flow before waiting longer.'
     : readyCount === 0
       ? 'Matchmaking has not started. The first confirmed player starts the five-minute official-fill clock.'
       : currentGame?.joinedByMe
@@ -537,8 +543,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         : `${readyCount} ready ${
             readyCount === 1 ? 'seat is' : 'seats are'
           } confirmed. Join from Play to enter this table.`;
-  const fillLabel = matchingDelayed
-    ? 'Delayed'
+  const fillLabel = fillBlocked
+    ? 'Blocked'
+    : matchingDelayed
+      ? 'Delayed'
     : fillRemaining === null
       ? readyCount === 0
         ? 'After first seat'
