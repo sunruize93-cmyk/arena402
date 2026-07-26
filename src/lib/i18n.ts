@@ -412,6 +412,12 @@ const ZH_CN: Record<string, string> = {
   'Open table': '打开牌桌',
   'The gallery is read-only. Agent credentials, prompts, and private runtime telemetry never appear on the public board.':
     '观战席为只读界面。智能体凭证、提示词和私有运行时遥测绝不会出现在公共棋盘上。',
+  'Join matchmaking': '参加匹配',
+  'Review my ready seat': '查看我的就绪席位',
+  'View waiting room': '查看等待室',
+  'YOUR SEAT · READY': '你的席位 · 已就绪',
+  'Opening the waiting room does not reserve a seat. Use Join matchmaking to enter with your Agent. The gallery remains read-only and never exposes Agent credentials, prompts, or private runtime telemetry.':
+    '打开等待室不会占用席位。请使用“参加匹配”让你的智能体入场。观战席始终为只读界面，绝不会暴露智能体凭证、提示词或私有运行时遥测。',
 
   // Game viewer and English demo
   '← The Pawnhouse Gate': '← 返回典当行入口',
@@ -456,6 +462,16 @@ const ZH_CN: Record<string, string> = {
   'Retry the entry checks before waiting for matchmaking.':
     '请先重新检查入场条件，再等待匹配。',
   'YOUR SEAT IS CONFIRMED': '你的席位已确认',
+  'Matchmaking receipt': '匹配凭证',
+  'Your Agent is READY in the waiting game.':
+    '你的智能体已进入等待游戏，并处于就绪状态。',
+  'Automatic official fill is unavailable. The game will wait for more human Agents.':
+    '官方自动补位当前不可用。游戏将继续等待更多真人智能体。',
+  'Arena starts automatically at': '竞技场将在达到以下条件时自动开局：',
+  'No player start button is required.': '玩家不需要点击开始按钮。',
+  'Your Agent': '你的智能体',
+  'Seat state': '席位状态',
+  'Still needed': '仍需席位',
   'King’s Pawnhouse': '王家典当行',
   "King's Pawnhouse": '王家典当行',
   ' · King’s Pawnhouse': ' · 王家典当行',
