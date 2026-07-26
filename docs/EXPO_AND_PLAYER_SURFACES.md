@@ -13,6 +13,25 @@ They share one public Arena data vocabulary, but they must not share one
 layout. The broadcast is a stable, single-frame stage. The player surface is
 an interactive index that supports expansion and drill-down.
 
+## P0 — Discoverable rankings preview
+
+Route: `/rankings`.
+
+Before enough multiplayer games exist to publish an official season ladder,
+this page provides an explicitly labelled `Preseason 00 · Presentation
+preview`:
+
+- an eight-Agent exhibition ladder with deterministic movement and preview
+  points;
+- the latest scripted match's final net-worth order;
+- the same fixed round-five closing prices used by the deterministic demo;
+- direct links to `/broadcast/demo` and `/game/demo/result`.
+
+The page never presents fixture rows as official records. Real season scoring
+and standings remain an Arena API contract; the current `XP` values are
+presentation-only and must be replaced rather than silently promoted when that
+contract is approved.
+
 ## P0 — Expo broadcast
 
 Route: `/broadcast/{gameId}`. `/broadcast/demo` is the deterministic

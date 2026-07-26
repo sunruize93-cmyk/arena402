@@ -44,10 +44,14 @@ test('Current Game client uses the single public product endpoint', async () => 
     new URL('../src/lib/game-api.ts', import.meta.url),
     {
       '@/lib/platform-api': {
+        API_BASE_URL: 'https://api.arena402.test',
         arenaApiRequest: async (path, init) => {
           calls.push({ path, init });
           return expected;
         },
+      },
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'csrf-test',
       },
     },
   );
@@ -59,6 +63,10 @@ test('Current Game client uses the single public product endpoint', async () => 
   assert.equal(calls[0].path, '/api/v1/games/current');
   assert.equal(calls[0].init.signal, controller.signal);
   assert.deepEqual(result, expected);
+  assert.equal(
+    gameApi.getPawnhouseEventsUrl('game current', 4),
+    'https://api.arena402.test/api/v1/pawnhouse/games/game%20current/events?after=4',
+  );
 });
 
 test('join preflight uses the authenticated v1 route with a stable idempotency key', async () => {
@@ -237,4 +245,62 @@ test('Current Game lobby keeps 404 as a retrying preparation state', () => {
   assert.match(source, /window\.setInterval/);
   assert.match(source, /status === 'RUNNING'/);
   assert.match(source, /router\.replace/);
+});
+
+test('Live Game viewer uses SSE with a polling fallback', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /new EventSource/);
+  assert.match(source, /getPawnhouseEventsUrl/);
+  assert.match(source, /addEventListener\('arena'/);
+  assert.match(source, /window\.setInterval/);
+});
+
+test('registration renders an explicit waiting room instead of a live round', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /const isRegistration = !demo && gamePhase === 'registration'/);
+  assert.match(source, /Waiting for the first seat\./);
+  assert.match(source, /Your seat is not confirmed/);
+  assert.match(source, /Return to Play and join/);
+  assert.doesNotMatch(source, /gamePhase === 'registration'\) return 'omen'/);
+  assert.match(source, /String\(events\.length\)\.padStart/);
+  assert.doesNotMatch(
+    source,
+    /demo \? events\.length : latestEvent\?\.sequence/,
+  );
+  assert.match(source, /fillStatus === 'BLOCKED'/);
+  assert.match(source, /Official Agent pool is unavailable/);
+});
+
+test('Play loads entry resources independently and exposes retryable failures', () => {
+  const source = readFileSync(
+    new URL('../src/components/PlayJourney.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /Promise\.allSettled/);
+  assert.match(source, /Some entry checks need attention\./);
+  assert.match(source, /Retry entry checks/);
+  assert.match(source, /Retry the entry checks before waiting for matchmaking\./);
+  assert.match(source, /Official pool unavailable/);
+  assert.doesNotMatch(source, /Twenty seats/);
+});
+
+test('Play renews expired entry authorization and replaces a mismatched mandate', () => {
+  const source = readFileSync(
+    new URL('../src/components/PlayJourney.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /join_authorization_expired/);
+  assert.match(source, /window\.sessionStorage\.removeItem/);
+  assert.match(source, /revokeCurrentGameMandate/);
+  assert.match(source, /mandate\?\.joinAuthorizationId !== preflight\.joinAuthorizationId/);
 });

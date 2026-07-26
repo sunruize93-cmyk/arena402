@@ -67,3 +67,24 @@ test('Chinese translation covers the Expo broadcast and document metadata', () =
     '实时广播 · Arena 402',
   );
 });
+
+test('Chinese translation covers waiting-room and matchmaking states', () => {
+  const { translateText } = loadI18n();
+
+  assert.equal(translateText('Waiting room', 'zh-CN'), '候场大厅');
+  assert.equal(
+    translateText('0 of 10 ready', 'zh-CN'),
+    '0 / 10 就绪',
+  );
+  assert.equal(
+    translateText('1 public event · Last event #11462', 'zh-CN'),
+    '1 条公开事件 · 最新事件 #11462',
+  );
+  assert.equal(
+    translateText(
+      'Matchmaking has not started. The first confirmed player starts the five-minute official-fill clock.',
+      'zh-CN',
+    ),
+    '匹配尚未开始。首位玩家确认席位后，将启动五分钟官方补位计时。',
+  );
+});

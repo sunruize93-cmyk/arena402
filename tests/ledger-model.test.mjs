@@ -205,3 +205,134 @@ test('gold formatting trims atomic values for display', () => {
   assert.equal(ledger.formatGold(5_850_000), '5.85');
   assert.equal(ledger.formatGold(null), '—');
 });
+
+const TEMPLATE = 'https://testnet.blockscout.injective.network/tx/{txHash}';
+const BUYER_ADDR = '0x1111111111111111111111111111111111111111';
+const SELLER_ADDR = '0x2222222222222222222222222222222222222222';
+const FACILITATOR_ADDR = '0x3333333333333333333333333333333333333333';
+
+function apiTrade(overrides = {}) {
+  return {
+    tradeId: 'settle-01',
+    gameId: 'game-77',
+    round: 4,
+    goodId: 'warhorse',
+    quantity: 2,
+    priceAtomic: '3100000',
+    amountAtomic: '6200000',
+    buyer: {
+      agentId: 'agent:cassius',
+      displayName: 'Cassius',
+      accountAddress: BUYER_ADDR,
+    },
+    seller: {
+      agentId: 'agent:livia',
+      displayName: 'Livia',
+      accountAddress: SELLER_ADDR,
+    },
+    pairingId: 'pair-04-a',
+    chainId: 1439,
+    txHash: REAL_TX,
+    blockNumber: '1204882',
+    chainConfirmedAt: '2026-07-25T04:12:09+00:00',
+    facilitatorAddress: FACILITATOR_ADDR,
+    status: 'inventory_committed',
+    createdAt: '2026-07-25T04:11:52+00:00',
+    schemaVersion: 'arena402.trade-ledger-entry.v1',
+    ...overrides,
+  };
+}
+
+test('a committed ledger-API row maps onto the display shape', () => {
+  const trade = ledger.mapLedgerApiTrade(apiTrade());
+  assert.equal(trade.tradeId, 'settle-01');
+  assert.equal(trade.gameId, 'game-77');
+  assert.equal(trade.round, 4);
+  assert.equal(trade.goodId, 'warhorse');
+  assert.equal(trade.quantity, 2);
+  assert.equal(trade.priceAtomic, 3_100_000);
+  assert.equal(trade.amountAtomic, 6_200_000);
+  assert.equal(trade.buyer, 'Cassius');
+  assert.equal(trade.seller, 'Livia');
+  assert.equal(trade.buyerAddress, BUYER_ADDR);
+  assert.equal(trade.sellerAddress, SELLER_ADDR);
+  assert.equal(trade.facilitatorAddress, FACILITATOR_ADDR);
+  assert.equal(trade.blockNumber, '1204882');
+  assert.equal(trade.status, 'committed');
+  assert.equal(trade.stageReached, 4);
+  assert.equal(trade.verifiable, true);
+  assert.equal(trade.confirmedAt, '2026-07-25T04:12:09+00:00');
+});
+
+test('ledger-API statuses collapse onto the four display states', () => {
+  const cases = [
+    ['authorization_requested', 'pending', 0],
+    ['submitted', 'pending', 2],
+    ['chain_confirmed_uncommitted', 'confirmed', 3],
+    ['inventory_committed', 'committed', 4],
+    ['confirmation_timeout', 'failed', 2],
+    ['reverted', 'failed', 2],
+    ['submission_failed', 'failed', 1],
+    ['some_future_status', 'pending', 0],
+  ];
+  for (const [raw, status, stage] of cases) {
+    const trade = ledger.mapLedgerApiTrade(apiTrade({ status: raw }));
+    assert.equal(trade.status, status, raw);
+    assert.equal(trade.stageReached, stage, raw);
+  }
+});
+
+test('historical rows tolerate null receipt fields', () => {
+  const trade = ledger.mapLedgerApiTrade(
+    apiTrade({
+      txHash: null,
+      blockNumber: null,
+      chainConfirmedAt: null,
+      facilitatorAddress: null,
+      status: 'submitted',
+    }),
+  );
+  assert.equal(trade.txHash, '');
+  assert.equal(trade.blockNumber, null);
+  assert.equal(trade.confirmedAt, null);
+  assert.equal(trade.facilitatorAddress, null);
+  assert.equal(trade.verifiable, false);
+});
+
+test('the backend explorer template wins and rejects bad hashes', () => {
+  assert.equal(
+    ledger.explorerTxUrlFromTemplate(TEMPLATE, REAL_TX),
+    `https://testnet.blockscout.injective.network/tx/${REAL_TX}`,
+  );
+  assert.equal(ledger.explorerTxUrlFromTemplate(TEMPLATE, '0x402…e8'), null);
+  // Without a template the build-time base still applies.
+  assert.match(ledger.explorerTxUrlFromTemplate(null, REAL_TX), /\/tx\/0x8f2a/);
+});
+
+test('address URLs derive from the tx template base', () => {
+  assert.equal(
+    ledger.explorerAddressUrlFromTemplate(TEMPLATE, BUYER_ADDR),
+    `https://testnet.blockscout.injective.network/address/${BUYER_ADDR}`,
+  );
+  assert.equal(ledger.explorerAddressUrlFromTemplate(TEMPLATE, 'not-an-address'), null);
+  assert.match(
+    ledger.explorerAddressUrlFromTemplate(null, SELLER_ADDR),
+    /\/address\/0x2222/,
+  );
+});
+
+test('head refresh keeps paginated tail rows and dedupes by tradeId', () => {
+  const head = [
+    ledger.mapLedgerApiTrade(apiTrade({ tradeId: 'settle-03' })),
+    ledger.mapLedgerApiTrade(apiTrade({ tradeId: 'settle-02' })),
+  ];
+  const existing = [
+    ledger.mapLedgerApiTrade(apiTrade({ tradeId: 'settle-02' })),
+    ledger.mapLedgerApiTrade(apiTrade({ tradeId: 'settle-01' })),
+  ];
+  const merged = ledger.mergeLedgerHead(head, existing);
+  assert.deepEqual(
+    merged.map((trade) => trade.tradeId),
+    ['settle-03', 'settle-02', 'settle-01'],
+  );
+});

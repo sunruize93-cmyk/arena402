@@ -1,4 +1,4 @@
-import { arenaApiRequest } from '@/lib/platform-api';
+import { API_BASE_URL, arenaApiRequest } from '@/lib/platform-api';
 import type { InitialPortfolio } from '@/lib/initial-loadout';
 
 export interface PawnhouseGameState {
@@ -44,6 +44,13 @@ export interface GameParticipation {
 
 export type CurrentGameStatus = 'WAITING' | 'RUNNING' | 'COMPLETED';
 
+export interface AgentReputation {
+  tradeAttempts: number;
+  settledTrades: number;
+  successRateBps: number | null;
+  failedNegotiations: number;
+}
+
 export interface CurrentGameParticipant {
   participantId: string;
   agentId: string;
@@ -51,7 +58,18 @@ export interface CurrentGameParticipant {
   runtimeKind: string;
   readiness: 'PENDING' | 'READY' | 'WITHDRAWN';
   joinedAt: string;
+  isOfficial?: boolean;
   reputation?: AgentReputation;
+}
+
+export interface CurrentGameMatchmaking {
+  targetSeats: number;
+  humanReadyCount: number;
+  officialReadyCount: number;
+  firstHumanReadyAt: string | null;
+  fillAt: string | null;
+  fillStatus: 'IDLE' | 'COLLECTING' | 'FILLING' | 'READY' | 'BLOCKED';
+  serverTime: string;
 }
 
 export interface CurrentGame {
@@ -65,6 +83,7 @@ export interface CurrentGame {
   roundPhase: string | null;
   joinedByMe: boolean;
   participants: CurrentGameParticipant[];
+  matchmaking: CurrentGameMatchmaking;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -79,13 +98,6 @@ export interface CurrentGameResponse {
 interface GameParticipationList {
   participations: GameParticipation[];
   total: number;
-}
-
-export interface AgentReputation {
-  tradeAttempts: number;
-  settledTrades: number;
-  successRateBps: number | null;
-  failedNegotiations: number;
 }
 
 export interface MandateRequirements {
@@ -108,6 +120,15 @@ export interface JoinPreflight {
   joinAuthorizationExpiresAt?: string;
   checks: Record<string, string>;
   mandateRequirements: MandateRequirements;
+  portfolioRequirements?: {
+    initialNetWorthAtomic: string;
+    goldDecimals: number;
+    allowedGoods: string[];
+    defaultPortfolio: {
+      cashAtomic: string;
+      holdings: Record<string, number>;
+    };
+  };
   safeErrorCode: string | null;
   schemaVersion: string;
 }
@@ -139,7 +160,7 @@ export interface JoinCurrentGameResponse {
   readyCount: number;
   startThreshold: number;
   portfolioLockedAt?: string;
-  schemaVersion: string;
+  schemaVersion?: string;
 }
 
 export interface ArenaWallet {
@@ -153,18 +174,18 @@ export interface ArenaWallet {
 export interface PaymentMandate {
   mandateId: string;
   gameId: string;
-  walletId: string;
-  chainId: number;
-  tokenAddress: string;
-  maxPerPaymentAtomic: string;
-  maxCumulativeAtomic: string;
-  reservedAtomic: string;
-  consumedAtomic: string;
+  walletId?: string;
+  chainId?: number;
+  tokenAddress?: string;
+  maxPerPaymentAtomic?: string;
+  maxCumulativeAtomic?: string;
+  reservedAtomic?: string;
+  consumedAtomic?: string;
   allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT' | null;
   joinAuthorizationId: string | null;
-  validFrom: string;
+  validFrom?: string;
   expiresAt: string;
-  revokedAt: string | null;
+  revokedAt?: string | null;
   status?: string;
 }
 
@@ -221,6 +242,13 @@ export function getPawnhouseTimeline(
   );
 }
 
+export function getPawnhouseEventsUrl(gameId: string, after = 0): string {
+  const query = new URLSearchParams({ after: String(Math.max(0, after)) });
+  return `${API_BASE_URL}/api/v1/pawnhouse/games/${encodeURIComponent(
+    gameId,
+  )}/events?${query}`;
+}
+
 export async function getGameParticipations(): Promise<GameParticipation[]> {
   const response = await arenaApiRequest<GameParticipationList>(
     '/api/game-participations?scope=mine',
@@ -247,6 +275,23 @@ function mutationHeaders(idempotencyKey: string): Record<string, string> {
   };
 }
 
+async function idempotentMutation<T>(
+  path: string,
+  body: Record<string, unknown>,
+  idempotencyKey?: string,
+): Promise<T> {
+  const csrfToken = readCsrfCookie();
+  return arenaApiRequest<T>(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 export function getJoinPreflight(
   gameId: string,
   agentId: string,
@@ -262,19 +307,51 @@ export function getJoinPreflight(
   );
 }
 
+export function preflightCurrentGame(
+  gameId: string,
+  agentId: string,
+  idempotencyKey: string,
+): Promise<JoinPreflight> {
+  return idempotentMutation<JoinPreflight>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/join-preflight`,
+    { agentId },
+    idempotencyKey,
+  );
+}
+
 export function joinCurrentGame(
   gameId: string,
   payload: JoinCurrentGamePayload,
   idempotencyKey: string,
+): Promise<JoinCurrentGameResponse>;
+export function joinCurrentGame(
+  gameId: string,
+  agentId: string,
+  joinAuthorizationId: string,
+  paymentMandateId: string,
+): Promise<JoinCurrentGameResponse>;
+export function joinCurrentGame(
+  gameId: string,
+  payloadOrAgentId: JoinCurrentGamePayload | string,
+  idempotencyKeyOrAuthorization: string,
+  paymentMandateId?: string,
 ): Promise<JoinCurrentGameResponse> {
-  return arenaApiRequest<JoinCurrentGameResponse>(
-    `/api/v1/games/${encodeURIComponent(gameId)}/participants`,
-    {
-      method: 'POST',
-      headers: mutationHeaders(idempotencyKey),
-      body: JSON.stringify(payload),
-    },
-  );
+  const path = `/api/v1/games/${encodeURIComponent(gameId)}/participants`;
+  if (typeof payloadOrAgentId === 'string') {
+    return idempotentMutation<JoinCurrentGameResponse>(
+      path,
+      {
+        agentId: payloadOrAgentId,
+        joinAuthorizationId: idempotencyKeyOrAuthorization,
+        paymentMandateId: paymentMandateId || '',
+      },
+    );
+  }
+  return arenaApiRequest<JoinCurrentGameResponse>(path, {
+    method: 'POST',
+    headers: mutationHeaders(idempotencyKeyOrAuthorization),
+    body: JSON.stringify(payloadOrAgentId),
+  });
 }
 
 export function getArenaWallet(signal?: AbortSignal): Promise<{ wallet: ArenaWallet }> {
@@ -291,6 +368,13 @@ export function getPaymentMandate(
   );
 }
 
+export async function getActivePaymentMandate(
+  gameId: string,
+): Promise<PaymentMandate | null> {
+  const value = await getPaymentMandate(gameId);
+  return value.mandate;
+}
+
 export function createPaymentMandate(
   payload: CreatePaymentMandatePayload,
   idempotencyKey: string,
@@ -303,6 +387,40 @@ export function createPaymentMandate(
       body: JSON.stringify(payload),
     },
   );
+}
+
+export async function createCurrentGameMandate(
+  gameId: string,
+  preflight: JoinPreflight,
+  mandateId: string,
+): Promise<PaymentMandate> {
+  const value = await idempotentMutation<{ mandate: PaymentMandate }>(
+    '/api/v1/me/payment-mandates',
+    {
+      mandateId,
+      gameId,
+      chainId: preflight.mandateRequirements.chainId,
+      tokenAddress: preflight.mandateRequirements.tokenAddress,
+      maxPerPaymentAtomic: preflight.mandateRequirements.maxPerPaymentAtomic,
+      maxCumulativeAtomic: preflight.mandateRequirements.maxCumulativeAtomic,
+      allowedPayees: [],
+      allowedPayeeRule: preflight.mandateRequirements.allowedPayeeRule,
+      joinAuthorizationId: preflight.joinAuthorizationId,
+      validFrom: new Date(Date.now() - 5_000).toISOString(),
+      expiresAt: preflight.mandateRequirements.expiresAt,
+    },
+  );
+  return value.mandate;
+}
+
+export async function revokeCurrentGameMandate(
+  mandateId: string,
+): Promise<PaymentMandate> {
+  const value = await idempotentMutation<{ mandate: PaymentMandate }>(
+    `/api/v1/me/payment-mandates/${encodeURIComponent(mandateId)}/revoke`,
+    {},
+  );
+  return value.mandate;
 }
 
 export function withdrawCurrentGameParticipant(

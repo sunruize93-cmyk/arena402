@@ -18,7 +18,7 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 function safeReturnTo(value: string | string[] | undefined): string {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
-    return '/agents';
+    return '/play';
   }
   return candidate;
 }
@@ -37,7 +37,7 @@ export default async function SignInPage({
 
   return (
     <div className="auth-page">
-      <SignedInRedirect />
+      <SignedInRedirect returnTo={returnTo} />
       <Link className="back-btn auth-back" href="/">
         ← Return to the gate
       </Link>

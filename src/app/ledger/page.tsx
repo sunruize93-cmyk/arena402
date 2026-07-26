@@ -10,8 +10,13 @@ export const metadata: Metadata = {
 export default async function LedgerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ game?: string }>;
+  searchParams: Promise<{ game?: string; agent?: string }>;
 }) {
-  const { game } = await searchParams;
-  return <ImperialLedger requestedGameId={game || undefined} />;
+  const { game, agent } = await searchParams;
+  return (
+    <ImperialLedger
+      requestedGameId={game || undefined}
+      requestedAgentId={agent || undefined}
+    />
+  );
 }

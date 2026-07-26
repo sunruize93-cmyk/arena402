@@ -195,6 +195,15 @@
 .ledger-row.is-open .ledger-row-head { background: rgba(244,242,236,0.05); }
 
 .ledger-cell-round { color: var(--grey); font-size: 11px; letter-spacing: 0.14em; }
+.ledger-cell-round small {
+  display: block;
+  margin-top: 3px;
+  color: var(--grey);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
 .ledger-cell-good { letter-spacing: 0.2em; text-transform: uppercase; }
 .ledger-cell-good small {
   display: block;
@@ -283,6 +292,35 @@
 }
 .ledger-detail-aside p + p { margin-top: 10px; }
 .ledger-detail-aside .label { margin-bottom: 14px; }
+.ledger-addr-list {
+  margin-top: 14px;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.ledger-addr-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--paper-dim);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ledger-addr-list li > span:first-child {
+  color: var(--grey);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ledger-addr-list a {
+  color: var(--paper);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+  transition: border-color 0.2s ease;
+}
+.ledger-addr-list a:hover { border-bottom-color: var(--paper); }
 .ledger-detail-watch { margin-top: 20px; }
 .ledger-verify-btn {
   display: inline-flex;
@@ -309,6 +347,25 @@
   letter-spacing: 0.3em;
   text-transform: uppercase;
 }
+
+/* === Pagination === */
+.ledger-load-more {
+  display: block;
+  width: 100%;
+  margin-top: -1px;
+  padding: 16px 22px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--grey);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.ledger-load-more:hover:not(:disabled) { border-color: var(--line-strong); color: var(--paper); }
+.ledger-load-more:disabled { cursor: default; opacity: 0.5; }
 
 /* === Empty state === */
 .ledger-empty {

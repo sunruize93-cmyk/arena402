@@ -18,6 +18,7 @@ import {
 } from '@/lib/game-demo';
 import type { DemoPlaybackPosition } from '@/lib/game-demo';
 import {
+  getPawnhouseEventsUrl,
   getPawnhouseGame,
   getPawnhouseTimeline,
   getCurrentGame,
@@ -207,6 +208,13 @@ function atomicGold(value: unknown): string | null {
   });
 }
 
+function formatCountdown(milliseconds: number): string {
+  const total = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 function eventAgent(data: RecordValue): string {
   return shortAgent(
     pick(
@@ -225,7 +233,6 @@ function eventAgent(data: RecordValue): string {
 function currentRoundPhase(state: PawnhouseGameState | null): MarketPhase {
   const gamePhase = String(state?.phase || '').toLowerCase();
   if (gamePhase === 'completed') return 'closed';
-  if (gamePhase === 'registration') return 'omen';
 
   const round = Number(state?.currentRound || 0);
   const rows = Array.isArray(state?.rounds) ? state.rounds : [];
@@ -381,6 +388,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const demo = gameId === 'demo';
   const replayRequested = searchParams.get('replay') === '1';
   const [liveState, setLiveState] = useState<PawnhouseGameState | null>(null);
+  const [currentGame, setCurrentGame] = useState<CurrentGame | null>(null);
   const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
   const [currentProjection, setCurrentProjection] = useState<CurrentGame | null>(null);
   const [error, setError] = useState('');
@@ -389,6 +397,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const [myParticipantId, setMyParticipantId] = useState('');
   const [leavingPool, setLeavingPool] = useState(false);
   const [replayEventCount, setReplayEventCount] = useState<number | null>(null);
+  const [clock, setClock] = useState(Date.now());
   const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
     roundIndex: 0,
     eventCount: DEMO_INITIAL_EVENT_COUNT,
@@ -403,39 +412,54 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   }, [demo, replayRequested]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (demo) return;
     let after = 0;
     let stopped = false;
     let hasSnapshot = false;
+    let fallbackTimer: number | undefined;
+    let stateRefreshTimer: number | undefined;
+    let eventSource: EventSource | undefined;
+    const controller = new AbortController();
 
-    async function refresh(signal?: AbortSignal) {
+    function mergeEvents(events: PawnhouseTimelineEvent[], nextAfter?: number) {
+      if (events.length === 0 || stopped) return;
+      after = Math.max(
+        after,
+        nextAfter || 0,
+        ...events.map((event) => Number(event.sequence) || 0),
+      );
+      setLiveEvents((current) => {
+        const merged = [...current, ...events];
+        return merged
+          .filter(
+            (event, index, rows) =>
+              rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
+              index,
+          )
+          .sort((left, right) => left.sequence - right.sequence)
+          .slice(-120);
+      });
+    }
+
+    async function refreshState(signal?: AbortSignal) {
       try {
-        const [nextState, timeline] = await Promise.all([
+        const [nextState, current] = await Promise.all([
           getPawnhouseGame(gameId, signal),
-          getPawnhouseTimeline(gameId, after, signal),
+          getCurrentGame(signal).catch(() => null),
         ]);
         if (stopped) return;
         hasSnapshot = true;
         setLiveState(nextState);
-        void getCurrentGame(signal)
-          .then((response) => {
-            if (!stopped && response.game.gameId === gameId) {
-              setCurrentProjection(response.game);
-            }
-          })
-          .catch(() => {
-            // Older and completed tables are not required to be current.
-          });
-        if (timeline.events.length > 0) {
-          after = timeline.nextAfter;
-          setLiveEvents((current) => {
-            const merged = [...current, ...timeline.events];
-            return merged.filter(
-              (event, index, rows) =>
-                rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
-                index,
-            );
-          });
+        setCurrentGame(
+          current?.game.gameId === gameId ? current.game : null,
+        );
+        if (current?.game.gameId === gameId) {
+          setCurrentProjection(current.game);
         }
         setError('');
         setFeedDelayed(false);
@@ -447,13 +471,81 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       }
     }
 
-    const controller = new AbortController();
-    void refresh(controller.signal);
-    const timer = window.setInterval(() => void refresh(), 3_000);
+    async function refreshAll(signal?: AbortSignal) {
+      try {
+        const [nextState, timeline, current] = await Promise.all([
+          getPawnhouseGame(gameId, signal),
+          getPawnhouseTimeline(gameId, after, signal),
+          getCurrentGame(signal).catch(() => null),
+        ]);
+        if (stopped) return;
+        setLiveState(nextState);
+        setCurrentGame(
+          current?.game.gameId === gameId ? current.game : null,
+        );
+        mergeEvents(timeline.events, timeline.nextAfter);
+        setError('');
+      } catch (cause) {
+        if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
+          setError('This table is not available from the public Arena API.');
+        }
+      }
+    }
+
+    function startFallback() {
+      if (fallbackTimer !== undefined || stopped) return;
+      fallbackTimer = window.setInterval(() => void refreshAll(), 3_000);
+    }
+
+    function stopFallback() {
+      if (fallbackTimer === undefined) return;
+      window.clearInterval(fallbackTimer);
+      fallbackTimer = undefined;
+    }
+
+    void refreshAll(controller.signal).then(() => {
+      if (stopped) return;
+      if (typeof EventSource === 'undefined') {
+        startFallback();
+        return;
+      }
+
+      eventSource = new EventSource(getPawnhouseEventsUrl(gameId, after));
+      eventSource.onopen = stopFallback;
+      eventSource.onerror = startFallback;
+      eventSource.addEventListener('arena', (message) => {
+        try {
+          const event = JSON.parse(message.data) as PawnhouseTimelineEvent;
+          if (
+            !event ||
+            !Number.isFinite(Number(event.sequence)) ||
+            typeof event.type !== 'string' ||
+            typeof event.data !== 'object'
+          ) {
+            return;
+          }
+          mergeEvents([event]);
+          if (stateRefreshTimer !== undefined) {
+            window.clearTimeout(stateRefreshTimer);
+          }
+          stateRefreshTimer = window.setTimeout(
+            () => void refreshState(),
+            250,
+          );
+        } catch {
+          // Ignore malformed public projection records and keep the stream alive.
+        }
+      });
+    });
+
     return () => {
       stopped = true;
       controller.abort();
-      window.clearInterval(timer);
+      eventSource?.close();
+      stopFallback();
+      if (stateRefreshTimer !== undefined) {
+        window.clearTimeout(stateRefreshTimer);
+      }
     };
   }, [demo, gameId]);
 
@@ -535,7 +627,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         }
       : state;
   const totalRounds = Number(state?.roundCount || state?.totalRounds || 0);
-  const isComplete = String(state?.phase || '').toLowerCase() === 'completed';
+  const gamePhase = String(state?.phase || '').toLowerCase();
+  const isRegistration = !demo && gamePhase === 'registration';
+  const isComplete = gamePhase === 'completed';
   const latestEvent = events[events.length - 1];
   const registrationOpen = ['registration', 'portfolio_setup'].includes(
     String(state?.phase || '').toLowerCase(),
@@ -566,6 +660,57 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     }
   }
 
+  const readyCount = currentGame?.readyCount ?? agents.length;
+  const startThreshold = currentGame?.startThreshold ?? 0;
+  const seatsRemaining = Math.max(0, startThreshold - readyCount);
+  const fillAt = currentGame?.matchmaking.fillAt;
+  const fillRemaining = fillAt
+    ? new Date(fillAt).getTime() - clock
+    : null;
+  const fillBlocked = currentGame?.matchmaking.fillStatus === 'BLOCKED';
+  const matchingDelayed =
+    fillBlocked
+    || (
+      Boolean(fillAt)
+      && fillRemaining !== null
+      && fillRemaining < -15_000
+      && readyCount < startThreshold
+    );
+  const lobbyTitle = matchingDelayed
+    ? 'Matchmaking needs attention.'
+    : readyCount === 0
+      ? 'Waiting for the first seat.'
+      : currentGame?.matchmaking.fillStatus === 'FILLING'
+        ? 'Official Agents are taking their seats.'
+        : 'Seats are being assembled.';
+  const lobbyDescription = matchingDelayed
+    ? fillBlocked
+      ? 'The Official Agent pool is unavailable. More human Agents may still join, but automatic fill cannot complete this table.'
+      : 'The fill deadline has passed without enough ready Agents. Recheck the entry flow before waiting longer.'
+    : readyCount === 0
+      ? 'Matchmaking has not started. The first confirmed player starts the five-minute official-fill clock.'
+      : currentGame?.joinedByMe
+        ? `Your seat is confirmed. Arena is waiting for ${seatsRemaining} more ready ${
+            seatsRemaining === 1 ? 'Agent' : 'Agents'
+          }.`
+        : `${readyCount} ready ${
+            readyCount === 1 ? 'seat is' : 'seats are'
+          } confirmed. Join from Play to enter this table.`;
+  const fillLabel = fillBlocked
+    ? 'Blocked'
+    : matchingDelayed
+      ? 'Delayed'
+    : fillRemaining === null
+      ? readyCount === 0
+        ? 'After first seat'
+        : 'Preparing'
+      : fillRemaining <= 0
+        ? 'Filling now'
+        : formatCountdown(fillRemaining);
+  const settlementState = [...events]
+    .reverse()
+    .find((event) => event.type.startsWith('settlement.'));
+
   return (
     <section className="gm gm-live">
       <div className="gm-utility-row">
@@ -594,15 +739,32 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             {locale === 'zh-CN' ? '王家典当行' : 'King’s Pawnhouse'}
           </p>
           <h1 className="display">
-            {locale === 'zh-CN' ? '第 ' : 'Round '}
-            {String(currentRound).padStart(2, '0')}
-            {locale === 'zh-CN' ? ' 回合' : ''}
-            <span> / {String(totalRounds).padStart(2, '0')}</span>
+            {isRegistration ? (
+              <>
+                Waiting room
+                <span> / {startThreshold || '—'}</span>
+              </>
+            ) : (
+              <>
+                {locale === 'zh-CN' ? '第 ' : 'Round '}
+                {String(currentRound).padStart(2, '0')}
+                {locale === 'zh-CN' ? ' 回合' : ''}
+                <span> / {String(totalRounds).padStart(2, '0')}</span>
+              </>
+            )}
           </h1>
         </div>
         <div className="gm-head-status">
-          <p className="label">Now in session</p>
-          <p>{PHASES.find((item) => item.id === phase)?.label || 'Ledger closed'}</p>
+          <p className="label">
+            {isRegistration ? 'Before the opening bell' : 'Now in session'}
+          </p>
+          <p>
+            {isRegistration
+              ? matchingDelayed
+                ? 'Entry delayed'
+                : 'Waiting to start'
+              : PHASES.find((item) => item.id === phase)?.label || 'Ledger closed'}
+          </p>
         </div>
       </header>
 
@@ -727,6 +889,63 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </div>
       </section>
 
+      {error && <p className="data-state error">{error}</p>}
+
+      {isRegistration && (
+        <section className="gm-lobby-board" aria-labelledby="lobby-title">
+          <div className="gm-lobby-count" aria-label={`${readyCount} of ${startThreshold} ready`}>
+            <span>{String(readyCount).padStart(2, '0')}</span>
+            <small>/ {String(startThreshold || '—').padStart(2, '0')} READY</small>
+          </div>
+          <div className="gm-lobby-copy">
+            <p className="label">
+              {currentGame?.joinedByMe ? 'Your seat is confirmed' : 'Your seat is not confirmed'}
+            </p>
+            <h2 className="display" id="lobby-title">{lobbyTitle}</h2>
+            <p>{lobbyDescription}</p>
+            <div className="gm-lobby-actions">
+              <Link className="btn" href="/play">
+                {currentGame?.joinedByMe ? 'Review entry status' : 'Return to Play and join'}
+              </Link>
+              <span className="label">
+                Live updates remain connected on this page
+              </span>
+            </div>
+          </div>
+          <dl className="gm-lobby-facts">
+            <div>
+              <dt>Ready seats</dt>
+              <dd>{readyCount} / {startThreshold || '—'}</dd>
+            </div>
+            <div>
+              <dt>Seats remaining</dt>
+              <dd>{startThreshold ? seatsRemaining : '—'}</dd>
+            </div>
+            <div>
+              <dt>Official fill</dt>
+              <dd>{fillLabel}</dd>
+            </div>
+            <div>
+              <dt>Match status</dt>
+              <dd>{currentGame?.matchmaking.fillStatus || 'WAITING'}</dd>
+            </div>
+          </dl>
+          <div className="gm-lobby-chronicle" aria-live="polite">
+            <span className="label">Latest public record</span>
+            <strong>{EVENT_LABELS[latestEvent?.type || '']?.title || 'The table is open'}</strong>
+            <span>
+              {locale === 'zh-CN'
+                ? `${events.length} 条公开事件${
+                    latestEvent ? ` · 最新事件 #${latestEvent.sequence}` : ''
+                  }`
+                : `${events.length} public ${
+                    events.length === 1 ? 'event' : 'events'
+                  }${latestEvent ? ` · Last event #${latestEvent.sequence}` : ''}`}
+            </span>
+          </div>
+        </section>
+      )}
+
       <nav className="gm-ritual-rail" aria-label="Round progress">
         {PHASES.map((item, index) => {
           const activeIndex = PHASES.findIndex((phaseItem) => phaseItem.id === phase);
@@ -783,10 +1002,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               </h2>
             </div>
             <span className="gm-stage-index label">
-              {String(demo ? events.length : latestEvent?.sequence || 0).padStart(
-                3,
-                '0',
-              )}{' '}
+              {String(events.length).padStart(3, '0')}{' '}
               events
             </span>
           </div>
