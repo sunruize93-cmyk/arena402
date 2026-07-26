@@ -123,6 +123,7 @@
 }
 
 .founding-panel {
+  min-width: 0;
   min-height: 390px;
   padding: clamp(28px, 5vw, 56px);
   border: 1px solid var(--line-strong);
@@ -172,6 +173,11 @@
   gap: 42px;
 }
 
+.founding-award > *,
+.founding-award dl div {
+  min-width: 0;
+}
+
 .founding-award-serial { border-right: 1px solid var(--line); }
 .founding-award-serial span,
 .founding-award-serial small {
@@ -201,7 +207,14 @@
 .founding-award dt,
 .founding-award dd { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
 .founding-award dt { color: var(--grey-dark); }
-.founding-award dd { overflow: hidden; color: var(--paper-dim); text-overflow: ellipsis; }
+.founding-award dd {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--paper-dim);
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
 .founding-award .founding-status-copy { grid-column: 2; margin-top: 0 !important; }
 .founding-explorer {
   display: inline-flex;
@@ -241,6 +254,7 @@
   display: grid;
   place-items: center;
   padding: 28px;
+  overflow-y: auto;
   background: rgba(6, 6, 7, 0.86);
   backdrop-filter: blur(12px);
   animation: founding-modal-in 280ms ease-out both;
@@ -249,8 +263,10 @@
 .founding-modal {
   position: relative;
   width: min(520px, 100%);
+  max-height: calc(100dvh - 28px);
   padding: 34px clamp(28px, 6vw, 58px) 42px;
   overflow: hidden;
+  overflow-y: auto;
   border: 1px solid var(--line-strong);
   background:
     linear-gradient(145deg, rgba(244, 242, 236, 0.075), transparent 44%),
@@ -378,26 +394,63 @@
 }
 
 @media (max-width: 900px) {
-  .founding-hero { grid-template-columns: 1fr; }
-  .founding-registry { max-width: 560px; }
-  .founding-claim { grid-template-columns: 1fr; }
+  .founding-hero {
+    grid-template-columns: 1fr;
+    gap: 64px;
+  }
+  .founding-registry { width: 100%; max-width: 560px; }
+  .founding-claim { grid-template-columns: 1fr; gap: 42px; }
 }
 
 @media (max-width: 620px) {
-  .founding-hero { min-height: 0; padding-top: 132px; }
-  .founding-title em { margin-left: 28px; }
-  .founding-registry { padding: 18px; }
+  .founding-hero {
+    min-height: 0;
+    gap: 48px;
+    padding: 120px var(--edge) 64px;
+  }
+  .founding-title { font-size: clamp(62px, 18vw, 92px); }
+  .founding-title em { margin-left: 22px; }
+  .founding-lede { margin-top: 30px; font-size: 12px; line-height: 1.8; }
+  .founding-trust { gap: 12px 18px; margin-top: 26px; line-height: 1.5; }
+  .founding-registry { padding: 16px; }
   .founding-matrix { gap: 3px; }
   .founding-registry-foot { display: grid; }
-  .founding-award { grid-template-columns: 1fr; }
+  .founding-claim { gap: 30px; padding-top: 70px; padding-bottom: 70px; }
+  .founding-claim header h2 { font-size: clamp(48px, 15vw, 76px); }
+  .founding-panel { min-height: 0; padding: 26px 20px; }
+  .founding-panel h3 { margin-top: 32px; font-size: clamp(36px, 11vw, 58px); }
+  .founding-panel > p:not(.founding-panel-kicker) { margin-top: 18px; font-size: 10px; }
+  .founding-github { width: 100%; justify-content: center; margin-top: 28px; }
+  .founding-award { grid-template-columns: 1fr; gap: 24px; }
   .founding-award-serial { padding-bottom: 28px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .founding-award-serial strong { margin-top: 18px; font-size: clamp(56px, 18vw, 84px); }
+  .founding-award dl div { grid-template-columns: minmax(82px, 0.48fr) minmax(0, 1fr); gap: 12px; }
   .founding-award .founding-status-copy,
   .founding-explorer { grid-column: 1; }
   .founding-rules { grid-template-columns: 1fr; }
   .founding-rules > div,
   .founding-rules > div + div { padding: 24px 0; border-right: 0; }
+  .founding-rules strong { margin-top: 18px; font-size: 25px; }
   .founding-modal-backdrop { padding: 14px; }
-  .founding-modal { padding-top: 28px; }
+  .founding-modal { max-height: calc(100dvh - 28px); padding: 28px 22px 28px; }
+  .founding-modal-close { top: 10px; right: 10px; }
+  .founding-coin { width: min(220px, 58vw); margin-top: 18px; }
+  .founding-modal h2 { font-size: clamp(40px, 12vw, 58px); }
+  .founding-modal-copy { margin-top: 16px; font-size: 9px; }
+  .founding-modal-action { width: 100%; margin-top: 24px; }
+}
+
+@media (max-width: 420px) {
+  .founding-hero { padding-top: 108px; }
+  .founding-title { font-size: clamp(56px, 17vw, 76px); }
+  .founding-title em { margin-left: 14px; }
+  .founding-registry-head { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .founding-matrix { margin: 20px 0; }
+  .founding-registry-foot { gap: 10px; line-height: 1.5; }
+  .founding-panel { padding-right: 18px; padding-left: 18px; }
+  .founding-award dl div { grid-template-columns: 76px minmax(0, 1fr); }
+  .founding-modal-backdrop { padding: 10px; }
+  .founding-modal { max-height: calc(100dvh - 20px); padding-right: 18px; padding-left: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
