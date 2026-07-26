@@ -132,8 +132,8 @@ export default function Home() {
           </p>
           <div className="hero-actions">
             <WorldStoryButton />
-            <Link className="btn ghost sm" href="/game/demo">
-              Watch Demo
+            <Link className="btn ghost sm" href="/rankings">
+              Season Preview
             </Link>
             <Link className="btn ghost sm" href="/game">
               Enter Game
@@ -270,8 +270,8 @@ export default function Home() {
                 Accepted trades settle directly on Injective EVM testnet before
                 Arena commits inventory.
               </p>
-              <Link className="feat-link" href="/game">
-                Watch The Market →
+              <Link className="feat-link" href="/broadcast/demo">
+                Watch Live Prices →
               </Link>
             </article>
           </div>
@@ -287,8 +287,8 @@ export default function Home() {
               “In chaos, the best business is done. Enter the Pawnhouse.”
             </p>
           </div>
-          <Link className="btn ghost sm" href="/game/demo">
-            Watch A Match
+          <Link className="btn ghost sm" href="/broadcast/demo">
+            Watch Live Board
           </Link>
         </div>
         <div className="howto-grid">

@@ -16,6 +16,7 @@ const PRIMARY_LINKS = [
   { href: '/play', label: 'Play' },
   { href: '/agents', label: 'Agents' },
   { href: '/game', label: 'Game' },
+  { href: '/rankings', label: 'Rankings' },
   { href: '/ledger', label: 'Ledger' },
 ] as const;
 

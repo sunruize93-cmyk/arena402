@@ -1,0 +1,559 @@
+.season-ledger {
+  padding: 146px var(--edge) 92px;
+  color: var(--paper);
+}
+
+.season-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  min-height: 560px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(112deg, var(--ink) 0 61%, rgba(10, 10, 11, 0.78) 76%),
+    url('/img/art-arena.webp') right 35% center / 58% auto no-repeat;
+  overflow: hidden;
+}
+
+.season-hero-copy {
+  align-self: center;
+  padding: clamp(46px, 7vw, 92px);
+}
+
+.season-hero-copy h1 {
+  margin: 25px 0 30px;
+  font-size: clamp(74px, 10vw, 148px);
+  line-height: 0.78;
+}
+
+.season-hero-deck {
+  max-width: 620px;
+  color: var(--paper-dim);
+  font-size: 10px;
+  line-height: 1.9;
+  letter-spacing: 0.05em;
+}
+
+.season-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.season-preview-seal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+  padding: 42px;
+  border-left: 1px solid var(--line);
+  background: rgba(6, 6, 7, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.season-preview-mark {
+  position: absolute;
+  top: 36px;
+  right: 34px;
+  color: rgba(244, 242, 236, 0.14);
+  font-family: var(--serif);
+  font-size: clamp(86px, 11vw, 160px);
+  font-style: italic;
+  line-height: 1;
+}
+
+.season-preview-seal strong {
+  display: block;
+  margin: 12px 0 15px;
+  font-family: var(--serif);
+  font-size: clamp(32px, 4vw, 54px);
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.season-preview-seal p:last-child {
+  max-width: 340px;
+  color: var(--grey);
+  font-size: 8px;
+  line-height: 1.8;
+}
+
+.season-stat-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-top: 0;
+}
+
+.season-stat-rail > div {
+  min-width: 0;
+  padding: 23px 28px;
+  border-right: 1px solid var(--line);
+}
+
+.season-stat-rail > div:last-child {
+  border-right: 0;
+}
+
+.season-stat-rail dt {
+  color: var(--grey-dark);
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.season-stat-rail dd {
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.season-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(350px, 0.58fr);
+  gap: 1px;
+  margin-top: 72px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.season-standings,
+.season-latest-match {
+  min-width: 0;
+  background: var(--ink);
+}
+
+.season-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 150px;
+  padding: 30px;
+  border-bottom: 1px solid var(--line);
+}
+
+.season-section-head h2 {
+  margin-top: 10px;
+  font-size: clamp(40px, 5vw, 68px);
+}
+
+.season-section-head > p {
+  max-width: 300px;
+  color: var(--grey-dark);
+  font-size: 7px;
+  line-height: 1.8;
+  text-align: right;
+}
+
+.season-table-head {
+  display: grid;
+  grid-template-columns: 70px minmax(180px, 1fr) 120px 150px 50px;
+  gap: 18px;
+  padding: 13px 24px;
+  border-bottom: 1px solid var(--line);
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.season-table-head span:nth-child(4),
+.season-table-head span:nth-child(5) {
+  text-align: right;
+}
+
+.season-standing-rows article {
+  display: grid;
+  grid-template-columns: 70px minmax(180px, 1fr) 120px 150px 50px;
+  gap: 18px;
+  align-items: center;
+  min-height: 92px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.season-standing-rows article:last-child {
+  border-bottom: 0;
+}
+
+.season-standing-rows article.is-leader {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.season-rank {
+  color: var(--grey-dark);
+  font-family: var(--serif);
+  font-size: 31px;
+  font-style: italic;
+}
+
+.season-agent strong,
+.season-form strong {
+  display: block;
+  font-weight: 400;
+}
+
+.season-agent strong {
+  font-family: var(--serif);
+  font-size: 27px;
+  text-transform: uppercase;
+}
+
+.season-agent span,
+.season-form span {
+  display: block;
+  margin-top: 5px;
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.season-form strong {
+  color: var(--paper-dim);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.is-leader .season-form strong {
+  color: var(--ink);
+}
+
+.season-points {
+  font-family: var(--serif);
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.season-points small {
+  font-family: var(--mono);
+  font-size: 6px;
+  letter-spacing: 0.14em;
+}
+
+.season-movement {
+  color: var(--grey-dark);
+  font-size: 8px;
+  text-align: right;
+}
+
+.season-movement.is-up {
+  color: var(--paper);
+}
+
+.is-leader .season-movement.is-up {
+  color: var(--ink);
+}
+
+.season-movement.is-down {
+  opacity: 0.55;
+}
+
+.season-latest-match {
+  display: flex;
+  flex-direction: column;
+}
+
+.season-latest-match .season-section-head {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.season-sealed {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  color: var(--grey);
+  font-size: 6px;
+  letter-spacing: 0.16em;
+}
+
+.season-final-rows article {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 71px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.season-final-rows article:first-child {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.season-final-rows article > span {
+  color: var(--grey-dark);
+  font-family: var(--serif);
+  font-size: 22px;
+  font-style: italic;
+}
+
+.season-final-rows article > strong {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.season-final-rows article > p {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.season-final-rows article > p small {
+  font-family: var(--mono);
+  font-size: 5px;
+}
+
+.season-closing-prices {
+  padding: 24px;
+}
+
+.season-closing-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 15px;
+}
+
+.season-closing-head > span {
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.season-closing-prices > div:last-child {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.season-closing-prices article {
+  padding: 16px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.season-closing-prices article > span {
+  display: block;
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.season-closing-prices article > strong {
+  display: inline-block;
+  margin: 8px 5px 0 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.season-closing-prices article > small {
+  color: var(--grey-dark);
+  font-size: 5px;
+}
+
+.season-match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding: 20px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.season-match-actions a {
+  color: var(--paper-dim);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.season-match-actions a:hover {
+  color: var(--paper);
+}
+
+.season-method {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 30px;
+  padding: 28px 0 0;
+}
+
+.season-method p {
+  max-width: 720px;
+  color: var(--grey-dark);
+  font-size: 7px;
+  line-height: 1.8;
+}
+
+@media (max-width: 1100px) {
+  .season-hero {
+    grid-template-columns: 1fr 0.55fr;
+  }
+
+  .season-board {
+    grid-template-columns: 1fr;
+  }
+
+  .season-latest-match {
+    display: grid;
+    grid-template-columns: 0.8fr 1fr;
+  }
+
+  .season-latest-match .season-section-head,
+  .season-final-rows {
+    grid-column: 1;
+  }
+
+  .season-closing-prices,
+  .season-match-actions {
+    grid-column: 2;
+  }
+
+  .season-closing-prices {
+    grid-row: 1 / span 2;
+    border-left: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 820px) {
+  .season-ledger {
+    padding-top: 112px;
+  }
+
+  .season-hero {
+    grid-template-columns: 1fr;
+    background:
+      linear-gradient(180deg, rgba(10, 10, 11, 0.72), var(--ink) 78%),
+      url('/img/art-arena.webp') top center / cover no-repeat;
+  }
+
+  .season-preview-seal {
+    min-height: 260px;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .season-stat-rail {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .season-stat-rail > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .season-stat-rail > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .season-table-head {
+    display: none;
+  }
+
+  .season-standing-rows article {
+    grid-template-columns: 54px minmax(150px, 1fr) 120px 44px;
+  }
+
+  .season-form {
+    display: none;
+  }
+
+  .season-latest-match {
+    display: flex;
+  }
+
+  .season-closing-prices,
+  .season-match-actions {
+    border-left: 0;
+  }
+
+  .season-method {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .season-ledger {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .season-hero-copy {
+    padding: 44px 24px 58px;
+  }
+
+  .season-hero-copy h1 {
+    font-size: clamp(65px, 22vw, 92px);
+  }
+
+  .season-preview-seal {
+    padding: 34px 24px;
+  }
+
+  .season-stat-rail > div {
+    padding: 18px;
+  }
+
+  .season-board {
+    margin-top: 48px;
+  }
+
+  .season-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    min-height: 0;
+    padding: 26px 20px;
+  }
+
+  .season-section-head > p {
+    text-align: left;
+  }
+
+  .season-standing-rows article {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 86px;
+    padding: 14px 15px;
+  }
+
+  .season-rank {
+    font-size: 25px;
+  }
+
+  .season-agent strong {
+    font-size: 23px;
+  }
+
+  .season-points {
+    font-size: 22px;
+  }
+
+  .season-movement {
+    display: none;
+  }
+
+  .season-closing-prices > div:last-child {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .season-ledger * {
+    scroll-behavior: auto;
+  }
+}

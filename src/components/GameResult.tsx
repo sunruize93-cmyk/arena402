@@ -6,30 +6,9 @@ import {
   getPawnhouseGame,
   PawnhouseGameState,
 } from '@/lib/game-api';
+import { DEMO_FINAL_GAME_STATE } from '@/lib/rankings-demo';
 
 type RecordValue = Record<string, unknown>;
-
-const DEMO_RESULT: PawnhouseGameState = {
-  gameId: 'demo',
-  phase: 'completed',
-  currentRound: 5,
-  roundCount: 5,
-  eventScheduleCommitment: '0x402d7c88a33b7a16',
-  eventSeed: '118402',
-  finalPrices: {
-    grain: '3300000',
-    iron: '4400000',
-    warhorse: '7200000',
-    gems: '4200000',
-  },
-  rankings: [
-    { rank: 1, agentId: 'livia', netWorthAtomic: '27600000', tier: '\u516c\u7235' },
-    { rank: 2, agentId: 'cassius', netWorthAtomic: '24900000', tier: '\u5fa1\u7528\u5546\u4eba' },
-    { rank: 3, agentId: 'octavia', netWorthAtomic: '21800000', tier: '\u738b\u57ce\u884c\u5546' },
-    { rank: 4, agentId: 'marius', netWorthAtomic: '18900000', tier: '\u6d41\u6d6a\u5546\u8d29' },
-  ],
-  schemaVersion: 'arena.pawnhouse-game-state.v1',
-};
 
 const TIER_MAP: Record<string, string> = {
   '\u516c\u7235': 'Duke of the Ledger',
@@ -75,7 +54,7 @@ function gold(value: unknown): string {
 export default function GameResult({ gameId }: { gameId: string }) {
   const demo = gameId === 'demo';
   const [state, setState] = useState<PawnhouseGameState | null>(
-    demo ? DEMO_RESULT : null,
+    demo ? DEMO_FINAL_GAME_STATE : null,
   );
   const [error, setError] = useState('');
 
