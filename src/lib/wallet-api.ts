@@ -24,6 +24,23 @@ export interface WalletOverview {
   checkedAt: string;
 }
 
+export interface ExternalWallet {
+  address: string;
+  chainId: number;
+  network: string;
+  verifiedAt: string;
+}
+
+export interface WalletChallenge {
+  challengeId: string;
+  address: string;
+  chainId: number;
+  network: string;
+  nonce: string;
+  message: string;
+  expiresAt: string;
+}
+
 interface WalletErrorBody {
   detail?: string | { code?: string };
   message?: string;
@@ -100,3 +117,33 @@ export function getWalletOverview(): Promise<WalletOverview> {
   return walletRequest<WalletOverview>('/api/v1/me/wallet/overview');
 }
 
+export function getExternalWallet(): Promise<ExternalWallet> {
+  return walletRequest<ExternalWallet>('/api/wallet');
+}
+
+export function createExternalWalletChallenge(
+  address: string,
+  chainId: number,
+): Promise<WalletChallenge> {
+  return walletRequest<WalletChallenge>('/api/wallet/challenge', {
+    method: 'POST',
+    body: JSON.stringify({ address, chainId }),
+  });
+}
+
+export async function verifyExternalWallet(input: {
+  challengeId: string;
+  address: string;
+  message: string;
+  signature: string;
+}): Promise<ExternalWallet> {
+  const payload = await walletRequest<{ wallet: ExternalWallet }>('/api/wallet/verify', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return payload.wallet;
+}
+
+export function disconnectExternalWallet(): Promise<void> {
+  return walletRequest<void>('/api/wallet', { method: 'DELETE' });
+}

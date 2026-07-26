@@ -1,19 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, Check, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, ExternalLink, ShieldCheck, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ConnectorAuthSession,
   getConnectorAuthSession,
 } from '@/lib/connector-api';
 import {
+  ExternalWallet,
   WalletApiError,
   MyWallet,
   WalletOverview,
+  createExternalWalletChallenge,
+  disconnectExternalWallet,
+  getExternalWallet,
   getMyWallet,
   getWalletOverview,
+  verifyExternalWallet,
 } from '@/lib/wallet-api';
+
+const INJECTIVE_TESTNET_CHAIN_ID = 1439;
+const INJECTIVE_TESTNET_CHAIN_HEX = '0x59f';
+
+interface EthereumProvider {
+  request(input: { method: string; params?: unknown[] }): Promise<unknown>;
+}
 
 const NETWORK_FACTS = [
   ['Network', 'Injective EVM testnet'],
@@ -46,19 +58,72 @@ function walletErrorMessage(error: unknown): string {
       wallet_binding_conflict: 'The treasury hit a binding conflict. Retry in a moment.',
       wallet_payload_invalid: 'The treasury returned an unexpected wallet payload.',
       wallet_overview_unavailable: 'Balance reads are not configured yet. The assigned address is still valid.',
+      wallet_already_bound: 'This Arena account is already linked to another wallet. Disconnect it first.',
+      wallet_address_already_bound: 'This wallet is already linked to another Arena account.',
+      wallet_challenge_expired: 'The wallet signature request expired. Please connect again.',
+      wallet_signature_invalid: 'The wallet signature could not be verified.',
+      wallet_signature_address_mismatch: 'The signed wallet does not match the selected account.',
+      unsupported_wallet_chain: 'Switch your wallet to Injective EVM Testnet and retry.',
       network_unavailable: 'The Arena API is unreachable. Check the local backend and retry.',
     };
     return messages[error.code] || error.message;
   }
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    Reflect.get(error, 'code') === 4001
+  ) {
+    return 'The wallet request was cancelled.';
+  }
   return error instanceof Error ? error.message : 'The treasury check failed. Please retry.';
+}
+
+function browserWallet(): EthereumProvider | null {
+  return (window as Window & { ethereum?: EthereumProvider }).ethereum || null;
+}
+
+async function useInjectiveTestnet(provider: EthereumProvider): Promise<void> {
+  const current = await provider.request({ method: 'eth_chainId' });
+  if (current === INJECTIVE_TESTNET_CHAIN_HEX) return;
+
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: INJECTIVE_TESTNET_CHAIN_HEX }],
+    });
+  } catch (error) {
+    if (!error || typeof error !== 'object' || Reflect.get(error, 'code') !== 4902) {
+      throw error;
+    }
+    await provider.request({
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId: INJECTIVE_TESTNET_CHAIN_HEX,
+          chainName: 'Injective EVM Testnet',
+          nativeCurrency: { name: 'Injective', symbol: 'INJ', decimals: 18 },
+          rpcUrls: ['https://k8s.testnet.json-rpc.injective.network/'],
+          blockExplorerUrls: ['https://testnet.blockscout.injective.network'],
+        },
+      ],
+    });
+  }
+
+  const selected = await provider.request({ method: 'eth_chainId' });
+  if (selected !== INJECTIVE_TESTNET_CHAIN_HEX) {
+    throw new Error('Select Injective EVM Testnet in your wallet and retry.');
+  }
 }
 
 export default function WalletSurface() {
   const [session, setSession] = useState<ConnectorAuthSession | null>(null);
   const [wallet, setWallet] = useState<MyWallet | null>(null);
+  const [externalWallet, setExternalWallet] = useState<ExternalWallet | null>(null);
   const [overview, setOverview] = useState<WalletOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [externalBusy, setExternalBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [copied, setCopied] = useState(false);
@@ -97,10 +162,24 @@ export default function WalletSurface() {
         setSession(value);
         if (!value) return;
 
-        const treasury = await loadTreasury();
-        if (!cancelled) {
-          setWallet(treasury.wallet);
-          setOverview(treasury.overview);
+        const [treasuryResult, externalResult] = await Promise.allSettled([
+          loadTreasury(),
+          getExternalWallet(),
+        ]);
+        if (cancelled) return;
+        if (treasuryResult.status === 'fulfilled') {
+          setWallet(treasuryResult.value.wallet);
+          setOverview(treasuryResult.value.overview);
+        } else {
+          setError(walletErrorMessage(treasuryResult.reason));
+        }
+        if (externalResult.status === 'fulfilled') {
+          setExternalWallet(externalResult.value);
+        } else if (
+          !(externalResult.reason instanceof WalletApiError) ||
+          externalResult.reason.status !== 404
+        ) {
+          setError(walletErrorMessage(externalResult.reason));
         }
       } catch (loadError) {
         if (!cancelled) setError(walletErrorMessage(loadError));
@@ -132,6 +211,64 @@ export default function WalletSurface() {
       setError(walletErrorMessage(checkError));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function connectExternalWallet() {
+    setExternalBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const provider = browserWallet();
+      if (!provider) {
+        throw new Error('Open an Injective EVM-compatible browser wallet and retry.');
+      }
+      await useInjectiveTestnet(provider);
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const address = Array.isArray(accounts) && typeof accounts[0] === 'string'
+        ? accounts[0]
+        : '';
+      if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+        throw new Error('The wallet did not return a valid EVM address.');
+      }
+      const challenge = await createExternalWalletChallenge(
+        address,
+        INJECTIVE_TESTNET_CHAIN_ID,
+      );
+      const signature = await provider.request({
+        method: 'personal_sign',
+        params: [challenge.message, address],
+      });
+      if (typeof signature !== 'string') {
+        throw new Error('The wallet did not return a signature.');
+      }
+      const binding = await verifyExternalWallet({
+        challengeId: challenge.challengeId,
+        address,
+        message: challenge.message,
+        signature,
+      });
+      setExternalWallet(binding);
+      setNotice('Your wallet is verified and linked to this Arena identity.');
+    } catch (connectError) {
+      setError(walletErrorMessage(connectError));
+    } finally {
+      setExternalBusy(false);
+    }
+  }
+
+  async function disconnectUserWallet() {
+    setExternalBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await disconnectExternalWallet();
+      setExternalWallet(null);
+      setNotice('Your user-controlled wallet has been disconnected.');
+    } catch (disconnectError) {
+      setError(walletErrorMessage(disconnectError));
+    } finally {
+      setExternalBusy(false);
     }
   }
 
@@ -256,6 +393,65 @@ export default function WalletSurface() {
             )}
           </div>
         </aside>
+      </section>
+
+      <section className="wallet-section wallet-external" aria-labelledby="external-wallet-title">
+        <div className="wallet-section-heading">
+          <div>
+            <p className="label">Your wallet</p>
+            <h2 className="display" id="external-wallet-title">Prove the key is yours.</h2>
+          </div>
+          <p className="wallet-section-note">
+            Connect an Injective EVM wallet and sign one ownership message. The signature
+            does not authorize a transaction, payment, or Agent action.
+          </p>
+        </div>
+        <div className="wallet-external-card">
+          <div className="wallet-external-copy">
+            <span className="wallet-external-icon" aria-hidden="true">
+              <Wallet size={22} strokeWidth={1.2} />
+            </span>
+            <div>
+              <p className="label">Injective EVM Testnet</p>
+              <h3>
+                {externalWallet
+                  ? `${externalWallet.address.slice(0, 8)}…${externalWallet.address.slice(-6)}`
+                  : 'Connect your browser wallet.'}
+              </h3>
+              <p>
+                {externalWallet
+                  ? `Verified ${formatDate(externalWallet.verifiedAt)} on chain ${externalWallet.chainId}.`
+                  : 'Only Injective EVM Testnet is accepted. Arena stores only the verified public address.'}
+              </p>
+            </div>
+          </div>
+          <div className="wallet-external-actions">
+            {!session ? (
+              <Link className="btn" href="/signin?return_to=%2Fwallet">
+                Sign in first <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            ) : externalWallet ? (
+              <button
+                type="button"
+                className="wallet-copy-action"
+                disabled={externalBusy}
+                onClick={() => void disconnectUserWallet()}
+              >
+                {externalBusy ? 'Disconnecting…' : 'Disconnect wallet'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn"
+                disabled={externalBusy}
+                onClick={() => void connectExternalWallet()}
+              >
+                {externalBusy ? 'Waiting for wallet…' : 'Connect Injective wallet'}
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="wallet-section wallet-assets" aria-labelledby="assets-title">

@@ -112,6 +112,38 @@
 .wallet-section-heading, .wallet-panel-heading { display: flex; justify-content: space-between; gap: 32px; align-items: flex-end; }
 .wallet-section-heading h2, .wallet-panel-heading h2 { margin-top: 12px; font-size: clamp(34px, 4vw, 60px); }
 .wallet-section-note { max-width: 340px; color: var(--grey); font-size: 11px; line-height: 1.8; }
+.wallet-external-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  margin-top: 34px;
+  padding: 28px 30px;
+  border: 1px solid var(--line-strong);
+  background: var(--ink);
+}
+.wallet-external-copy { display: flex; align-items: center; gap: 22px; min-width: 0; }
+.wallet-external-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  color: var(--paper-dim);
+}
+.wallet-external-copy h3 {
+  margin-top: 8px;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: clamp(25px, 3vw, 42px);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.wallet-external-copy p:last-child { margin-top: 10px; color: var(--grey); font-size: 10px; line-height: 1.7; }
+.wallet-external-actions { flex: 0 0 auto; }
+.wallet-external-actions .btn { display: inline-flex; align-items: center; gap: 10px; }
 .wallet-asset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 34px; background: var(--line); }
 .wallet-asset-card { min-height: 240px; padding: 24px; background: var(--ink); }
 .wallet-asset-mark { color: var(--paper-dim); font-size: 10px; letter-spacing: 0.2em; }
@@ -151,6 +183,8 @@
 @media (max-width: 700px) {
   .wallet-section-heading, .wallet-panel-heading { display: block; }
   .wallet-section-note { margin-top: 18px; }
+  .wallet-external-card { display: block; }
+  .wallet-external-actions { margin-top: 26px; }
   .wallet-asset-grid, .wallet-ledger-grid, .wallet-principles { grid-template-columns: 1fr; }
   .wallet-ledger-panel { min-height: 0; }
   .wallet-principles { gap: 0; }
