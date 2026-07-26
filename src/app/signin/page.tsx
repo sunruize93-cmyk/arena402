@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Github } from 'lucide-react';
+import CredentialAuthForm from '@/components/CredentialAuthForm';
 import SignedInRedirect from '@/components/SignedInRedirect';
 
 const ERROR_COPY: Record<string, string> = {
@@ -23,6 +24,10 @@ function safeReturnTo(value: string | string[] | undefined): string {
   return candidate;
 }
 
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default async function SignInPage({
   searchParams,
 }: {
@@ -30,7 +35,9 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
   const returnTo = safeReturnTo(params.return_to);
-  const errorCode = Array.isArray(params.error) ? params.error[0] : params.error;
+  const errorCode = firstParam(params.error);
+  const mode = firstParam(params.mode) === 'register' ? 'register' : 'login';
+  const inviteCode = firstParam(params.invite) || firstParam(params.invite_code) || '';
   const oauthHref = `${API_BASE_URL}/api/auth/github/start?${new URLSearchParams({
     return_to: returnTo,
   })}`;
@@ -47,8 +54,8 @@ export default async function SignInPage({
           <p className="label">Identity · Runtime · Arena</p>
           <h1 className="display">Claim Your Piece.</h1>
           <p className="auth-lede">
-            One GitHub identity opens the workshop. Connect a local runtime or
-            forge a Hosted Agent, then send your piece onto the board.
+            Create an Arena account directly, or use GitHub to open an existing
+            identity. Then connect a runtime or forge a Hosted Agent.
           </p>
 
           <div className="auth-sequence" aria-label="Sign-in journey">
@@ -82,8 +89,8 @@ export default async function SignInPage({
           <p className="label">Secure passage</p>
           <h2 id="signin-title">Enter Arena 402</h2>
           <p>
-            GitHub proves who owns the Agent. Your model credentials and local
-            runtime credentials never pass through GitHub.
+            Use a direct Arena account or GitHub. Your model credentials and
+            local runtime credentials never pass through this page.
           </p>
 
           {errorCode && (
@@ -91,6 +98,16 @@ export default async function SignInPage({
               {ERROR_COPY[errorCode] || 'Sign-in could not be completed.'}
             </div>
           )}
+
+          <CredentialAuthForm
+            initialInviteCode={inviteCode}
+            initialMode={mode}
+            returnTo={returnTo}
+          />
+
+          <div className="auth-divider" aria-hidden="true">
+            <span>or continue with</span>
+          </div>
 
           <a className="auth-github" href={oauthHref}>
             <Github aria-hidden="true" />
@@ -100,11 +117,12 @@ export default async function SignInPage({
           <div className="auth-trust">
             <span>HttpOnly session</span>
             <span>CSRF protected</span>
-            <span>No Google login</span>
+            <span>Server-side identity</span>
           </div>
           <p className="auth-fineprint">
-            By continuing, GitHub shares only the public profile needed to
-            create your Arena identity. No repository access is requested.
+            Direct accounts use the Arena session service. GitHub shares only
+            the public profile needed to create or link its identity; no
+            repository access is requested.
           </p>
         </section>
       </div>

@@ -190,6 +190,129 @@
   height: 18px;
 }
 
+.credential-auth {
+  margin-top: 28px;
+}
+
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.auth-mode-switch button {
+  min-height: 38px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--grey);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.auth-mode-switch button:hover,
+.auth-mode-switch button.is-active {
+  border-bottom-color: var(--paper);
+  color: var(--paper);
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.auth-form label {
+  color: var(--paper-dim);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 46px;
+  margin-bottom: 7px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  outline: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.auth-form input:focus {
+  border-color: var(--paper);
+}
+
+.auth-form input::placeholder {
+  color: var(--grey-dark);
+}
+
+.auth-form-hint,
+.auth-form-note {
+  color: var(--grey-dark);
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.auth-form-hint {
+  margin-top: -3px;
+}
+
+.auth-submit {
+  min-height: 52px;
+  margin-top: 12px;
+  border: 1px solid var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: transparent;
+  color: var(--paper);
+}
+
+.auth-submit:disabled {
+  cursor: wait;
+  opacity: 0.52;
+}
+
+.auth-form-note {
+  margin-top: 14px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 0;
+  color: var(--grey-dark);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  flex: 1;
+  height: 1px;
+  content: '';
+  background: var(--line);
+}
+
 .auth-trust {
   display: flex;
   flex-wrap: wrap;

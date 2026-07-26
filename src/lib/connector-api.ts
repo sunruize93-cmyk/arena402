@@ -267,6 +267,23 @@ export async function acceptConnectorInvite(input: {
   return session;
 }
 
+export async function registerConnectorUser(input: {
+  invite_code: string;
+  username: string;
+  password: string;
+}): Promise<ConnectorAuthSession> {
+  const session = await apiRequest<ConnectorAuthSession>(
+    '/api/auth/register',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+    { csrf: false },
+  );
+  connectorCsrfToken = session.csrf_token;
+  return session;
+}
+
 export async function loginConnectorUser(input: {
   username: string;
   password: string;
