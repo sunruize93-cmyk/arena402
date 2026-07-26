@@ -34,7 +34,7 @@ test('recommended loadout serializes to exactly 20 gold without floats', () => {
   assert.equal(result.holdingsValue, 18);
   assert.equal(result.cash, 2);
   assert.deepEqual(result.portfolio, {
-    cash: '2',
+    cashAtomic: '2000000',
     holdings: {
       grain: 2,
       iron: 1,
@@ -53,7 +53,7 @@ test('an all-cash loadout remains a valid 20 gold portfolio', () => {
 
   assert.equal(result.isValid, true);
   assert.equal(result.cash, 20);
-  assert.equal(result.portfolio.cash, '20');
+  assert.equal(result.portfolio.cashAtomic, '20000000');
 });
 
 test('a loadout over 20 gold is rejected and cannot be serialized', () => {

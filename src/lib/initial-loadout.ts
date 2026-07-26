@@ -1,4 +1,5 @@
 export const INITIAL_GOLD = 20;
+export const INITIAL_GOLD_DECIMALS = 6;
 
 export const INITIAL_GOODS = [
   { goodId: 'grain', name: 'Grain', mark: '粮', openingPrice: 2 },
@@ -11,7 +12,7 @@ export type InitialGoodId = (typeof INITIAL_GOODS)[number]['goodId'];
 export type InitialLoadout = Record<InitialGoodId, number>;
 
 export interface InitialPortfolio {
-  cash: string;
+  cashAtomic: string;
   holdings: InitialLoadout;
 }
 
@@ -70,7 +71,7 @@ export function evaluateInitialLoadout(
     error: isValid ? null : 'over_budget',
     portfolio: isValid
       ? {
-          cash: String(cash),
+          cashAtomic: String(cash * 10 ** INITIAL_GOLD_DECIMALS),
           holdings: { ...holdings },
         }
       : null,

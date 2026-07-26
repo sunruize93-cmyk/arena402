@@ -116,7 +116,7 @@ test('joining sends the locked portfolio through the formal v1 contract', async 
     joinAuthorizationId: 'ja:test',
     paymentMandateId: 'pm:test',
     portfolio: {
-      cash: '2',
+      cashAtomic: '2000000',
       holdings: { grain: 2, iron: 1, warhorse: 0, gems: 3 },
     },
   };
@@ -229,6 +229,45 @@ test('payment mandate creation stays scoped to the game authorization', async ()
   assert.equal(calls[0].init.headers['Idempotency-Key'], 'mandate-key-1');
   assert.equal(calls[0].init.headers['X-CSRF-Token'], 'session-csrf-token');
   assert.deepEqual(JSON.parse(calls[0].init.body), payload);
+});
+
+test('current game mandate creation sends its stable idempotency key', async () => {
+  const calls = [];
+  const gameApi = loadTypeScriptModule(
+    new URL('../src/lib/game-api.ts', import.meta.url),
+    {
+      '@/lib/platform-api': {
+        arenaApiRequest: async (path, init) => {
+          calls.push({ path, init });
+          return { mandate: { mandateId: 'mandate-stable' } };
+        },
+      },
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'session-csrf-token',
+      },
+    },
+  );
+
+  await gameApi.createCurrentGameMandate(
+    'game:test',
+    {
+      joinAuthorizationId: 'ja:test',
+      mandateRequirements: {
+        chainId: 1439,
+        tokenAddress: `0x${'1'.repeat(40)}`,
+        maxPerPaymentAtomic: '10000000',
+        maxCumulativeAtomic: '50000000',
+        allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT',
+        expiresAt: '2026-07-26T02:00:00.000Z',
+      },
+    },
+    'mandate-stable',
+  );
+
+  assert.equal(
+    calls[0].init.headers['Idempotency-Key'],
+    'mandate-stable',
+  );
 });
 
 test('withdrawal uses the owner-scoped v1 participant route', async () => {

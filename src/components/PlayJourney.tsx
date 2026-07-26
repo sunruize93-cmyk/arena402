@@ -46,8 +46,19 @@ function stableSessionId(key: string, prefix: string): string {
   return created;
 }
 
-function joinError(error: unknown): string {
+function joinError(error: unknown, stage: JoinStage = 'idle'): string {
   if (error instanceof ArenaApiError) {
+    if (error.code === 'network_unavailable') {
+      const stageMessages: Partial<Record<JoinStage, string>> = {
+        preflight:
+          'Arena could not complete the readiness check after one automatic retry.',
+        mandate:
+          'Arena could not confirm the payment mandate after one automatic retry. The same request will be reused.',
+        joining:
+          'Arena could not confirm your seat after one automatic retry. Retry once; the original join request will be reused.',
+      };
+      return stageMessages[stage] || 'Arena API could not be reached after one automatic retry.';
+    }
     const messages: Record<string, string> = {
       authentication_required: 'Your Arena session expired. Sign in again before entering.',
       runtime_not_ready: 'This Agent is still provisioning. Retry when it is ready.',
@@ -58,7 +69,7 @@ function joinError(error: unknown): string {
       game_already_started: 'This table has already started.',
       game_participant_limit_reached: 'This table is full.',
       idempotency_conflict: 'The entry request changed. Reload and try once more.',
-      network_unavailable: 'Arena API is unreachable.',
+      request_aborted: 'The Arena request was cancelled.',
     };
     return messages[error.code] || `Arena rejected the entry seal (${error.code}).`;
   }
@@ -221,6 +232,8 @@ export default function PlayJourney() {
     const storageKey = `arena402:join:${game.gameId}:${selectedAgentId}`;
     const preflightKey = `${storageKey}:preflight`;
     const mandateKey = `${storageKey}:mandate`;
+    const joinKey = `${storageKey}:join`;
+    let failedStage: JoinStage = 'preflight';
     try {
       setJoinStage('preflight');
       let preflight;
@@ -246,6 +259,7 @@ export default function PlayJourney() {
         );
       }
 
+      failedStage = 'mandate';
       setJoinStage('mandate');
       let mandate = await getActivePaymentMandate(game.gameId);
       if (mandate?.joinAuthorizationId !== preflight.joinAuthorizationId) {
@@ -263,19 +277,23 @@ export default function PlayJourney() {
         );
       }
 
+      failedStage = 'joining';
       setJoinStage('joining');
       await joinCurrentGame(
         game.gameId,
-        selectedAgentId,
-        preflight.joinAuthorizationId,
-        mandate.mandateId,
+        {
+          agentId: selectedAgentId,
+          joinAuthorizationId: preflight.joinAuthorizationId,
+          paymentMandateId: mandate.mandateId,
+        },
+        stableSessionId(joinKey, 'join'),
       );
       setJoinedAgentId(selectedAgentId);
       setJoinStage('joined');
       await refresh();
     } catch (cause) {
       setJoinStage('idle');
-      setError(joinError(cause));
+      setError(joinError(cause, failedStage));
     }
   }
 

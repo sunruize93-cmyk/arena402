@@ -24,6 +24,12 @@ import {
 import { ArenaApiError } from '@/lib/platform-api';
 
 type EntryStep = 'agent' | 'loadout' | 'mandate';
+type EntryRequestStage =
+  | 'wallet'
+  | 'preflight'
+  | 'mandate_lookup'
+  | 'mandate_create'
+  | 'join';
 
 interface ReadyAgent {
   agentId: string;
@@ -39,8 +45,26 @@ function opaqueId(prefix: string): string {
   return `${prefix}:${suffix}`.slice(0, 128);
 }
 
-function safeEntryError(error: unknown): string {
+function safeEntryError(
+  error: unknown,
+  stage: EntryRequestStage,
+): string {
   if (error instanceof ArenaApiError) {
+    if (error.code === 'network_unavailable') {
+      const networkMessages: Record<EntryRequestStage, string> = {
+        wallet:
+          'The wallet check could not reach Arena after one automatic retry. Retry preflight.',
+        preflight:
+          'The readiness check could not reach Arena after one automatic retry. Retry preflight.',
+        mandate_lookup:
+          'Arena could not confirm the current payment mandate after one automatic retry. Retry the same entry.',
+        mandate_create:
+          'Arena could not confirm the payment mandate after one automatic retry. Retry the same entry; its idempotency key is preserved.',
+        join:
+          'Arena could not confirm the seat after one automatic retry. Retry the same entry; Arena will reuse the original join request.',
+      };
+      return networkMessages[stage];
+    }
     const messages: Record<string, string> = {
       authentication_required: 'Sign in again before entering the pool.',
       runtime_not_ready: 'This Agent runtime is not ready for the current game.',
@@ -51,7 +75,7 @@ function safeEntryError(error: unknown): string {
       user_already_joined: 'Your account already has a seat in this game.',
       invalid_initial_portfolio: 'The server rejected this opening portfolio.',
       idempotency_conflict: 'The entry request changed. Return and review it again.',
-      network_unavailable: 'The Arena feed is unavailable. Retry with the same entry request.',
+      request_aborted: 'The entry check was cancelled.',
     };
     return messages[error.code] || `Arena declined the entry request (${error.code}).`;
   }
@@ -171,8 +195,10 @@ export default function GameEntryDesk({
     setStep('mandate');
     setWorking(true);
     setError('');
+    let requestStage: EntryRequestStage = 'wallet';
     try {
       await getArenaWallet();
+      requestStage = 'preflight';
       const content = {
         gameId: game.gameId,
         agentId: selectedAgent.agentId,
@@ -191,7 +217,7 @@ export default function GameEntryDesk({
       setPreflight(nextPreflight);
     } catch (cause) {
       setPreflight(null);
-      setError(safeEntryError(cause));
+      setError(safeEntryError(cause, requestStage));
     } finally {
       setWorking(false);
     }
@@ -216,6 +242,7 @@ export default function GameEntryDesk({
       joinAuthorizationId: preflight.joinAuthorizationId,
       portfolio: loadoutResult.portfolio,
     };
+    let requestStage: EntryRequestStage = 'mandate_lookup';
     try {
       const currentMandate = await getPaymentMandate(game.gameId);
       const reusable =
@@ -226,6 +253,7 @@ export default function GameEntryDesk({
         && new Date(currentMandate.mandate.expiresAt).getTime() > Date.now();
       let mandate = currentMandate.mandate;
       if (!reusable || !mandate) {
+        requestStage = 'mandate_create';
         mandate = (
           await createPaymentMandate(
             {
@@ -244,6 +272,7 @@ export default function GameEntryDesk({
           )
         ).mandate;
       }
+      requestStage = 'join';
       const response = await joinCurrentGame(
         game.gameId,
         {
@@ -266,7 +295,7 @@ export default function GameEntryDesk({
       );
       onJoined(participantId);
     } catch (cause) {
-      setError(safeEntryError(cause));
+      setError(safeEntryError(cause, requestStage));
     } finally {
       setWorking(false);
     }

@@ -178,7 +178,7 @@ export interface JoinCurrentGamePayload {
   agentId: string;
   joinAuthorizationId: string;
   paymentMandateId: string;
-  portfolio: InitialPortfolio;
+  portfolio?: InitialPortfolio;
 }
 
 export interface JoinCurrentGameResponse {
@@ -292,7 +292,13 @@ async function mutationHeaders(
 ): Promise<Record<string, string>> {
   let csrfToken: string;
   try {
-    csrfToken = await getConnectorCsrfToken();
+    try {
+      csrfToken = await getConnectorCsrfToken();
+    } catch (error) {
+      if (error instanceof ConnectorApiError) throw error;
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 250));
+      csrfToken = await getConnectorCsrfToken();
+    }
   } catch (error) {
     if (error instanceof ConnectorApiError) {
       throw new ArenaApiError(
@@ -348,38 +354,16 @@ export function preflightCurrentGame(
   );
 }
 
-export function joinCurrentGame(
+export async function joinCurrentGame(
   gameId: string,
   payload: JoinCurrentGamePayload,
   idempotencyKey: string,
-): Promise<JoinCurrentGameResponse>;
-export function joinCurrentGame(
-  gameId: string,
-  agentId: string,
-  joinAuthorizationId: string,
-  paymentMandateId: string,
-): Promise<JoinCurrentGameResponse>;
-export async function joinCurrentGame(
-  gameId: string,
-  payloadOrAgentId: JoinCurrentGamePayload | string,
-  idempotencyKeyOrAuthorization: string,
-  paymentMandateId?: string,
 ): Promise<JoinCurrentGameResponse> {
   const path = `/api/v1/games/${encodeURIComponent(gameId)}/participants`;
-  if (typeof payloadOrAgentId === 'string') {
-    return idempotentMutation<JoinCurrentGameResponse>(
-      path,
-      {
-        agentId: payloadOrAgentId,
-        joinAuthorizationId: idempotencyKeyOrAuthorization,
-        paymentMandateId: paymentMandateId || '',
-      },
-    );
-  }
   return arenaApiRequest<JoinCurrentGameResponse>(path, {
     method: 'POST',
-    headers: await mutationHeaders(idempotencyKeyOrAuthorization),
-    body: JSON.stringify(payloadOrAgentId),
+    headers: await mutationHeaders(idempotencyKey),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -438,6 +422,7 @@ export async function createCurrentGameMandate(
       validFrom: new Date(Date.now() - 5_000).toISOString(),
       expiresAt: preflight.mandateRequirements.expiresAt,
     },
+    mandateId,
   );
   return value.mandate;
 }
@@ -448,6 +433,7 @@ export async function revokeCurrentGameMandate(
   const value = await idempotentMutation<{ mandate: PaymentMandate }>(
     `/api/v1/me/payment-mandates/${encodeURIComponent(mandateId)}/revoke`,
     {},
+    `revoke:${mandateId}`.slice(0, 128),
   );
   return value.mandate;
 }

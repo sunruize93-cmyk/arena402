@@ -21,6 +21,31 @@ export class ArenaApiError extends Error {
   }
 }
 
+const NETWORK_RETRY_DELAY_MS = 250;
+
+function canRetry(init: RequestInit | undefined, headers: Headers): boolean {
+  const method = (init?.method || 'GET').toUpperCase();
+  return (
+    ['GET', 'HEAD', 'OPTIONS'].includes(method)
+    || headers.has('Idempotency-Key')
+  );
+}
+
+async function waitForRetry(signal?: AbortSignal | null): Promise<void> {
+  if (signal?.aborted) throw new ArenaApiError(0, 'request_aborted');
+  await new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      globalThis.clearTimeout(timer);
+      reject(new ArenaApiError(0, 'request_aborted'));
+    };
+    const timer = globalThis.setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, NETWORK_RETRY_DELAY_MS);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 function errorCode(body: unknown, status: number): string {
   if (!body || typeof body !== 'object') return `http_${status}`;
   const detail = Reflect.get(body, 'detail');
@@ -39,17 +64,28 @@ export async function arenaApiRequest<T>(
   const headers = new Headers(init?.headers);
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers,
-    });
-  } catch {
-    throw new ArenaApiError(0, 'network_unavailable');
+  const attempts = canRetry(init, headers) ? 2 : 1;
+  let response: Response | undefined;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        ...init,
+        credentials: 'include',
+        headers,
+      });
+      break;
+    } catch {
+      if (init?.signal?.aborted) {
+        throw new ArenaApiError(0, 'request_aborted');
+      }
+      if (attempt + 1 >= attempts) {
+        throw new ArenaApiError(0, 'network_unavailable');
+      }
+      await waitForRetry(init?.signal);
+    }
   }
 
+  if (!response) throw new ArenaApiError(0, 'network_unavailable');
   if (!response.ok) {
     let body: unknown;
     try {

@@ -229,6 +229,76 @@ test('Current Game mutations surface an expired API session as authentication_re
   }
 });
 
+test('Current Game mutations retry one transient CSRF session network failure', async () => {
+  const calls = [];
+  const previousFetch = globalThis.fetch;
+  const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  let sessionAttempts = 0;
+
+  process.env.NEXT_PUBLIC_API_URL = 'https://api.arena402.test';
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).endsWith('/api/auth/session')) {
+      sessionAttempts += 1;
+      if (sessionAttempts === 1) {
+        throw new TypeError('temporary session network failure');
+      }
+      return jsonResponse({
+        user: {
+          user_id: 'user_123',
+          username: 'octo-cat',
+          temporary: false,
+          auth_provider: 'github',
+        },
+        csrf_token: 'session-csrf-token',
+      });
+    }
+    if (String(url).endsWith('/api/v1/games/game-current/join-preflight')) {
+      return jsonResponse({
+        gameId: 'game-current',
+        agentId: 'agent-current',
+        joinAuthorizationId: 'join-authorization',
+        checks: {},
+        mandateRequirements: {},
+        safeErrorCode: null,
+      });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const platformApi = loadTypeScriptModule(
+      new URL('../src/lib/platform-api.ts', import.meta.url),
+    );
+    const connectorApi = loadTypeScriptModule(
+      new URL('../src/lib/connector-api.ts', import.meta.url),
+    );
+    const gameApi = loadTypeScriptModule(
+      new URL('../src/lib/game-api.ts', import.meta.url),
+      {
+        '@/lib/platform-api': platformApi,
+        '@/lib/connector-api': connectorApi,
+      },
+    );
+
+    await gameApi.getJoinPreflight(
+      'game-current',
+      'agent-current',
+      'join-preflight-key',
+    );
+
+    assert.equal(sessionAttempts, 2);
+    assert.equal(calls.length, 3);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    }
+  }
+});
+
 test('Public Connector pairing remains available without an auth session', async () => {
   const calls = [];
   const previousFetch = globalThis.fetch;
