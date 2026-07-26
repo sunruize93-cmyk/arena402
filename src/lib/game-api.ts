@@ -1,4 +1,12 @@
-import { API_BASE_URL, arenaApiRequest } from '@/lib/platform-api';
+import {
+  ConnectorApiError,
+  getConnectorCsrfToken,
+} from '@/lib/connector-api';
+import {
+  API_BASE_URL,
+  ArenaApiError,
+  arenaApiRequest,
+} from '@/lib/platform-api';
 import type { InitialPortfolio } from '@/lib/initial-loadout';
 
 export interface PawnhouseGameState {
@@ -256,22 +264,25 @@ export async function getGameParticipations(): Promise<GameParticipation[]> {
   return response.participations || [];
 }
 
-function readCsrfCookie(): string {
-  if (typeof document === 'undefined') return '';
-  const prefix = 'adx_csrf=';
-  const cookie = document.cookie
-    .split(';')
-    .map((value) => value.trim())
-    .find((value) => value.startsWith(prefix));
-  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
-}
-
-function mutationHeaders(idempotencyKey: string): Record<string, string> {
-  const csrfToken = readCsrfCookie();
+async function mutationHeaders(
+  idempotencyKey?: string,
+): Promise<Record<string, string>> {
+  let csrfToken: string;
+  try {
+    csrfToken = await getConnectorCsrfToken();
+  } catch (error) {
+    if (error instanceof ConnectorApiError) {
+      throw new ArenaApiError(
+        error.status,
+        error.status === 401 ? 'authentication_required' : 'csrf_session_unavailable',
+      );
+    }
+    throw new ArenaApiError(0, 'network_unavailable');
+  }
   return {
     'Content-Type': 'application/json',
-    'Idempotency-Key': idempotencyKey,
-    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+    'X-CSRF-Token': csrfToken,
   };
 }
 
@@ -280,19 +291,14 @@ async function idempotentMutation<T>(
   body: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<T> {
-  const csrfToken = readCsrfCookie();
   return arenaApiRequest<T>(path, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-    },
+    headers: await mutationHeaders(idempotencyKey),
     body: JSON.stringify(body),
   });
 }
 
-export function getJoinPreflight(
+export async function getJoinPreflight(
   gameId: string,
   agentId: string,
   idempotencyKey: string,
@@ -301,7 +307,7 @@ export function getJoinPreflight(
     `/api/v1/games/${encodeURIComponent(gameId)}/join-preflight`,
     {
       method: 'POST',
-      headers: mutationHeaders(idempotencyKey),
+      headers: await mutationHeaders(idempotencyKey),
       body: JSON.stringify({ agentId }),
     },
   );
@@ -330,7 +336,7 @@ export function joinCurrentGame(
   joinAuthorizationId: string,
   paymentMandateId: string,
 ): Promise<JoinCurrentGameResponse>;
-export function joinCurrentGame(
+export async function joinCurrentGame(
   gameId: string,
   payloadOrAgentId: JoinCurrentGamePayload | string,
   idempotencyKeyOrAuthorization: string,
@@ -349,7 +355,7 @@ export function joinCurrentGame(
   }
   return arenaApiRequest<JoinCurrentGameResponse>(path, {
     method: 'POST',
-    headers: mutationHeaders(idempotencyKeyOrAuthorization),
+    headers: await mutationHeaders(idempotencyKeyOrAuthorization),
     body: JSON.stringify(payloadOrAgentId),
   });
 }
@@ -375,7 +381,7 @@ export async function getActivePaymentMandate(
   return value.mandate;
 }
 
-export function createPaymentMandate(
+export async function createPaymentMandate(
   payload: CreatePaymentMandatePayload,
   idempotencyKey: string,
 ): Promise<{ mandate: PaymentMandate }> {
@@ -383,7 +389,7 @@ export function createPaymentMandate(
     '/api/v1/me/payment-mandates',
     {
       method: 'POST',
-      headers: mutationHeaders(idempotencyKey),
+      headers: await mutationHeaders(idempotencyKey),
       body: JSON.stringify(payload),
     },
   );
@@ -423,7 +429,7 @@ export async function revokeCurrentGameMandate(
   return value.mandate;
 }
 
-export function withdrawCurrentGameParticipant(
+export async function withdrawCurrentGameParticipant(
   gameId: string,
   participantId: string,
   idempotencyKey: string,
@@ -432,7 +438,7 @@ export function withdrawCurrentGameParticipant(
     `/api/v1/games/${encodeURIComponent(gameId)}/participants/${encodeURIComponent(participantId)}`,
     {
       method: 'DELETE',
-      headers: mutationHeaders(idempotencyKey),
+      headers: await mutationHeaders(idempotencyKey),
     },
   );
 }

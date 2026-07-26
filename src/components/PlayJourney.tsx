@@ -49,6 +49,7 @@ function stableSessionId(key: string, prefix: string): string {
 function joinError(error: unknown): string {
   if (error instanceof ArenaApiError) {
     const messages: Record<string, string> = {
+      authentication_required: 'Your Arena session expired. Sign in again before entering.',
       runtime_not_ready: 'This Agent is still provisioning. Retry when it is ready.',
       wallet_not_ready: 'Your treasury wallet is not ready for this game.',
       mandate_not_ready: 'The payment mandate expired. Start the entry seal again.',

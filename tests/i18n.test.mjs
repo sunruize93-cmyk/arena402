@@ -92,6 +92,13 @@ test('Chinese translation covers waiting-room and matchmaking states', () => {
   assert.equal(translateText('View waiting room', 'zh-CN'), '查看等待室');
   assert.equal(translateText('Matchmaking receipt', 'zh-CN'), '匹配凭证');
   assert.equal(
+    translateText(
+      'Your Arena session expired. Sign in again before entering.',
+      'zh-CN',
+    ),
+    '竞技场会话已过期，请重新登录后再参加匹配。',
+  );
+  assert.equal(
     translateText('Your Agent is READY in the waiting game.', 'zh-CN'),
     '你的智能体已进入等待游戏，并处于就绪状态。',
   );
