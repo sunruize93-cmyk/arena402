@@ -14,6 +14,7 @@ import {
   isJoinPreflightReady,
   JoinPreflight,
   joinCurrentGame,
+  revokeCurrentGameMandate,
 } from '@/lib/game-api';
 import { getHostedAgents } from '@/lib/hosted-agent-api';
 import {
@@ -28,6 +29,7 @@ type EntryRequestStage =
   | 'wallet'
   | 'preflight'
   | 'mandate_lookup'
+  | 'mandate_revoke'
   | 'mandate_create'
   | 'join';
 
@@ -58,6 +60,8 @@ function safeEntryError(
           'The readiness check could not reach Arena after one automatic retry. Retry preflight.',
         mandate_lookup:
           'Arena could not confirm the current payment mandate after one automatic retry. Retry the same entry.',
+        mandate_revoke:
+          'Arena could not replace the previous payment mandate after one automatic retry. Retry the same entry.',
         mandate_create:
           'Arena could not confirm the payment mandate after one automatic retry. Retry the same entry; its idempotency key is preserved.',
         join:
@@ -71,9 +75,17 @@ function safeEntryError(
       wallet_not_ready: 'Arena could not prepare the game wallet.',
       wallet_pool_exhausted: 'No game wallet is currently available.',
       game_already_started: 'This game has already started.',
-      participant_limit_reached: 'The current pool is full.',
+      game_not_current: 'This is no longer the current Arena game.',
+      game_not_joinable: 'This game is no longer accepting entries.',
+      settlement_not_available: 'Payment settlement is not ready for this game.',
+      game_participant_limit_reached: 'The current pool is full.',
       user_already_joined: 'Your account already has a seat in this game.',
-      invalid_initial_portfolio: 'The server rejected this opening portfolio.',
+      hosted_agent_not_ready: 'This Hosted Agent is not ready for the current game.',
+      mandate_not_ready: 'The payment mandate is no longer valid. Retry preflight.',
+      join_authorization_expired: 'The entry authorization expired. Retry preflight.',
+      invalid_portfolio: 'The server rejected this opening portfolio.',
+      invalid_idempotency_key: 'Arena could not verify the retry key. Return and review the entry again.',
+      csrf_session_unavailable: 'Arena could not verify this browser session. Sign in again.',
       idempotency_conflict: 'The entry request changed. Return and review it again.',
       request_aborted: 'The entry check was cancelled.',
     };
@@ -89,7 +101,9 @@ function preflightRefusal(code: string | null): string {
     wallet_not_ready: 'Arena could not prepare the game wallet.',
     wallet_pool_exhausted: 'No game wallet is currently available.',
     game_already_started: 'This game has already started.',
-    participant_limit_reached: 'The current pool is full.',
+    game_not_current: 'This is no longer the current Arena game.',
+    settlement_not_available: 'Payment settlement is not ready for this game.',
+    game_participant_limit_reached: 'The current pool is full.',
     user_already_joined: 'Your account already has a seat in this game.',
   };
   return (
@@ -253,6 +267,10 @@ export default function GameEntryDesk({
         && new Date(currentMandate.mandate.expiresAt).getTime() > Date.now();
       let mandate = currentMandate.mandate;
       if (!reusable || !mandate) {
+        if (mandate) {
+          requestStage = 'mandate_revoke';
+          await revokeCurrentGameMandate(mandate.mandateId);
+        }
         requestStage = 'mandate_create';
         mandate = (
           await createPaymentMandate(

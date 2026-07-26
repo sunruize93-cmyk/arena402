@@ -383,3 +383,15 @@ test('Play renews expired entry authorization and replaces a mismatched mandate'
   assert.match(source, /revokeCurrentGameMandate/);
   assert.match(source, /mandate\?\.joinAuthorizationId !== preflight\.joinAuthorizationId/);
 });
+
+test('Game entry replaces a mismatched active mandate before creating a new one', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameEntryDesk.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /revokeCurrentGameMandate\(mandate\.mandateId\)/);
+  assert.match(source, /requestStage = 'mandate_revoke'/);
+  assert.match(source, /game_participant_limit_reached/);
+  assert.match(source, /invalid_portfolio/);
+});
