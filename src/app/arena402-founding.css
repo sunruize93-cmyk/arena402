@@ -234,6 +234,149 @@
 .founding-rules strong { display: block; margin-top: 26px; font-family: var(--serif); font-size: 28px; font-weight: 400; text-transform: uppercase; }
 .founding-rules p { max-width: 280px; margin-top: 12px; color: var(--grey); font-size: 10px; line-height: 1.8; }
 
+.founding-modal-backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(6, 6, 7, 0.86);
+  backdrop-filter: blur(12px);
+  animation: founding-modal-in 280ms ease-out both;
+}
+
+.founding-modal {
+  position: relative;
+  width: min(520px, 100%);
+  padding: 34px clamp(28px, 6vw, 58px) 42px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background:
+    linear-gradient(145deg, rgba(244, 242, 236, 0.075), transparent 44%),
+    var(--ink-deep);
+  box-shadow: 24px 24px 0 rgba(0, 0, 0, 0.32);
+  text-align: center;
+}
+
+.founding-modal::before {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--line);
+  content: '';
+  pointer-events: none;
+}
+
+.founding-modal-close {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: var(--ink);
+  color: var(--paper-dim);
+  cursor: pointer;
+}
+
+.founding-modal-close svg { width: 14px; height: 14px; }
+.founding-modal-close:focus-visible,
+.founding-modal-action:focus-visible { outline: 1px solid var(--paper); outline-offset: 4px; }
+
+.founding-coin {
+  position: relative;
+  width: min(250px, 64vw);
+  margin: 22px auto 4px;
+}
+
+.founding-coin::after {
+  position: absolute;
+  right: 18%;
+  bottom: 5%;
+  left: 18%;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.68);
+  filter: blur(8px);
+  content: '';
+}
+
+.founding-coin img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: founding-coin-arrive 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.founding-modal-rank {
+  margin-top: 8px;
+  color: var(--paper-dim);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.founding-modal h2 {
+  margin-top: 14px;
+  font-size: clamp(42px, 7vw, 70px);
+  font-weight: 400;
+  line-height: 0.86;
+  text-transform: uppercase;
+}
+
+.founding-modal-copy {
+  max-width: 380px;
+  margin: 22px auto 0;
+  color: var(--grey);
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.founding-modal-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+  color: var(--paper-dim);
+  font-size: 8px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.founding-modal-status i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--paper-dim);
+}
+
+.founding-modal-status i.is-live {
+  background: var(--grey-dark);
+  animation: founding-status-pulse 1.4s ease-in-out infinite;
+}
+
+.founding-modal-status i.is-confirmed { background: var(--paper); }
+.founding-modal-action { margin-top: 28px; }
+
+@keyframes founding-modal-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes founding-coin-arrive {
+  from { opacity: 0; transform: translateY(18px) rotate(-5deg) scale(0.88); }
+  to { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+
+@keyframes founding-status-pulse {
+  50% { opacity: 0.35; }
+}
+
 @media (max-width: 900px) {
   .founding-hero { grid-template-columns: 1fr; }
   .founding-registry { max-width: 560px; }
@@ -253,8 +396,13 @@
   .founding-rules { grid-template-columns: 1fr; }
   .founding-rules > div,
   .founding-rules > div + div { padding: 24px 0; border-right: 0; }
+  .founding-modal-backdrop { padding: 14px; }
+  .founding-modal { padding-top: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .founding-page * { scroll-behavior: auto; }
+  .founding-modal-backdrop,
+  .founding-coin img,
+  .founding-modal-status i.is-live { animation: none; }
 }

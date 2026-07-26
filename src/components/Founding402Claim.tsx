@@ -1,6 +1,7 @@
 'use client';
 
-import { ExternalLink, Github, ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
+import { ExternalLink, Github, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   getMemorialStats,
@@ -32,6 +33,7 @@ function compactAddress(value: string): string {
 export default function Founding402Claim() {
   const [stats, setStats] = useState<MemorialStats | null>(null);
   const [claim, setClaim] = useState<ClaimState>({ kind: 'loading' });
+  const [showAwardModal, setShowAwardModal] = useState(false);
   const oauthHref = useMemo(
     () =>
       `${API_BASE_URL}/api/auth/github/start?${new URLSearchParams({
@@ -68,6 +70,38 @@ export default function Founding402Claim() {
     ]);
     return () => controller.abort();
   }, []);
+
+  const shouldPoll =
+    claim.kind === 'award' && claim.award.status !== 'minted';
+
+  useEffect(() => {
+    if (!shouldPoll) return;
+    const controller = new AbortController();
+    const interval = window.setInterval(() => {
+      void Promise.allSettled([
+        getMemorialStats(controller.signal).then(setStats),
+        getMyMemorial(controller.signal).then((result) => {
+          setClaim(
+            result.eligible
+              ? { kind: 'award', award: result }
+              : { kind: 'unavailable', result },
+          );
+        }),
+      ]);
+    }, 3_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [shouldPoll]);
+
+  useEffect(() => {
+    if (claim.kind !== 'award') return;
+    const seenKey = `founding402-award-${claim.award.tokenId}`;
+    if (window.sessionStorage.getItem(seenKey)) return;
+    window.sessionStorage.setItem(seenKey, 'shown');
+    setShowAwardModal(true);
+  }, [claim]);
 
   return (
     <div className="founding-page">
@@ -121,6 +155,12 @@ export default function Founding402Claim() {
           <p>Seed phrases and private keys never enter this page or the API.</p>
         </div>
       </section>
+      {showAwardModal && claim.kind === 'award' && (
+        <AwardModal
+          award={claim.award}
+          onClose={() => setShowAwardModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -209,6 +249,7 @@ function ClaimPanel({
 
   const { award } = claim;
   const minted = award.status === 'minted';
+  const submitted = award.status === 'submitted';
   return (
     <div className="founding-panel founding-award">
       <div className="founding-award-serial">
@@ -220,12 +261,23 @@ function ClaimPanel({
         <div><dt>Token ID</dt><dd>{award.tokenId}</dd></div>
         <div><dt>Wallet</dt><dd title={award.walletAddress}>{compactAddress(award.walletAddress)}</dd></div>
         <div><dt>Qualification</dt><dd>Locked</dd></div>
-        <div><dt>NFT status</dt><dd>{minted ? 'Mint confirmed' : 'Awaiting mint'}</dd></div>
+        <div>
+          <dt>NFT status</dt>
+          <dd>
+            {minted
+              ? 'Mint confirmed'
+              : submitted
+                ? 'Confirming on-chain'
+                : 'Queued for mint'}
+          </dd>
+        </div>
       </dl>
       <p className="founding-status-copy">
         {minted
           ? 'Your testnet memorial NFT is confirmed on-chain.'
-          : 'Your place and wallet are secured. Minting happens in reviewed batches.'}
+          : submitted
+            ? 'Your mint transaction is live. This record refreshes automatically.'
+            : 'Your place and wallet are secured. Minting will begin automatically.'}
       </p>
       {award.tokenUrl && (
         <a
@@ -238,6 +290,76 @@ function ClaimPanel({
           <ExternalLink aria-hidden="true" />
         </a>
       )}
+    </div>
+  );
+}
+
+function AwardModal({
+  award,
+  onClose,
+}: {
+  award: MemorialAward;
+  onClose: () => void;
+}) {
+  const minted = award.status === 'minted';
+  const submitted = award.status === 'submitted';
+  return (
+    <div
+      className="founding-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose();
+      }}
+    >
+      <section
+        className="founding-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="founding-modal-title"
+      >
+        <button
+          className="founding-modal-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Close Founding record"
+        >
+          <X aria-hidden="true" />
+        </button>
+        <p className="label">Arena 402 · Genesis registry</p>
+        <div className="founding-coin">
+          <Image
+            src="/assets/arena402-memorial-coin.png"
+            width={250}
+            height={250}
+            priority
+            alt="Arena 402 gold pawn memorial coin"
+          />
+        </div>
+        <p className="founding-modal-rank">
+          Founding #{String(award.registrationRank).padStart(3, '0')}
+        </p>
+        <h2 className="display" id="founding-modal-title">
+          {minted ? 'Memorial minted.' : 'Your place is secured.'}
+        </h2>
+        <p className="founding-modal-copy">
+          {minted
+            ? `Token ${award.tokenId} is confirmed in your dedicated Arena wallet.`
+            : submitted
+              ? `Token ${award.tokenId} is being confirmed on Injective testnet.`
+              : `Token ${award.tokenId} is queued for immediate testnet minting.`}
+        </p>
+        <div className="founding-modal-status" aria-live="polite">
+          <i className={minted ? 'is-confirmed' : submitted ? 'is-live' : undefined} />
+          {minted
+            ? 'NFT confirmed'
+            : submitted
+              ? 'Transaction submitted'
+              : 'Qualification locked'}
+        </div>
+        <button className="btn founding-modal-action" type="button" onClick={onClose}>
+          View my record
+        </button>
+      </section>
     </div>
   );
 }
