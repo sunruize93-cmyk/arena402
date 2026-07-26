@@ -142,13 +142,36 @@ export interface JoinPreflight {
 }
 
 export function isJoinPreflightReady(
-  preflight: Pick<JoinPreflight, 'eligible' | 'readyToJoin' | 'safeErrorCode'>,
+  preflight: Pick<
+    JoinPreflight,
+    | 'eligible'
+    | 'readyToJoin'
+    | 'joinAuthorizationId'
+    | 'checks'
+    | 'safeErrorCode'
+    | 'schemaVersion'
+  >,
 ): boolean {
-  return (
-    preflight.eligible === true
-    && preflight.readyToJoin === true
-    && preflight.safeErrorCode === null
-  );
+  if (
+    preflight.safeErrorCode !== null
+    || preflight.eligible === false
+    || preflight.readyToJoin === false
+  ) {
+    return false;
+  }
+  if (preflight.eligible === true && preflight.readyToJoin === true) {
+    return true;
+  }
+
+  const legacySuccess =
+    preflight.eligible === undefined
+    && preflight.readyToJoin === undefined
+    && preflight.schemaVersion === 'arena.game-join-preflight.v1'
+    && preflight.joinAuthorizationId.length > 0
+    && ['game', 'agent', 'runtime', 'wallet'].every(
+      (check) => preflight.checks[check] === 'READY',
+    );
+  return legacySuccess;
 }
 
 export interface JoinCurrentGamePayload {

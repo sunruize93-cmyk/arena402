@@ -147,7 +147,16 @@ test('join preflight readiness requires every server gate and no safe refusal co
   const ready = {
     eligible: true,
     readyToJoin: true,
+    joinAuthorizationId: 'join-authorization',
+    checks: {
+      game: 'READY',
+      agent: 'READY',
+      runtime: 'READY',
+      wallet: 'READY',
+      paymentMandate: 'ACTION_REQUIRED',
+    },
     safeErrorCode: null,
+    schemaVersion: 'arena.game-join-preflight.v1',
   };
 
   assert.equal(gameApi.isJoinPreflightReady(ready), true);
@@ -155,6 +164,32 @@ test('join preflight readiness requires every server gate and no safe refusal co
   assert.equal(gameApi.isJoinPreflightReady({ ...ready, readyToJoin: false }), false);
   assert.equal(
     gameApi.isJoinPreflightReady({ ...ready, safeErrorCode: 'runtime_not_ready' }),
+    false,
+  );
+  assert.equal(
+    gameApi.isJoinPreflightReady({
+      ...ready,
+      eligible: undefined,
+      readyToJoin: undefined,
+    }),
+    true,
+  );
+  assert.equal(
+    gameApi.isJoinPreflightReady({
+      ...ready,
+      eligible: undefined,
+      readyToJoin: undefined,
+      joinAuthorizationId: '',
+    }),
+    false,
+  );
+  assert.equal(
+    gameApi.isJoinPreflightReady({
+      ...ready,
+      eligible: undefined,
+      readyToJoin: undefined,
+      checks: { ...ready.checks, runtime: 'NOT_READY' },
+    }),
     false,
   );
 });
