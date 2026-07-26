@@ -71,68 +71,63 @@ test('Current Game client uses the single public product endpoint', async () => 
 
 test('join preflight uses the authenticated v1 route with a stable idempotency key', async () => {
   const calls = [];
-  const previousDocument = globalThis.document;
-  globalThis.document = { cookie: 'adx_csrf=csrf-test-value' };
-  try {
-    const gameApi = loadTypeScriptModule(
-      new URL('../src/lib/game-api.ts', import.meta.url),
-      {
-        '@/lib/platform-api': {
-          arenaApiRequest: async (path, init) => {
-            calls.push({ path, init });
-            return { joinAuthorizationId: 'ja:test' };
-          },
+  const gameApi = loadTypeScriptModule(
+    new URL('../src/lib/game-api.ts', import.meta.url),
+    {
+      '@/lib/platform-api': {
+        arenaApiRequest: async (path, init) => {
+          calls.push({ path, init });
+          return { joinAuthorizationId: 'ja:test' };
         },
       },
-    );
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'session-csrf-token',
+      },
+    },
+  );
 
-    await gameApi.getJoinPreflight('game/current', 'agent:one', 'join-key-1');
+  await gameApi.getJoinPreflight('game/current', 'agent:one', 'join-key-1');
 
-    assert.equal(calls[0].path, '/api/v1/games/game%2Fcurrent/join-preflight');
-    assert.equal(calls[0].init.method, 'POST');
-    assert.equal(calls[0].init.headers['Idempotency-Key'], 'join-key-1');
-    assert.equal(calls[0].init.headers['X-CSRF-Token'], 'csrf-test-value');
-    assert.equal(calls[0].init.body, JSON.stringify({ agentId: 'agent:one' }));
-  } finally {
-    globalThis.document = previousDocument;
-  }
+  assert.equal(calls[0].path, '/api/v1/games/game%2Fcurrent/join-preflight');
+  assert.equal(calls[0].init.method, 'POST');
+  assert.equal(calls[0].init.headers['Idempotency-Key'], 'join-key-1');
+  assert.equal(calls[0].init.headers['X-CSRF-Token'], 'session-csrf-token');
+  assert.equal(calls[0].init.body, JSON.stringify({ agentId: 'agent:one' }));
 });
 
 test('joining sends the locked portfolio through the formal v1 contract', async () => {
   const calls = [];
-  const previousDocument = globalThis.document;
-  globalThis.document = { cookie: 'adx_csrf=csrf-test-value' };
-  try {
-    const gameApi = loadTypeScriptModule(
-      new URL('../src/lib/game-api.ts', import.meta.url),
-      {
-        '@/lib/platform-api': {
-          arenaApiRequest: async (path, init) => {
-            calls.push({ path, init });
-            return { participantId: 'participant:test' };
-          },
+  const gameApi = loadTypeScriptModule(
+    new URL('../src/lib/game-api.ts', import.meta.url),
+    {
+      '@/lib/platform-api': {
+        arenaApiRequest: async (path, init) => {
+          calls.push({ path, init });
+          return { participantId: 'participant:test' };
         },
       },
-    );
-    const payload = {
-      agentId: 'agent:test',
-      joinAuthorizationId: 'ja:test',
-      paymentMandateId: 'pm:test',
-      portfolio: {
-        cash: '2',
-        holdings: { grain: 2, iron: 1, warhorse: 0, gems: 3 },
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'session-csrf-token',
       },
-    };
+    },
+  );
+  const payload = {
+    agentId: 'agent:test',
+    joinAuthorizationId: 'ja:test',
+    paymentMandateId: 'pm:test',
+    portfolio: {
+      cash: '2',
+      holdings: { grain: 2, iron: 1, warhorse: 0, gems: 3 },
+    },
+  };
 
-    await gameApi.joinCurrentGame('game:test', payload, 'join-final-key');
+  await gameApi.joinCurrentGame('game:test', payload, 'join-final-key');
 
-    assert.equal(calls[0].path, '/api/v1/games/game%3Atest/participants');
-    assert.equal(calls[0].init.method, 'POST');
-    assert.equal(calls[0].init.headers['Idempotency-Key'], 'join-final-key');
-    assert.deepEqual(JSON.parse(calls[0].init.body), payload);
-  } finally {
-    globalThis.document = previousDocument;
-  }
+  assert.equal(calls[0].path, '/api/v1/games/game%3Atest/participants');
+  assert.equal(calls[0].init.method, 'POST');
+  assert.equal(calls[0].init.headers['Idempotency-Key'], 'join-final-key');
+  assert.equal(calls[0].init.headers['X-CSRF-Token'], 'session-csrf-token');
+  assert.deepEqual(JSON.parse(calls[0].init.body), payload);
 });
 
 test('join preflight readiness requires every server gate and no safe refusal code', () => {
@@ -143,6 +138,9 @@ test('join preflight readiness requires every server gate and no safe refusal co
         arenaApiRequest: async () => {
           throw new Error('not called');
         },
+      },
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'session-csrf-token',
       },
     },
   );
@@ -163,75 +161,71 @@ test('join preflight readiness requires every server gate and no safe refusal co
 
 test('payment mandate creation stays scoped to the game authorization', async () => {
   const calls = [];
-  const previousDocument = globalThis.document;
-  globalThis.document = { cookie: 'adx_csrf=csrf-test-value' };
-  try {
-    const gameApi = loadTypeScriptModule(
-      new URL('../src/lib/game-api.ts', import.meta.url),
-      {
-        '@/lib/platform-api': {
-          arenaApiRequest: async (path, init) => {
-            calls.push({ path, init });
-            return { mandate: { mandateId: 'pm:test' } };
-          },
+  const gameApi = loadTypeScriptModule(
+    new URL('../src/lib/game-api.ts', import.meta.url),
+    {
+      '@/lib/platform-api': {
+        arenaApiRequest: async (path, init) => {
+          calls.push({ path, init });
+          return { mandate: { mandateId: 'pm:test' } };
         },
       },
-    );
-    const payload = {
-      mandateId: 'pm:test',
-      gameId: 'game:test',
-      joinAuthorizationId: 'ja:test',
-      chainId: 1439,
-      tokenAddress: `0x${'1'.repeat(40)}`,
-      maxPerPaymentAtomic: '10000000',
-      maxCumulativeAtomic: '50000000',
-      allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT',
-      validFrom: '2026-07-26T00:00:00.000Z',
-      expiresAt: '2026-07-26T02:00:00.000Z',
-    };
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'session-csrf-token',
+      },
+    },
+  );
+  const payload = {
+    mandateId: 'pm:test',
+    gameId: 'game:test',
+    joinAuthorizationId: 'ja:test',
+    chainId: 1439,
+    tokenAddress: `0x${'1'.repeat(40)}`,
+    maxPerPaymentAtomic: '10000000',
+    maxCumulativeAtomic: '50000000',
+    allowedPayeeRule: 'SAME_GAME_SETTLEMENT_ACCOUNT',
+    validFrom: '2026-07-26T00:00:00.000Z',
+    expiresAt: '2026-07-26T02:00:00.000Z',
+  };
 
-    await gameApi.createPaymentMandate(payload, 'mandate-key-1');
+  await gameApi.createPaymentMandate(payload, 'mandate-key-1');
 
-    assert.equal(calls[0].path, '/api/v1/me/payment-mandates');
-    assert.equal(calls[0].init.headers['Idempotency-Key'], 'mandate-key-1');
-    assert.deepEqual(JSON.parse(calls[0].init.body), payload);
-  } finally {
-    globalThis.document = previousDocument;
-  }
+  assert.equal(calls[0].path, '/api/v1/me/payment-mandates');
+  assert.equal(calls[0].init.headers['Idempotency-Key'], 'mandate-key-1');
+  assert.equal(calls[0].init.headers['X-CSRF-Token'], 'session-csrf-token');
+  assert.deepEqual(JSON.parse(calls[0].init.body), payload);
 });
 
 test('withdrawal uses the owner-scoped v1 participant route', async () => {
   const calls = [];
-  const previousDocument = globalThis.document;
-  globalThis.document = { cookie: 'adx_csrf=csrf-test-value' };
-  try {
-    const gameApi = loadTypeScriptModule(
-      new URL('../src/lib/game-api.ts', import.meta.url),
-      {
-        '@/lib/platform-api': {
-          arenaApiRequest: async (path, init) => {
-            calls.push({ path, init });
-            return { status: 'WITHDRAWN' };
-          },
+  const gameApi = loadTypeScriptModule(
+    new URL('../src/lib/game-api.ts', import.meta.url),
+    {
+      '@/lib/platform-api': {
+        arenaApiRequest: async (path, init) => {
+          calls.push({ path, init });
+          return { status: 'WITHDRAWN' };
         },
       },
-    );
+      '@/lib/connector-api': {
+        getConnectorCsrfToken: async () => 'session-csrf-token',
+      },
+    },
+  );
 
-    await gameApi.withdrawCurrentGameParticipant(
-      'game:test',
-      'participant:test',
-      'withdraw-key-1',
-    );
+  await gameApi.withdrawCurrentGameParticipant(
+    'game:test',
+    'participant:test',
+    'withdraw-key-1',
+  );
 
-    assert.equal(
-      calls[0].path,
-      '/api/v1/games/game%3Atest/participants/participant%3Atest',
-    );
-    assert.equal(calls[0].init.method, 'DELETE');
-    assert.equal(calls[0].init.headers['Idempotency-Key'], 'withdraw-key-1');
-  } finally {
-    globalThis.document = previousDocument;
-  }
+  assert.equal(
+    calls[0].path,
+    '/api/v1/games/game%3Atest/participants/participant%3Atest',
+  );
+  assert.equal(calls[0].init.method, 'DELETE');
+  assert.equal(calls[0].init.headers['Idempotency-Key'], 'withdraw-key-1');
+  assert.equal(calls[0].init.headers['X-CSRF-Token'], 'session-csrf-token');
 });
 
 test('Current Game lobby keeps 404 as a retrying preparation state', () => {

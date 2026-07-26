@@ -96,6 +96,139 @@ test('Hosted credential creation obtains CSRF from the authenticated API session
   }
 });
 
+test('Current Game mutations obtain CSRF from the cross-origin API session', async () => {
+  const calls = [];
+  const previousFetch = globalThis.fetch;
+  const previousDocument = globalThis.document;
+  const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  process.env.NEXT_PUBLIC_API_URL = 'https://api.arena402.test';
+  globalThis.document = {
+    get cookie() {
+      throw new Error('Cross-origin API cookies are not readable from the app origin.');
+    },
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url).endsWith('/api/auth/session')) {
+      return jsonResponse({
+        user: {
+          user_id: 'user_123',
+          username: 'octo-cat',
+          temporary: false,
+          auth_provider: 'github',
+        },
+        csrf_token: 'session-csrf-token',
+      });
+    }
+    if (String(url).endsWith('/api/v1/games/game-current/join-preflight')) {
+      assert.equal(
+        new Headers(init.headers).get('X-CSRF-Token'),
+        'session-csrf-token',
+      );
+      assert.equal(
+        new Headers(init.headers).get('Idempotency-Key'),
+        'join-preflight-key',
+      );
+      return jsonResponse({
+        gameId: 'game-current',
+        agentId: 'agent-current',
+        joinAuthorizationId: 'join-authorization',
+        checks: {},
+        mandateRequirements: {},
+        safeErrorCode: null,
+      });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const platformApi = loadTypeScriptModule(
+      new URL('../src/lib/platform-api.ts', import.meta.url),
+    );
+    const connectorApi = loadTypeScriptModule(
+      new URL('../src/lib/connector-api.ts', import.meta.url),
+    );
+    const gameApi = loadTypeScriptModule(
+      new URL('../src/lib/game-api.ts', import.meta.url),
+      {
+        '@/lib/platform-api': platformApi,
+        '@/lib/connector-api': connectorApi,
+      },
+    );
+
+    await gameApi.getJoinPreflight(
+      'game-current',
+      'agent-current',
+      'join-preflight-key',
+    );
+
+    assert.deepEqual(
+      calls.map(({ url }) => new URL(url).pathname),
+      ['/api/auth/session', '/api/v1/games/game-current/join-preflight'],
+    );
+    assert.equal(calls[0].init.credentials, 'include');
+    assert.equal(calls[1].init.credentials, 'include');
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.document = previousDocument;
+    if (previousApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    }
+  }
+});
+
+test('Current Game mutations surface an expired API session as authentication_required', async () => {
+  const previousFetch = globalThis.fetch;
+  const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  process.env.NEXT_PUBLIC_API_URL = 'https://api.arena402.test';
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/api/auth/session')) {
+      return jsonResponse({ detail: 'Invalid or expired session' }, 401);
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const platformApi = loadTypeScriptModule(
+      new URL('../src/lib/platform-api.ts', import.meta.url),
+    );
+    const connectorApi = loadTypeScriptModule(
+      new URL('../src/lib/connector-api.ts', import.meta.url),
+    );
+    const gameApi = loadTypeScriptModule(
+      new URL('../src/lib/game-api.ts', import.meta.url),
+      {
+        '@/lib/platform-api': platformApi,
+        '@/lib/connector-api': connectorApi,
+      },
+    );
+
+    await assert.rejects(
+      gameApi.getJoinPreflight(
+        'game-current',
+        'agent-current',
+        'join-preflight-key',
+      ),
+      (error) => (
+        error instanceof platformApi.ArenaApiError
+        && error.status === 401
+        && error.code === 'authentication_required'
+      ),
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    }
+  }
+});
+
 test('Public Connector pairing remains available without an auth session', async () => {
   const calls = [];
   const previousFetch = globalThis.fetch;

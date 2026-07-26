@@ -458,6 +458,8 @@ const ZH_CN: Record<string, string> = {
   'Not available yet': '暂不可用',
   'Some entry checks need attention.': '部分入场检查需要处理。',
   'Retry entry checks': '重新检查入场条件',
+  'Your Arena session expired. Sign in again before entering.':
+    '竞技场会话已过期，请重新登录后再参加匹配。',
   'Current Game unavailable.': '当前对局暂不可用。',
   'Retry the entry checks before waiting for matchmaking.':
     '请先重新检查入场条件，再等待匹配。',
