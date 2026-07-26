@@ -590,6 +590,27 @@
   font-size: 11px;
 }
 
+.play-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 34px;
+  padding: 22px 24px;
+}
+
+.play-load-error strong {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.play-load-error p {
+  margin-top: 8px;
+  color: var(--grey);
+  line-height: 1.7;
+}
+
 @media (max-width: 860px) {
   .play-step-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -606,6 +627,11 @@
   .play-identity-card,
   .play-section-head {
     grid-template-columns: 1fr;
+  }
+
+  .play-load-error {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .play-identity-card > div + div {

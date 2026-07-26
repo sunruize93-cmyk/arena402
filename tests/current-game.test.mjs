@@ -93,3 +93,34 @@ test('Live Game viewer uses SSE with a polling fallback', () => {
   assert.match(source, /addEventListener\('arena'/);
   assert.match(source, /window\.setInterval/);
 });
+
+test('registration renders an explicit waiting room instead of a live round', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /const isRegistration = !demo && gamePhase === 'registration'/);
+  assert.match(source, /Waiting for the first seat\./);
+  assert.match(source, /Your seat is not confirmed/);
+  assert.match(source, /Return to Play and join/);
+  assert.doesNotMatch(source, /gamePhase === 'registration'\) return 'omen'/);
+  assert.match(source, /String\(events\.length\)\.padStart/);
+  assert.doesNotMatch(
+    source,
+    /demo \? events\.length : latestEvent\?\.sequence/,
+  );
+});
+
+test('Play loads entry resources independently and exposes retryable failures', () => {
+  const source = readFileSync(
+    new URL('../src/components/PlayJourney.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /Promise\.allSettled/);
+  assert.match(source, /Some entry checks need attention\./);
+  assert.match(source, /Retry entry checks/);
+  assert.match(source, /Retry the entry checks before waiting for matchmaking\./);
+  assert.doesNotMatch(source, /Twenty seats/);
+});

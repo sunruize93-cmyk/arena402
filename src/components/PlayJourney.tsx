@@ -25,6 +25,7 @@ import { MyWallet, getMyWallet } from '@/lib/wallet-api';
 
 type LoadState = 'loading' | 'ready' | 'error';
 type JoinStage = 'idle' | 'preflight' | 'mandate' | 'joining' | 'joined';
+type ResourceName = 'wallet' | 'agents' | 'game' | 'participation';
 
 function randomId(prefix: string): string {
   const suffix =
@@ -50,13 +51,32 @@ function joinError(error: unknown): string {
       wallet_not_ready: 'Your treasury wallet is not ready for this game.',
       mandate_not_ready: 'The payment mandate expired. Start the entry seal again.',
       game_already_started: 'This table has already started.',
-      game_participant_limit_reached: 'All twenty seats have been taken.',
+      game_participant_limit_reached: 'This table is full.',
       idempotency_conflict: 'The entry request changed. Reload and try once more.',
       network_unavailable: 'Arena API is unreachable.',
     };
     return messages[error.code] || `Arena rejected the entry seal (${error.code}).`;
   }
   return 'The entry seal could not be completed.';
+}
+
+function resourceError(resource: ResourceName, error: unknown): string {
+  const labels: Record<ResourceName, string> = {
+    wallet: 'Treasury wallet',
+    agents: 'Hosted Agents',
+    game: 'Current Game',
+    participation: 'Seat status',
+  };
+  let code = '';
+  if (error instanceof ArenaApiError) {
+    code = error.code;
+  } else if (error && typeof error === 'object') {
+    const candidate = Reflect.get(error, 'code');
+    if (typeof candidate === 'string' && /^[a-z0-9_:-]+$/i.test(candidate)) {
+      code = candidate;
+    }
+  }
+  return `${labels[resource]} could not be loaded${code ? ` (${code})` : ''}.`;
 }
 
 function formatCountdown(milliseconds: number): string {
@@ -76,6 +96,7 @@ export default function PlayJourney() {
   const [joinedAgentId, setJoinedAgentId] = useState('');
   const [joinStage, setJoinStage] = useState<JoinStage>('idle');
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [clock, setClock] = useState(Date.now());
 
   const readyAgents = useMemo(
@@ -95,29 +116,68 @@ export default function PlayJourney() {
         setLoadState('ready');
         return;
       }
-      const [nextWallet, nextAgents, current, participations] =
-        await Promise.all([
+      const [walletResult, agentsResult, gameResult, participationResult] =
+        await Promise.allSettled([
           getMyWallet(),
           getHostedAgents(),
           getCurrentGame(),
           getGameParticipations(),
         ]);
-      const currentParticipation = participations.find(
-        (item) => item.gameId === current.game.gameId,
-      );
-      setWallet(nextWallet);
-      setAgents(nextAgents);
-      setGame(current.game);
-      setJoinedAgentId(currentParticipation?.agentId || '');
-      setSelectedAgentId((value) => {
-        if (nextAgents.some((agent) => agent.agentId === value)) return value;
-        return currentParticipation?.agentId || nextAgents[0]?.agentId || '';
-      });
+      const warnings: string[] = [];
+
+      if (walletResult.status === 'fulfilled') {
+        setWallet(walletResult.value);
+      } else {
+        warnings.push(resourceError('wallet', walletResult.reason));
+      }
+
+      let nextAgents: HostedAgentSummary[] | null = null;
+      if (agentsResult.status === 'fulfilled') {
+        nextAgents = agentsResult.value;
+        setAgents(agentsResult.value);
+      } else {
+        warnings.push(resourceError('agents', agentsResult.reason));
+      }
+
+      let current: Awaited<ReturnType<typeof getCurrentGame>> | null = null;
+      if (gameResult.status === 'fulfilled') {
+        current = gameResult.value;
+        setGame(gameResult.value.game);
+      } else {
+        warnings.push(resourceError('game', gameResult.reason));
+      }
+
+      let participations: Awaited<
+        ReturnType<typeof getGameParticipations>
+      > | null = null;
+      if (participationResult.status === 'fulfilled') {
+        participations = participationResult.value;
+      } else {
+        warnings.push(
+          resourceError('participation', participationResult.reason),
+        );
+      }
+
+      const currentParticipation =
+        current && participations
+          ? participations.find(
+              (item) => item.gameId === current.game.gameId,
+            )
+          : null;
+      if (current && participations) {
+        setJoinedAgentId(currentParticipation?.agentId || '');
+      }
+      if (nextAgents) {
+        setSelectedAgentId((value) => {
+          if (nextAgents.some((agent) => agent.agentId === value)) return value;
+          return currentParticipation?.agentId || nextAgents[0]?.agentId || '';
+        });
+      }
       if (currentParticipation) setJoinStage('joined');
-      setError('');
-      setLoadState('ready');
+      setLoadError(warnings.join(' '));
+      setLoadState(warnings.length === 0 ? 'ready' : 'error');
     } catch (cause) {
-      setError(joinError(cause));
+      setLoadError(joinError(cause));
       setLoadState('error');
     }
   }, []);
@@ -139,10 +199,8 @@ export default function PlayJourney() {
 
   const fillRemaining = useMemo(() => {
     const fillAt = game?.matchmaking?.fillAt;
-    const serverTime = game?.matchmaking?.serverTime;
-    if (!fillAt || !serverTime) return null;
-    const serverOffset = new Date(serverTime).getTime() - clock;
-    return new Date(fillAt).getTime() - (clock + serverOffset);
+    if (!fillAt) return null;
+    return new Date(fillAt).getTime() - clock;
   }, [clock, game]);
 
   async function enterGame() {
@@ -236,10 +294,26 @@ export default function PlayJourney() {
         </div>
         <div>
           <p className="label">Treasury wallet</p>
-          <strong>{wallet ? `${wallet.address.slice(0, 8)}…${wallet.address.slice(-6)}` : 'Claiming…'}</strong>
+          <strong>
+            {wallet
+              ? `${wallet.address.slice(0, 8)}…${wallet.address.slice(-6)}`
+              : 'Not available yet'}
+          </strong>
           <Link href="/wallet">Inspect treasury →</Link>
         </div>
       </section>
+
+      {loadError && (
+        <div className="play-error play-load-error" role="alert">
+          <div>
+            <strong>Some entry checks need attention.</strong>
+            <p>{loadError}</p>
+          </div>
+          <button type="button" className="btn ghost" onClick={() => void refresh()}>
+            Retry entry checks
+          </button>
+        </div>
+      )}
 
       <section className="play-agent-stage">
         <div className="play-section-head">
@@ -287,13 +361,15 @@ export default function PlayJourney() {
                 ? 'The market is open.'
                 : game?.status === 'COMPLETED'
                   ? 'The ledger is sealed.'
-                  : 'Twenty seats. One clock.'}
+                  : game
+                    ? `${game.startThreshold} ready seats. One clock.`
+                    : 'Current Game unavailable.'}
             </h2>
           </div>
           <p>
             {game
-              ? `${game.readyCount} / ${game.startThreshold} READY`
-              : 'Arena is preparing the next product table.'}
+              ? `${joined ? 'YOUR SEAT IS CONFIRMED · ' : ''}${game.readyCount} / ${game.startThreshold} READY`
+              : 'Retry the entry checks before waiting for matchmaking.'}
           </p>
         </div>
 
@@ -318,7 +394,7 @@ export default function PlayJourney() {
                   {fillRemaining === null
                     ? 'Starts after first entry'
                     : fillRemaining <= 0
-                      ? '00:00'
+                      ? 'Filling now'
                       : formatCountdown(fillRemaining)}
                 </strong>
               </div>
@@ -366,11 +442,6 @@ export default function PlayJourney() {
         )}
       </section>
 
-      {loadState === 'error' && (
-        <button type="button" className="btn ghost" onClick={() => void refresh()}>
-          Reconnect Arena
-        </button>
-      )}
     </div>
   );
 }

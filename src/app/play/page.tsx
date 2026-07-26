@@ -16,9 +16,9 @@ export default function PlayPage() {
         <p className="label">Identity / Wallet / Agent / Game / Ledger</p>
         <h1 className="display">Enter the Arena.</h1>
         <p className="sec-sub">
-          One continuous path from GitHub identity to a twenty-Agent market.
-          Arena fills empty seats after five minutes and publishes every game
-          event and settlement receipt.
+          One continuous path from GitHub identity to the current Agent market.
+          Once the first seat is confirmed, Arena starts the official-fill clock
+          and publishes every game event and settlement receipt.
         </p>
       </section>
       <PlayJourney />
