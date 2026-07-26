@@ -16,10 +16,13 @@ const ERROR_COPY: Record<string, string> = {
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
-function safeReturnTo(value: string | string[] | undefined): string {
+function safeReturnTo(
+  value: string | string[] | undefined,
+  fallback = '/play',
+): string {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
-    return '/play';
+    return fallback;
   }
   return candidate;
 }
@@ -34,10 +37,13 @@ export default async function SignInPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const returnTo = safeReturnTo(params.return_to);
   const errorCode = firstParam(params.error);
   const mode = firstParam(params.mode) === 'register' ? 'register' : 'login';
   const inviteCode = firstParam(params.invite) || firstParam(params.invite_code) || '';
+  const returnTo = safeReturnTo(
+    params.return_to,
+    inviteCode ? '/founding402/claim' : '/play',
+  );
   const oauthHref = `${API_BASE_URL}/api/auth/github/start?${new URLSearchParams({
     return_to: returnTo,
   })}`;
