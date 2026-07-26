@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import { ExternalLink, Github, ShieldCheck, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import CredentialAuthForm from '@/components/CredentialAuthForm';
 import {
   getMemorialStats,
   getMyMemorial,
@@ -15,8 +16,9 @@ import { API_BASE_URL, ArenaApiError } from '@/lib/platform-api';
 const REASON_COPY: Record<string, string> = {
   campaign_preparing: 'The Founding registry is being prepared. Return shortly.',
   founding_edition_full: 'All 402 Founding places have been assigned.',
-  registration_pending: 'Your GitHub registration is waiting to be recorded.',
-  github_identity_required: 'Connect GitHub to claim a Founding place.',
+  registration_pending: 'Your Arena registration is waiting to be recorded.',
+  account_required: 'Sign in with GitHub or an invite-enabled Arena account to claim.',
+  github_identity_required: 'Sign in with GitHub or an invite-enabled Arena account to claim.',
 };
 
 type ClaimState =
@@ -42,34 +44,37 @@ export default function Founding402Claim() {
     [],
   );
 
+  const loadClaim = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const result = await getMyMemorial(signal);
+      setClaim(
+        result.eligible
+          ? { kind: 'award', award: result }
+          : { kind: 'unavailable', result },
+      );
+    } catch (error: unknown) {
+      if (error instanceof ArenaApiError && error.status === 401) {
+        setClaim({ kind: 'signed-out' });
+        return;
+      }
+      setClaim({
+        kind: 'error',
+        message:
+          error instanceof ArenaApiError && error.status === 404
+            ? 'The Founding registry is not open yet.'
+            : 'The registry could not be reached. Try again shortly.',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     void Promise.allSettled([
       getMemorialStats(controller.signal).then(setStats),
-      getMyMemorial(controller.signal)
-        .then((result) => {
-          setClaim(
-            result.eligible
-              ? { kind: 'award', award: result }
-              : { kind: 'unavailable', result },
-          );
-        })
-        .catch((error: unknown) => {
-          if (error instanceof ArenaApiError && error.status === 401) {
-            setClaim({ kind: 'signed-out' });
-            return;
-          }
-          setClaim({
-            kind: 'error',
-            message:
-              error instanceof ArenaApiError && error.status === 404
-                ? 'The Founding registry is not open yet.'
-                : 'The registry could not be reached. Try again shortly.',
-          });
-        }),
+      loadClaim(controller.signal),
     ]);
     return () => controller.abort();
-  }, []);
+  }, [loadClaim]);
 
   const shouldPoll =
     claim.kind === 'award' && claim.award.status !== 'minted';
@@ -80,20 +85,14 @@ export default function Founding402Claim() {
     const interval = window.setInterval(() => {
       void Promise.allSettled([
         getMemorialStats(controller.signal).then(setStats),
-        getMyMemorial(controller.signal).then((result) => {
-          setClaim(
-            result.eligible
-              ? { kind: 'award', award: result }
-              : { kind: 'unavailable', result },
-          );
-        }),
+        loadClaim(controller.signal),
       ]);
     }, 3_000);
     return () => {
       controller.abort();
       window.clearInterval(interval);
     };
-  }, [shouldPoll]);
+  }, [loadClaim, shouldPoll]);
 
   useEffect(() => {
     if (claim.kind !== 'award') return;
@@ -112,14 +111,14 @@ export default function Founding402Claim() {
             First <em>402</em>
           </h1>
           <p className="founding-lede">
-            Link one GitHub identity. The first 402 Arena registrations receive
-            a numbered, non-transferable memorial NFT and a dedicated testnet
-            wallet—no MetaMask required.
+            Link GitHub or create an invite-enabled Arena account. The first 402
+            registrations receive a numbered, non-transferable memorial NFT and
+            a dedicated testnet wallet—no MetaMask required.
           </p>
           <div className="founding-trust">
             <span>
               <ShieldCheck aria-hidden="true" />
-              GitHub proves identity
+              GitHub or invite identity
             </span>
             <span>Wallet credentials stay offline</span>
           </div>
@@ -135,14 +134,21 @@ export default function Founding402Claim() {
             Claim the mark.
           </h2>
         </header>
-        <ClaimPanel claim={claim} oauthHref={oauthHref} />
+        <ClaimPanel
+          claim={claim}
+          oauthHref={oauthHref}
+          onAuthenticated={() => {
+            setClaim({ kind: 'loading' });
+            return loadClaim();
+          }}
+        />
       </section>
 
       <section className="founding-rules" aria-label="Claim rules">
         <div>
           <span>Identity</span>
-          <strong>One GitHub account</strong>
-          <p>Authorization is required. Repository access is never requested.</p>
+          <strong>One Arena account</strong>
+          <p>Use GitHub or a valid invite. Repository access is never requested.</p>
         </div>
         <div>
           <span>Edition</span>
@@ -199,26 +205,28 @@ function RegistryMatrix({ stats }: { stats: MemorialStats | null }) {
 function ClaimPanel({
   claim,
   oauthHref,
+  onAuthenticated,
 }: {
   claim: ClaimState;
   oauthHref: string;
+  onAuthenticated: () => void | Promise<void>;
 }) {
   if (claim.kind === 'loading') {
     return <div className="founding-panel founding-loading">Reading the registry…</div>;
   }
   if (claim.kind === 'signed-out') {
     return (
-      <div className="founding-panel">
+      <div className="founding-panel founding-auth">
         <p className="founding-panel-kicker">No identity linked</p>
-        <h3>Connect GitHub to claim.</h3>
+        <h3>Enter the registry.</h3>
         <p>
-          GitHub authorization creates or links your Arena identity. You will
-          return here automatically to see your result.
+          Choose GitHub, or use an invite code to register and sign in directly
+          with your Arena account.
         </p>
-        <a className="btn founding-github" href={oauthHref}>
-          <Github aria-hidden="true" />
-          Continue with GitHub
-        </a>
+        <IdentityAuthOptions
+          oauthHref={oauthHref}
+          onAuthenticated={onAuthenticated}
+        />
       </div>
     );
   }
@@ -228,11 +236,12 @@ function ClaimPanel({
         <p className="founding-panel-kicker">Registry response</p>
         <h3>Not assigned yet.</h3>
         <p>{REASON_COPY[claim.result.reason] || 'No Founding record is available.'}</p>
-        {claim.result.reason === 'github_identity_required' && (
-          <a className="btn founding-github" href={oauthHref}>
-            <Github aria-hidden="true" />
-            Continue with GitHub
-          </a>
+        {(claim.result.reason === 'account_required' ||
+          claim.result.reason === 'github_identity_required') && (
+          <IdentityAuthOptions
+            oauthHref={oauthHref}
+            onAuthenticated={onAuthenticated}
+          />
         )}
       </div>
     );
@@ -290,6 +299,38 @@ function ClaimPanel({
           <ExternalLink aria-hidden="true" />
         </a>
       )}
+    </div>
+  );
+}
+
+function IdentityAuthOptions({
+  oauthHref,
+  onAuthenticated,
+}: {
+  oauthHref: string;
+  onAuthenticated: () => void | Promise<void>;
+}) {
+  return (
+    <div className="founding-auth-options">
+      <div className="founding-auth-option">
+        <p className="founding-auth-option-label">01 · GitHub</p>
+        <h4>Continue with GitHub</h4>
+        <p>Authorize the identity you already use in Arena.</p>
+        <a className="btn founding-github" href={oauthHref}>
+          <Github aria-hidden="true" />
+          Continue with GitHub
+        </a>
+      </div>
+      <div className="founding-auth-option">
+        <p className="founding-auth-option-label">02 · Invite code</p>
+        <h4>Use an Arena account</h4>
+        <p>Register with your one-time invite code, or sign in below.</p>
+        <CredentialAuthForm
+          initialMode="register"
+          onAuthenticated={onAuthenticated}
+          returnTo="/founding402/claim"
+        />
+      </div>
     </div>
   );
 }

@@ -28,10 +28,12 @@ export default function CredentialAuthForm({
   returnTo,
   initialMode = 'login',
   initialInviteCode = '',
+  onAuthenticated,
 }: {
   returnTo: string;
   initialMode?: AuthMode;
   initialInviteCode?: string;
+  onAuthenticated?: () => void | Promise<void>;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -89,8 +91,12 @@ export default function CredentialAuthForm({
           password,
         });
       }
-      router.replace(returnTo);
-      router.refresh();
+      if (onAuthenticated) {
+        await onAuthenticated();
+      } else {
+        router.replace(returnTo);
+        router.refresh();
+      }
     } catch (authError) {
       setError(
         authError instanceof ConnectorApiError

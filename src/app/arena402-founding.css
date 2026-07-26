@@ -165,6 +165,53 @@
   margin-top: 38px;
 }
 .founding-github svg { width: 16px; height: 16px; }
+.founding-auth { min-height: 0; }
+.founding-auth-options {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  gap: 18px;
+  margin-top: 34px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.founding-auth-option {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: rgba(244, 242, 236, 0.025);
+}
+.founding-auth-option-label {
+  color: var(--grey-dark);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.founding-auth-option h4 {
+  margin-top: 16px;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 400;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+.founding-auth-option > p:not(.founding-auth-option-label) {
+  margin-top: 14px;
+  color: var(--grey);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.founding-auth-option .founding-github {
+  width: 100%;
+  justify-content: center;
+  margin-top: 24px;
+}
+.founding-auth-option .credential-auth { margin-top: 20px; }
+.founding-auth-option .auth-mode-switch button { min-height: 34px; font-size: 8px; }
+.founding-auth-option .auth-form { gap: 8px; margin-top: 16px; }
+.founding-auth-option .auth-form input { min-height: 42px; font-size: 10px; }
+.founding-auth-option .auth-submit { min-height: 46px; margin-top: 8px; font-size: 9px; }
+.founding-auth-option .auth-form-note { display: none; }
 .founding-loading { color: var(--grey); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; }
 
 .founding-award {
@@ -421,6 +468,8 @@
   .founding-panel h3 { margin-top: 32px; font-size: clamp(36px, 11vw, 58px); }
   .founding-panel > p:not(.founding-panel-kicker) { margin-top: 18px; font-size: 10px; }
   .founding-github { width: 100%; justify-content: center; margin-top: 28px; }
+  .founding-auth-options { grid-template-columns: 1fr; gap: 14px; margin-top: 28px; padding-top: 20px; }
+  .founding-auth-option { padding: 16px; }
   .founding-award { grid-template-columns: 1fr; gap: 24px; }
   .founding-award-serial { padding-bottom: 28px; border-right: 0; border-bottom: 1px solid var(--line); }
   .founding-award-serial strong { margin-top: 18px; font-size: clamp(56px, 18vw, 84px); }

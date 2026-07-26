@@ -40,6 +40,7 @@ export interface MemorialUnavailable {
   campaign: string;
   editionSize: number;
   reason:
+    | 'account_required'
     | 'github_identity_required'
     | 'campaign_preparing'
     | 'founding_edition_full'
