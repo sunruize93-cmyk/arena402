@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AgentReputationCard from '@/components/AgentReputationCard';
-import MarketPriceTicker from '@/components/MarketPriceTicker';
 import MarketIntelligence from '@/components/MarketIntelligence';
 import MatchmakingPool from '@/components/MatchmakingPool';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
@@ -394,6 +393,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const [error, setError] = useState('');
   const [feedDelayed, setFeedDelayed] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [marketPanel, setMarketPanel] = useState<'prices' | 'orders'>('prices');
+  const [inspectorPanel, setInspectorPanel] = useState<'agents' | 'events' | 'ledger'>(
+    'events',
+  );
   const [myParticipantId, setMyParticipantId] = useState('');
   const [leavingPool, setLeavingPool] = useState(false);
   const [replayEventCount, setReplayEventCount] = useState<number | null>(null);
@@ -712,7 +715,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     .find((event) => event.type.startsWith('settlement.'));
 
   return (
-    <section className="gm gm-live">
+    <section className={`gm gm-live ${isRegistration ? 'is-registration' : 'is-battle'}`}>
       <div className="gm-utility-row">
         <Link className="back-btn" href="/game">
           ← The Pawnhouse Gate
@@ -729,9 +732,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </div>
       </div>
 
-      {demo && <MarketPriceTicker />}
-
-      <header className="gm-live-head">
+      <header className={`gm-live-head ${isRegistration ? '' : 'is-compact'}`}>
         <div>
           <p className="label">
             {locale === 'zh-CN' ? '对局' : 'Game'}{' '}
@@ -768,12 +769,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </div>
       </header>
 
-      <nav className="gm-view-sections" aria-label="Game sections">
-        <a href="#pool">Pool</a>
-        <a href="#market">Market</a>
-        <a href="#ledger">Ledger</a>
-      </nav>
-
       {replayRequested && (
         <div className="gm-replay-control" role="status">
           <span className="label">Match replay</span>
@@ -790,6 +785,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </div>
       )}
 
+      {isRegistration && (
       <section className="gm-participant-pool" id="pool" aria-labelledby="pool-title">
         <div className="gm-section-heading">
           <div>
@@ -888,6 +884,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           )}
         </div>
       </section>
+      )}
 
       {error && <p className="data-state error">{error}</p>}
 
@@ -967,7 +964,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
 
       {error && <p className="data-state error">{error}</p>}
 
-      <section className="gm-bulletin" id="market">
+      {!isRegistration && (
+      <section className="gm-bulletin gm-bulletin-compact" id="market">
         <div className="gm-bulletin-art" aria-hidden="true" />
         <div className="gm-bulletin-copy">
           <div className="gm-pin" aria-hidden="true" />
@@ -981,232 +979,236 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           <div className="gm-bulletin-stamp">PUBLIC SIGNAL</div>
         </div>
       </section>
+      )}
 
-      <div className="gm-live-layout">
-        <main className="gm-market-stage">
-          <div className="gm-stage-head">
-            <div>
-              <p className="label">The market floor</p>
-              <h2 className="display">
-                {phase === 'decide'
-                  ? 'Orders enter.'
-                  : phase === 'queue'
-                    ? 'The queue meets.'
-                    : phase === 'bargain'
-                      ? 'Terms cross the table.'
-                      : phase === 'seal'
-                        ? 'The ledger waits.'
-                        : phase === 'closed'
-                          ? 'The ledger is sealed.'
-                          : 'The omen arrives.'}
-              </h2>
+      {!isRegistration && (
+        <section className="gm-battle-desk" aria-label="Live battle desk">
+          <aside className="gm-desk-panel gm-desk-market">
+            <div className="gm-desk-tabs" aria-label="Market desk views">
+              <button
+                type="button"
+                aria-pressed={marketPanel === 'prices'}
+                onClick={() => setMarketPanel('prices')}
+              >
+                Prices
+              </button>
+              <button
+                type="button"
+                aria-pressed={marketPanel === 'orders'}
+                onClick={() => setMarketPanel('orders')}
+              >
+                Orders
+              </button>
             </div>
-            <span className="gm-stage-index label">
-              {String(events.length).padStart(3, '0')}{' '}
-              events
-            </span>
-          </div>
-
-          <section className="gm-queue" aria-labelledby="market-price-title">
-            <MarketIntelligence state={viewState} events={events} />
-          </section>
-
-          <section className="gm-queue" aria-labelledby="queue-title">
-            <MatchmakingPool state={viewState} events={events} />
-            <div className="gm-panel-head">
-              <p className="label" id="queue-title">
-                FCFS pairing rail
-              </p>
-              <p>Ordered by Arena receive time</p>
-            </div>
-            {pairs.length > 0 ? (
-              <div className="gm-pair-list">
-                {pairs.map((pair) => {
-                  const buyer = agents.find(
-                    (agent) =>
-                      agent.agentId === pair.buyerId
-                      || agent.participantId === pair.buyerId,
-                  );
-                  const seller = agents.find(
-                    (agent) =>
-                      agent.agentId === pair.sellerId
-                      || agent.participantId === pair.sellerId,
-                  );
-                  return (
-                    <article className={`gm-pair-card ${pair.active ? 'is-live' : ''}`} key={pair.id}>
-                      <div>
-                        <span className="label">Buyer</span>
-                        <strong>{pair.buyer}</strong>
-                        <AgentReputationCard reputation={buyer?.reputation} compact />
-                      </div>
-                      <div className="gm-pair-collision" aria-label={`Trading ${pair.good}`}>
-                        <span />
-                        <b>{pair.good}</b>
-                        <span />
-                      </div>
-                      <div>
-                        <span className="label">Seller</span>
-                        <strong>{pair.seller}</strong>
-                        <AgentReputationCard reputation={seller?.reputation} compact />
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="gm-waiting-board">
-                <span className="gm-waiting-mark" aria-hidden="true">
-                  ◇
-                </span>
-                <p>No compatible orders have met yet.</p>
-                <span className="label">The queue remains open</span>
-              </div>
-            )}
-          </section>
-
-          <section className="gm-bargain" aria-labelledby="bargain-title">
-            <div className="gm-panel-head">
-              <p className="label" id="bargain-title">
-                Bargaining chamber
-              </p>
-              <p>Buyer speaks first · Three turns maximum</p>
-            </div>
-            {currentPair ? (
-              <NegotiationTerminal
-                events={events}
-                pairingId={currentPair.id}
-                onReplay={
-                  demo
-                    ? () =>
-                        setDemoPlayback({
-                          roundIndex: 0,
-                          eventCount: DEMO_INITIAL_EVENT_COUNT,
-                        })
-                    : undefined
-                }
-              />
-            ) : (
-              <div className="gm-waiting-board">
-                <span className="gm-waiting-mark" aria-hidden="true">
-                  II
-                </span>
-                <p>The bargaining chamber is quiet.</p>
-                <span className="label">Waiting for a pairing</span>
-              </div>
-            )}
-          </section>
-
-          <SettlementRail events={events} pairing={pairs[0]?.id} />
-        </main>
-
-        <aside className="gm-side-ledger">
-          <section className="gm-agent-board">
-            <div className="gm-panel-head">
-              <p className="label">Agents at the table</p>
-              <p>{agents.length} sealed seats</p>
-            </div>
-            <div>
-              {agents.length > 0 ? (
-                agents.map((agent, index) => (
-                  <div
-                    id={agent.participantId ? `agent-${agent.participantId}` : undefined}
-                    className={`gm-agent-row ${agent.active ? 'is-active' : ''}`}
-                    key={`${agent.name}-${index}`}
-                  >
-                    <span className="gm-agent-rank">{String(index + 1).padStart(2, '0')}</span>
-                    <div>
-                      <strong>{agent.name}</strong>
-                      <span>{agent.kind.toUpperCase()}</span>
-                      <AgentReputationCard reputation={agent.reputation} compact />
-                    </div>
-                    <b>{agent.action}</b>
-                  </div>
-                ))
+            <div className="gm-desk-scroll">
+              {marketPanel === 'prices' ? (
+                <MarketIntelligence state={viewState} events={events} />
               ) : (
-                <p className="empty">Waiting for public participants</p>
+                <>
+                  <MatchmakingPool state={viewState} events={events} />
+                  <div className="gm-desk-pairings">
+                    <div className="gm-panel-head">
+                      <p className="label">Pairing rail</p>
+                      <p>FCFS</p>
+                    </div>
+                    {pairs.length > 0 ? (
+                      pairs.map((pair) => (
+                        <article
+                          className={`gm-pair-card ${pair.active ? 'is-live' : ''}`}
+                          key={pair.id}
+                        >
+                          <div>
+                            <span className="label">Buyer</span>
+                            <strong>{pair.buyer}</strong>
+                          </div>
+                          <div
+                            className="gm-pair-collision"
+                            aria-label={`Trading ${pair.good}`}
+                          >
+                            <span />
+                            <b>{pair.good}</b>
+                            <span />
+                          </div>
+                          <div>
+                            <span className="label">Seller</span>
+                            <strong>{pair.seller}</strong>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="empty">No compatible orders have met yet.</p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
-          </section>
+          </aside>
 
-          <section className="gm-chronicle">
-            <div className="gm-panel-head">
-              <p className="label">Live chronicle</p>
-              <p>Public events only</p>
+          <main className="gm-desk-core">
+            <div className="gm-desk-core-head">
+              <div>
+                <p className="label">Bargaining chamber · Live focus</p>
+                <h2>
+                  {currentPair
+                    ? `${currentPair.buyer} × ${currentPair.seller}`
+                    : 'Waiting for a pairing'}
+                </h2>
+              </div>
+              <div className="gm-desk-core-meta">
+                <span>{currentPair?.good || 'QUEUE OPEN'}</span>
+                <b>{String(events.length).padStart(3, '0')} EVENTS</b>
+              </div>
             </div>
-            <div className="gm-chronicle-list" aria-live="polite">
-              {[...events]
-                .reverse()
-                .slice(0, 8)
-                .map((event) => (
-                  <article key={event.sequence}>
-                    <time>{eventTime(event)}</time>
-                    <div>
-                      <strong>
-                        {EVENT_LABELS[event.type]?.title || 'Arena event recorded'}
-                      </strong>
-                      <p>{eventDescription(event)}</p>
-                    </div>
-                  </article>
-                ))}
-              {events.length === 0 && <p className="empty">Waiting for Arena events</p>}
-            </div>
-          </section>
-        </aside>
-      </div>
-
-      <section className="gm-game-ledger" id="ledger" aria-labelledby="game-ledger-title">
-        <div className="gm-section-heading">
-          <div>
-            <p className="label">Committed settlement ledger</p>
-            <h2 className="display" id="game-ledger-title">The ledger remembers.</h2>
-          </div>
-          <p>
-            Only inventory committed rows are completed trades. Chain confirmation
-            alone remains pending.
-          </p>
-        </div>
-        <div className="gm-game-ledger-rows">
-          {trades.length > 0 ? (
-            trades.map((trade) => (
-              <article key={trade.pairingId}>
-                <span>R{String(trade.round || 0).padStart(2, '0')}</span>
-                <div>
-                  <strong>{trade.buyer} → {trade.seller}</strong>
-                  <small>{trade.goodId.toUpperCase()} · QTY {trade.quantity}</small>
+            <div className="gm-desk-terminal">
+              {currentPair ? (
+                <NegotiationTerminal
+                  events={events}
+                  pairingId={currentPair.id}
+                  onReplay={
+                    demo
+                      ? () =>
+                          setDemoPlayback({
+                            roundIndex: 0,
+                            eventCount: DEMO_INITIAL_EVENT_COUNT,
+                          })
+                      : undefined
+                  }
+                />
+              ) : (
+                <div className="gm-waiting-board">
+                  <span className="gm-waiting-mark" aria-hidden="true">II</span>
+                  <p>The bargaining chamber is quiet.</p>
+                  <span className="label">Waiting for a pairing</span>
                 </div>
-                <p>
-                  {formatGold(
-                    trade.amountAtomic
-                      ?? (trade.priceAtomic !== null
-                        ? trade.priceAtomic * trade.quantity
-                        : null),
-                  )}{' '}
-                  <small>GOLD</small>
-                </p>
-                <b className={`is-${trade.status}`}>
-                  {trade.status === 'committed'
-                    ? 'INVENTORY COMMITTED'
-                    : trade.status === 'confirmed'
-                      ? 'CHAIN CONFIRMED'
-                      : trade.status === 'failed'
-                        ? 'NO DEAL'
-                        : 'SETTLING'}
-                </b>
-                <details>
-                  <summary>Inspect settlement</summary>
-                  <p>
-                    {trade.status === 'failed'
-                      ? 'Settlement closed without an inventory change.'
-                      : `Stage ${trade.stageReached + 1} of 5 recorded by Arena.`}
-                  </p>
-                </details>
-              </article>
-            ))
-          ) : (
-            <p className="empty">No settlement has reached the public ledger.</p>
-          )}
-        </div>
-      </section>
+              )}
+            </div>
+            <SettlementRail events={events} pairing={currentPair?.id || pairs[0]?.id} />
+          </main>
+
+          <aside className="gm-desk-panel gm-desk-inspector">
+            <div className="gm-desk-tabs" aria-label="Game inspector views">
+              {(['agents', 'events', 'ledger'] as const).map((panel) => (
+                <button
+                  type="button"
+                  aria-pressed={inspectorPanel === panel}
+                  key={panel}
+                  onClick={() => setInspectorPanel(panel)}
+                >
+                  {panel}
+                  {panel === 'agents'
+                    ? ` ${agents.length}`
+                    : panel === 'events'
+                      ? ` ${events.length}`
+                      : ` ${trades.length}`}
+                </button>
+              ))}
+            </div>
+            <div className="gm-desk-scroll">
+              {inspectorPanel === 'agents' && (
+                <section className="gm-agent-board">
+                  <div className="gm-panel-head">
+                    <p className="label">Agents at the table</p>
+                    <p>{agents.length} sealed seats</p>
+                  </div>
+                  <div>
+                    {agents.length > 0 ? (
+                      agents.map((agent, index) => (
+                        <div
+                          id={agent.participantId ? `agent-${agent.participantId}` : undefined}
+                          className={`gm-agent-row ${agent.active ? 'is-active' : ''}`}
+                          key={`${agent.name}-${index}`}
+                        >
+                          <span className="gm-agent-rank">
+                            {String(index + 1).padStart(2, '0')}
+                          </span>
+                          <div>
+                            <strong>{agent.name}</strong>
+                            <span>{agent.kind.toUpperCase()}</span>
+                          </div>
+                          <b>{agent.action}</b>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="empty">Waiting for public participants</p>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {inspectorPanel === 'events' && (
+                <section className="gm-chronicle">
+                  <div className="gm-panel-head">
+                    <p className="label">Live chronicle</p>
+                    <p>Public events only</p>
+                  </div>
+                  <div className="gm-chronicle-list" aria-live="polite">
+                    {[...events]
+                      .reverse()
+                      .map((event) => (
+                        <article key={event.sequence}>
+                          <time>{eventTime(event)}</time>
+                          <div>
+                            <strong>
+                              {EVENT_LABELS[event.type]?.title || 'Arena event recorded'}
+                            </strong>
+                            <p>{eventDescription(event)}</p>
+                          </div>
+                        </article>
+                      ))}
+                    {events.length === 0 && (
+                      <p className="empty">Waiting for Arena events</p>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {inspectorPanel === 'ledger' && (
+                <section className="gm-desk-ledger" id="ledger">
+                  <div className="gm-panel-head">
+                    <p className="label">Committed ledger</p>
+                    <p>Inventory authority</p>
+                  </div>
+                  <div className="gm-game-ledger-rows">
+                    {trades.length > 0 ? (
+                      trades.map((trade) => (
+                        <article key={trade.pairingId}>
+                          <span>R{String(trade.round || 0).padStart(2, '0')}</span>
+                          <div>
+                            <strong>{trade.buyer} → {trade.seller}</strong>
+                            <small>
+                              {trade.goodId.toUpperCase()} · QTY {trade.quantity}
+                            </small>
+                          </div>
+                          <p>
+                            {formatGold(
+                              trade.amountAtomic
+                                ?? (trade.priceAtomic !== null
+                                  ? trade.priceAtomic * trade.quantity
+                                  : null),
+                            )}{' '}
+                            <small>GOLD</small>
+                          </p>
+                          <b className={`is-${trade.status}`}>
+                            {trade.status === 'committed'
+                              ? 'COMMITTED'
+                              : trade.status === 'confirmed'
+                                ? 'CONFIRMED'
+                                : trade.status === 'failed'
+                                  ? 'NO DEAL'
+                                  : 'SETTLING'}
+                          </b>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="empty">No settlement has reached the public ledger.</p>
+                    )}
+                  </div>
+                </section>
+              )}
+            </div>
+          </aside>
+        </section>
+      )}
 
       <section className={`gm-audit ${auditOpen ? 'is-open' : ''}`}>
         <button

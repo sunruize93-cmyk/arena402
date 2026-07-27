@@ -2376,6 +2376,305 @@
 
 .gm-personal-result-grid li b { color: var(--paper); font-weight: 500; }
 
+/* Live battle desk — the running game is a control surface, not a long report. */
+
+.gm-live.is-battle {
+  gap: 14px;
+  padding-top: 104px;
+}
+
+.gm-live.is-battle .gm-live-head {
+  align-items: center;
+  padding: 12px 0 14px;
+}
+
+.gm-live.is-battle .gm-live-head h1 {
+  margin-top: 7px;
+  font-size: clamp(40px, 4.8vw, 66px);
+  line-height: 0.88;
+}
+
+.gm-live.is-battle .gm-head-status {
+  padding-bottom: 2px;
+}
+
+.gm-live.is-battle .gm-ritual-step {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.gm-bulletin-compact {
+  grid-template-columns: 1fr;
+  min-height: 96px;
+}
+
+.gm-bulletin-compact .gm-bulletin-art,
+.gm-bulletin-compact .gm-pin {
+  display: none;
+}
+
+.gm-bulletin-compact .gm-bulletin-copy {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.42fr) minmax(180px, 0.55fr) minmax(260px, 1.2fr);
+  align-items: center;
+  gap: 24px;
+  padding: 20px 28px;
+}
+
+.gm-bulletin-compact .gm-bulletin-copy h2 {
+  margin: 0;
+  font-size: clamp(24px, 2.7vw, 38px);
+}
+
+.gm-bulletin-compact .gm-bulletin-copy > p:not(.label) {
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.gm-bulletin-compact .gm-bulletin-stamp {
+  position: static;
+  justify-self: end;
+  grid-column: 3;
+  margin-top: -7px;
+}
+
+.gm-battle-desk {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 0.78fr)
+    minmax(430px, 1.28fr)
+    minmax(270px, 0.76fr);
+  height: clamp(650px, calc(100dvh - 180px), 760px);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--line);
+  gap: 1px;
+}
+
+.gm-desk-panel,
+.gm-desk-core {
+  min-width: 0;
+  min-height: 0;
+  background: var(--ink);
+}
+
+.gm-desk-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.gm-desk-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border-bottom: 1px solid var(--line);
+}
+
+.gm-desk-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--grey-dark);
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.gm-desk-tabs button:last-child { border-right: 0; }
+.gm-desk-tabs button:hover { color: var(--paper-dim); }
+
+.gm-desk-tabs button[aria-pressed='true'] {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.gm-desk-scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.gm-desk-market .gm-desk-scroll {
+  padding: 20px;
+}
+
+.gm-desk-market .gm-price-grid-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gm-desk-market .gm-price-card {
+  min-height: 104px;
+  padding: 12px;
+}
+
+.gm-desk-market .gm-price-card:nth-child(2) { border-right: 0; }
+.gm-desk-market .gm-price-card:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+.gm-desk-market .gm-price-card b { font-size: 19px; }
+.gm-desk-market .gm-price-chart-head h3 { font-size: 21px; }
+.gm-desk-market .gm-price-authority { grid-template-columns: 1fr; }
+.gm-desk-market .gm-price-authority > div { padding: 0 12px 12px; text-align: left; }
+.gm-desk-market .gm-price-authority dl { grid-template-columns: repeat(2, 1fr); }
+.gm-desk-market .gm-price-authority dl div:nth-child(2) { border-right: 0; }
+.gm-desk-market .gm-price-authority dl div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+.gm-desk-market .gm-order-books { grid-template-columns: 1fr; }
+.gm-desk-market .gm-order-books > article { grid-template-columns: 58px 1fr 1fr; }
+.gm-desk-market .gm-matchmaking-row strong { font-size: 16px; }
+
+.gm-desk-pairings { margin-top: 24px; }
+
+.gm-desk-market .gm-pair-card {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 15px 12px;
+}
+
+.gm-desk-market .gm-pair-card strong { font-size: 16px; }
+.gm-desk-market .gm-pair-collision span { display: none; }
+
+.gm-desk-core {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.gm-desk-core-head {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gm-desk-core-head h2 {
+  overflow: hidden;
+  margin-top: 6px;
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.2vw, 33px);
+  font-weight: 400;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gm-desk-core-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: none;
+}
+
+.gm-desk-core-meta span {
+  border: 1px solid var(--line-strong);
+  padding: 5px 7px;
+  color: var(--paper);
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.gm-desk-core-meta b {
+  color: var(--grey-dark);
+  font-size: 6px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+.gm-desk-terminal {
+  min-height: 0;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.gm-desk-terminal > div,
+.gm-desk-terminal .crt {
+  height: 100%;
+}
+
+.gm-desk-terminal .gm-negotiation-terminal .crt {
+  height: 100%;
+}
+
+.gm-desk-core .gm-settlement-chain {
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.gm-desk-core .gm-settlement-chain .gm-panel-head {
+  padding-bottom: 9px;
+}
+
+.gm-desk-core .gm-seal-steps {
+  margin-top: 10px;
+}
+
+.gm-desk-core .gm-seal-step {
+  min-height: 57px;
+  padding: 9px;
+}
+
+.gm-desk-core .gm-seal-step span { font-size: 13px; }
+.gm-desk-core .gm-seal-step strong { font-size: 6px; }
+.gm-desk-core .gm-settlement-note,
+.gm-desk-core .gm-settlement-failure { display: none; }
+
+.gm-desk-inspector .gm-agent-board,
+.gm-desk-inspector .gm-chronicle,
+.gm-desk-ledger {
+  padding: 20px;
+}
+
+.gm-desk-inspector .gm-agent-board,
+.gm-desk-inspector .gm-chronicle {
+  border: 0;
+}
+
+.gm-desk-inspector .gm-agent-row {
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  padding: 14px 0;
+}
+
+.gm-desk-inspector .gm-chronicle-list article {
+  grid-template-columns: 48px minmax(0, 1fr);
+  padding: 14px 0;
+}
+
+.gm-desk-inspector .gm-chronicle-list article::before { left: 42px; }
+
+.gm-desk-ledger .gm-game-ledger-rows {
+  margin-top: 0;
+}
+
+.gm-desk-ledger .gm-game-ledger-rows > article {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 9px;
+  min-height: 86px;
+  padding: 12px 0;
+}
+
+.gm-desk-ledger .gm-game-ledger-rows > article > p {
+  grid-column: 2 / -1;
+  font-size: 18px;
+}
+
+.gm-desk-ledger .gm-game-ledger-rows > article > b {
+  grid-column: 2 / -1;
+  width: fit-content;
+}
+
+.gm-live.is-battle .gm-audit {
+  margin-top: 0;
+}
+
 /* Responsive */
 
 @media (max-width: 1100px) {
@@ -2393,6 +2692,10 @@
     grid-template-columns: 42px minmax(160px, 1fr) minmax(260px, 0.9fr);
   }
   .gm-pool-seats > article > b { grid-column: 2; width: fit-content; margin-bottom: 14px; }
+  .gm-battle-desk {
+    grid-template-columns: minmax(240px, 0.75fr) minmax(430px, 1.25fr);
+  }
+  .gm-desk-inspector { display: none; }
 }
 
 @media (max-width: 820px) {
@@ -2433,6 +2736,7 @@
   .gm-ritual-step strong { display: none; }
   .gm-ritual-step.is-complete::after { display: none; }
   .gm-bulletin { grid-template-columns: 0.7fr 1.3fr; }
+  .gm-bulletin.gm-bulletin-compact { grid-template-columns: 1fr; }
   .gm-side-ledger { grid-template-columns: 1fr; }
   .gm-agent-board { border-right: 0; border-bottom: 1px solid var(--line); }
   .gm-result-hero { grid-template-columns: 0.7fr 1.3fr; min-height: 540px; }
@@ -2448,6 +2752,12 @@
     grid-template-columns: 42px minmax(150px, 1fr) auto;
   }
   .gm-game-ledger-rows > article > b { grid-column: 2 / -1; width: fit-content; }
+  .gm-live.is-battle { padding-top: 92px; }
+  .gm-bulletin-compact .gm-bulletin-copy {
+    grid-template-columns: minmax(130px, 0.5fr) 1fr;
+  }
+  .gm-bulletin-compact .gm-bulletin-copy > p:not(.label) { grid-column: 1 / -1; }
+  .gm-bulletin-compact .gm-bulletin-stamp { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -2479,6 +2789,27 @@
   .gm-price-ticker-set { gap: 28px; padding-right: 28px; }
   .gm-price-ticker-track { animation-duration: 26s; }
   .gm-live-head h1 { font-size: 58px; }
+  .gm-live.is-battle .gm-live-head h1 { font-size: 44px; }
+  .gm-live.is-battle .gm-head-status {
+    min-width: 0;
+    padding-top: 10px;
+  }
+  .gm-bulletin-compact .gm-bulletin-copy {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 20px;
+  }
+  .gm-bulletin-compact .gm-bulletin-copy h2 { margin: 4px 0; }
+  .gm-battle-desk {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  .gm-desk-core { grid-row: 1; min-height: 650px; }
+  .gm-desk-market { grid-row: 2; min-height: 500px; }
+  .gm-desk-inspector { display: grid; grid-row: 3; min-height: 480px; }
   .gm-bulletin { grid-template-columns: 1fr; }
   .gm-bulletin-art { min-height: 150px; background-position: center 35%; }
   .gm-bulletin-copy { padding: 30px 24px 56px; }
