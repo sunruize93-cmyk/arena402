@@ -496,6 +496,41 @@
   text-transform: uppercase;
 }
 
+.gm-decision-clock {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 14px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+
+.gm-decision-clock span {
+  max-width: 72px;
+  padding-bottom: 4px;
+  color: var(--grey-dark);
+  font-size: 6px;
+  line-height: 1.45;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.gm-decision-clock strong {
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.gm-decision-clock.is-finalizing strong {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+
 .gm-lobby-board {
   display: grid;
   grid-template-columns: minmax(230px, 0.58fr) minmax(0, 1.42fr);
@@ -514,17 +549,63 @@
   color: var(--ink);
 }
 
-.gm-lobby-count span {
+.gm-lobby-ready {
+  display: flex;
+  flex-direction: column;
+}
+
+.gm-lobby-ready > span {
   font-family: var(--serif);
   font-size: clamp(96px, 14vw, 190px);
   line-height: 0.72;
   letter-spacing: -0.08em;
 }
 
-.gm-lobby-count small {
+.gm-lobby-ready > small {
   margin-top: 38px;
   font-size: 10px;
   letter-spacing: 0.18em;
+}
+
+.gm-lobby-clock {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px 18px;
+  margin-top: 34px;
+  padding-top: 22px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.gm-lobby-clock small {
+  color: color-mix(in srgb, var(--ink) 58%, transparent);
+  font-size: 7px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.gm-lobby-clock strong {
+  font-family: var(--mono);
+  font-size: clamp(28px, 3.2vw, 46px);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+  line-height: 0.82;
+}
+
+.gm-lobby-clock em {
+  grid-column: 1 / -1;
+  color: color-mix(in srgb, var(--ink) 52%, transparent);
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.gm-lobby-clock.is-delayed strong {
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .gm-lobby-copy {

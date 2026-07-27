@@ -630,13 +630,45 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         }
       : state;
   const totalRounds = Number(state?.roundCount || state?.totalRounds || 0);
+  const currentRoundState = Array.isArray(state?.rounds)
+    ? state.rounds.find(
+        (row) =>
+          Boolean(row)
+          && typeof row === 'object'
+          && Number(pick(row as RecordValue, 'roundIndex', 'round_index')) ===
+            currentRound,
+      )
+    : undefined;
+  const rawDecisionDeadline =
+    !demo && !replayRequested && phase === 'decide'
+      ? pick(
+          currentRoundState as RecordValue | undefined,
+          'phaseDeadlineAt',
+          'phase_deadline_at',
+          'deadlineAt',
+          'deadline_at',
+        )
+      : undefined;
+  const decisionDeadlineAt =
+    typeof rawDecisionDeadline === 'string'
+      ? new Date(rawDecisionDeadline).getTime()
+      : Number.NaN;
+  const decisionRemaining = Number.isFinite(decisionDeadlineAt)
+    ? decisionDeadlineAt - clock
+    : null;
+  const decisionCountdown =
+    decisionRemaining === null
+      ? null
+      : decisionRemaining <= 0
+        ? 'FINALIZING'
+        : formatCountdown(decisionRemaining);
   const gamePhase = String(state?.phase || '').toLowerCase();
-  const isRegistration = !demo && gamePhase === 'registration';
+  const registrationOpen = ['registration', 'portfolio_setup'].includes(
+    gamePhase,
+  );
+  const isRegistration = !demo && registrationOpen;
   const isComplete = gamePhase === 'completed';
   const latestEvent = events[events.length - 1];
-  const registrationOpen = ['registration', 'portfolio_setup'].includes(
-    String(state?.phase || '').toLowerCase(),
-  );
   const myAgent = myParticipantId
     ? agents.find((agent) => agent.participantId === myParticipantId)
     : undefined;
@@ -766,6 +798,17 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                 : 'Waiting to start'
               : PHASES.find((item) => item.id === phase)?.label || 'Ledger closed'}
           </p>
+          {decisionCountdown && (
+            <div
+              className={`gm-decision-clock ${
+                decisionRemaining !== null && decisionRemaining <= 0 ? 'is-finalizing' : ''
+              }`}
+              aria-live="polite"
+            >
+              <span>Decision window</span>
+              <strong>{decisionCountdown}</strong>
+            </div>
+          )}
         </div>
       </header>
 
@@ -891,8 +934,28 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       {isRegistration && (
         <section className="gm-lobby-board" aria-labelledby="lobby-title">
           <div className="gm-lobby-count" aria-label={`${readyCount} of ${startThreshold} ready`}>
-            <span>{String(readyCount).padStart(2, '0')}</span>
-            <small>/ {String(startThreshold || '—').padStart(2, '0')} READY</small>
+            <div className="gm-lobby-ready">
+              <span>{String(readyCount).padStart(2, '0')}</span>
+              <small>/ {String(startThreshold || '—').padStart(2, '0')} READY</small>
+            </div>
+            <div
+              className={`gm-lobby-clock ${matchingDelayed ? 'is-delayed' : ''}`}
+              aria-live="polite"
+            >
+              <small>
+                {fillRemaining === null ? 'Official fill status' : 'Official fill in'}
+              </small>
+              <strong>{fillLabel}</strong>
+              <em>
+                {startThreshold
+                  ? (
+                    <>
+                      <span>Seats remaining</span> · {seatsRemaining}
+                    </>
+                  )
+                  : 'Waiting for Arena threshold'}
+              </em>
+            </div>
           </div>
           <div className="gm-lobby-copy">
             <p className="label">

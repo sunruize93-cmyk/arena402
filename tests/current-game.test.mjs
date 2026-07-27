@@ -333,13 +333,14 @@ test('Live Game viewer uses SSE with a polling fallback', () => {
   assert.match(source, /window\.setInterval/);
 });
 
-test('registration renders an explicit waiting room instead of a live round', () => {
+test('registration and portfolio setup render an explicit waiting room instead of a live round', () => {
   const source = readFileSync(
     new URL('../src/components/GameViewer.tsx', import.meta.url),
     'utf8',
   );
 
-  assert.match(source, /const isRegistration = !demo && gamePhase === 'registration'/);
+  assert.match(source, /const registrationOpen = \['registration', 'portfolio_setup'\]\.includes/);
+  assert.match(source, /const isRegistration = !demo && registrationOpen/);
   assert.match(source, /Waiting for the first seat\./);
   assert.match(source, /Your seat is not confirmed/);
   assert.match(source, /Return to Play and join/);
@@ -351,6 +352,23 @@ test('registration renders an explicit waiting room instead of a live round', ()
   );
   assert.match(source, /fillStatus === 'BLOCKED'/);
   assert.match(source, /Official Agent pool is unavailable/);
+  assert.match(source, /gm-lobby-clock/);
+  assert.match(source, /Official fill in/);
+  assert.match(source, /Seats remaining/);
+});
+
+test('Live Game viewer shows only the authoritative decision deadline countdown', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /phase === 'decide'/);
+  assert.match(source, /'phase_deadline_at'/);
+  assert.match(source, /Decision window/);
+  assert.match(source, /decisionRemaining <= 0/);
+  assert.doesNotMatch(source, /Negotiation window/);
+  assert.doesNotMatch(source, /Settlement countdown/);
 });
 
 test('Play loads entry resources independently and exposes retryable failures', () => {
