@@ -64,8 +64,12 @@ export default function CredentialAuthForm({
       setError('Username must be at least 3 characters.');
       return;
     }
-    if (isRegistering && normalizedInviteCode.length < 20) {
-      setError('Enter the invite code from your Arena registration link.');
+    if (
+      isRegistering &&
+      normalizedInviteCode.length > 0 &&
+      normalizedInviteCode.length < 20
+    ) {
+      setError('Invite codes must contain at least 20 characters.');
       return;
     }
     if (isRegistering && password.length < 12) {
@@ -81,7 +85,9 @@ export default function CredentialAuthForm({
     try {
       if (isRegistering) {
         await registerConnectorUser({
-          invite_code: normalizedInviteCode,
+          ...(normalizedInviteCode
+            ? { invite_code: normalizedInviteCode }
+            : {}),
           username: normalizedUsername,
           password,
         });
@@ -175,16 +181,15 @@ export default function CredentialAuthForm({
               autoCapitalize="none"
               autoComplete="off"
               id="arena-invite-code"
-              minLength={20}
+              minLength={inviteCode ? 20 : undefined}
               onChange={(event) => setInviteCode(event.target.value)}
               placeholder="Paste the code from your invite"
-              required
               spellCheck={false}
               value={inviteCode}
             />
             <p className="auth-form-hint">
-              Registration is currently invite-gated. A future QR campaign can
-              prefill this code automatically.
+              Optional. Use this field when your Arena registration link
+              includes an invite code.
             </p>
           </>
         )}
@@ -208,7 +213,7 @@ export default function CredentialAuthForm({
 
       <p className="auth-form-note">
         {isRegistering
-          ? 'Your session is created immediately after registration.'
+          ? 'Create a platform account directly. GitHub is optional.'
           : 'Use GitHub below if you already have a GitHub-bound Arena identity.'}
       </p>
     </div>
