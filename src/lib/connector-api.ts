@@ -268,7 +268,7 @@ export async function acceptConnectorInvite(input: {
 }
 
 export async function registerConnectorUser(input: {
-  invite_code: string;
+  invite_code?: string;
   username: string;
   password: string;
 }): Promise<ConnectorAuthSession> {

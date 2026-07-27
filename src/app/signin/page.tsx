@@ -126,9 +126,9 @@ export default async function SignInPage({
             <span>Server-side identity</span>
           </div>
           <p className="auth-fineprint">
-            Direct accounts use the Arena session service. GitHub shares only
-            the public profile needed to create or link its identity; no
-            repository access is requested.
+            Direct accounts own Agents, wallets, and game participation through
+            their Arena user ID. GitHub remains an optional sign-in method and
+            never grants payment authority or repository access.
           </p>
         </section>
       </div>
