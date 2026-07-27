@@ -26,6 +26,7 @@ import {
   PawnhouseTimelineEvent,
   withdrawCurrentGameParticipant,
 } from '@/lib/game-api';
+import { rankingAgentIdentity } from '@/lib/game-display';
 import { buildLedgerTrades, formatGold } from '@/lib/ledger-model';
 import { readAgentReputation } from '@/lib/reputation';
 import {
@@ -302,8 +303,29 @@ function eventTime(event: PawnhouseTimelineEvent): string {
   });
 }
 
-function pairingRows(events: PawnhouseTimelineEvent[]) {
+function pairingRows(
+  events: PawnhouseTimelineEvent[],
+  state: PawnhouseGameState | null,
+) {
   const activeIds = new Set(activePairingIds(events));
+  const participantNames = new Map<string, string>();
+  const participants = Array.isArray(state?.participants) ? state.participants : [];
+  participants.forEach((participant, index) => {
+    const identity = rankingAgentIdentity(participant, index);
+    const participantId = String(
+      pick(
+        participant,
+        'participantId',
+        'participant_id',
+        'gameParticipantId',
+        'game_participant_id',
+      ) || '',
+    );
+    if (participantId) participantNames.set(participantId, identity.displayName);
+    if (identity.agentId) {
+      participantNames.set(identity.agentId, identity.displayName);
+    }
+  });
   return events
     .filter((event) => event.type === 'pairing.created')
     .slice(-4)
@@ -335,8 +357,8 @@ function pairingRows(events: PawnhouseTimelineEvent[]) {
         ),
         buyerId,
         sellerId,
-        buyer: shortAgent(buyerId, 'Buyer'),
-        seller: shortAgent(sellerId, 'Seller'),
+        buyer: participantNames.get(buyerId) || shortAgent(buyerId, 'Buyer'),
+        seller: participantNames.get(sellerId) || shortAgent(sellerId, 'Seller'),
         good: publicText(pick(data, 'goodId', 'good_id', 'good'), 'goods').toUpperCase(),
         active: activeIds.has(
           publicText(
@@ -353,6 +375,7 @@ function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEv
   return participants.map((participant, index) => {
     const id = pick(participant, 'agentId', 'agent_id');
     const rawId = String(id || '');
+    const identity = rankingAgentIdentity(participant, index);
     const lastDecision = [...events]
       .reverse()
       .find(
@@ -366,7 +389,7 @@ function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEv
         '',
       ),
       agentId: rawId,
-      name: shortAgent(id, `Agent ${String(index + 1).padStart(2, '0')}`),
+      name: identity.displayName,
       kind: publicText(pick(participant, 'runtimeKind', 'runtime_kind'), 'agent'),
       status: publicText(pick(participant, 'status'), 'waiting').toUpperCase(),
       readiness: publicText(
@@ -598,7 +621,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   }, [replayEventCount, replayRequested, sourceEvents.length]);
   const phase = replayRequested ? replayPhase(events) : currentRoundPhase(state);
   const bulletin = useMemo(() => worldBulletin(events), [events]);
-  const pairs = useMemo(() => pairingRows(events), [events]);
+  const pairs = useMemo(() => pairingRows(events, state), [events, state]);
   const agents = useMemo(() => agentRows(state, events), [state, events]);
   const trades = useMemo(() => buildLedgerTrades(events), [events]);
   const replayRound = [...events]

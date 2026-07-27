@@ -7,6 +7,7 @@ import {
   getPawnhouseGame,
   PawnhouseGameState,
 } from '@/lib/game-api';
+import { rankingAgentIdentity } from '@/lib/game-display';
 import { readAgentReputation } from '@/lib/reputation';
 import { DEMO_FINAL_GAME_STATE } from '@/lib/rankings-demo';
 
@@ -32,15 +33,6 @@ function safeText(value: unknown, fallback: string): string {
     return fallback;
   }
   return value.trim().slice(0, 120);
-}
-
-function agentName(value: unknown, index: number): string {
-  return safeText(value, `Agent ${String(index + 1).padStart(2, '0')}`)
-    .replace(/^agent[_:-]?/i, '')
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 function gold(value: unknown): string {
@@ -82,12 +74,15 @@ export default function GameResult({ gameId }: { gameId: string }) {
       .sort((a, b) => Number(pick(a, 'rank') || 99) - Number(pick(b, 'rank') || 99))
       .map((row, index) => {
         const tier = String(pick(row, 'tier') || '');
+        const identity = rankingAgentIdentity(row, index);
         return {
           rank: Number(pick(row, 'rank') || index + 1),
           participantId: String(
             pick(row, 'participantId', 'participant_id', 'gameParticipantId') || '',
           ),
-          name: agentName(pick(row, 'agentId', 'agent_id'), index),
+          agentId: identity.agentId,
+          name: identity.displayName,
+          shortId: identity.shortId,
           worth: gold(pick(row, 'netWorthAtomic', 'net_worth_atomic')),
           tier: TIER_MAP[tier] || safeText(tier, 'Arena Merchant'),
           reputation: readAgentReputation(row),
@@ -162,7 +157,7 @@ export default function GameResult({ gameId }: { gameId: string }) {
               </span>
               <div>
                 <strong>{row.name}</strong>
-                <span>{row.tier}</span>
+                <span>{row.shortId} · {row.tier}</span>
                 <AgentReputationCard reputation={row.reputation} compact />
               </div>
               <p>
