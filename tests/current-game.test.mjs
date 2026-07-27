@@ -371,6 +371,31 @@ test('Live Game viewer shows only the authoritative decision deadline countdown'
   assert.doesNotMatch(source, /Settlement countdown/);
 });
 
+test('live battle desk contains its terminal and exposes authoritative price motion', () => {
+  const viewer = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+  const market = readFileSync(
+    new URL('../src/components/MarketIntelligence.tsx', import.meta.url),
+    'utf8',
+  );
+  const styles = readFileSync(
+    new URL('../src/app/arena402-game.css', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(viewer, /className="gm-battle-desk"/);
+  assert.match(styles, /\.gm-desk-terminal \.gm-negotiation-terminal/);
+  assert.match(styles, /max-width: 100%/);
+  assert.match(styles, /\.gm-desk-inspector[\s\S]*isolation: isolate/);
+  assert.match(market, /function PriceSignal/);
+  assert.match(market, /good\.candles\.slice\(-6\)/);
+  assert.match(market, /gm-price-commit-pulse/);
+  assert.match(styles, /@keyframes gmPriceListen/);
+  assert.match(styles, /\.gm-bulletin-compact \.gm-bulletin-copy h2[\s\S]*48px/);
+});
+
 test('Play loads entry resources independently and exposes retryable failures', () => {
   const source = readFileSync(
     new URL('../src/components/PlayJourney.tsx', import.meta.url),

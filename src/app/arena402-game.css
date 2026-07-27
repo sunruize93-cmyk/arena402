@@ -902,12 +902,14 @@
 }
 
 .gm-price-card {
+  position: relative;
   min-height: 126px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto auto auto;
   align-content: start;
   gap: 6px 10px;
+  overflow: hidden;
   border: 0;
   border-right: 1px solid var(--line);
   background: transparent;
@@ -924,8 +926,8 @@
 }
 .gm-price-card.is-selected { box-shadow: inset 0 -2px 0 var(--paper); }
 
-.gm-price-card > span {
-  grid-row: span 4;
+.gm-price-card > .gm-price-mark {
+  grid-row: span 5;
   color: var(--grey-dark);
   font-family: var(--serif);
   font-size: 22px;
@@ -978,6 +980,75 @@
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.gm-price-signal {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  color: var(--grey);
+}
+
+.gm-price-signal svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gm-price-signal polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.gm-price-signal.is-up { color: var(--paper); }
+.gm-price-signal.is-down { color: var(--grey); }
+
+.gm-price-listening {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: end;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding-top: 5px;
+}
+
+.gm-price-listening i {
+  display: block;
+  height: 30%;
+  background: var(--grey-dark);
+  transform-origin: bottom;
+  animation: gmPriceListen 1.8s ease-in-out infinite;
+}
+
+.gm-price-listening i:nth-child(2) { height: 68%; animation-delay: -1.35s; }
+.gm-price-listening i:nth-child(3) { height: 45%; animation-delay: -0.9s; }
+.gm-price-listening i:nth-child(4) { height: 82%; animation-delay: -0.45s; }
+
+.gm-price-commit-pulse {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--paper) 24%, transparent), transparent);
+  pointer-events: none;
+  transform: translateX(-110%);
+  animation: gmPriceCommit 0.9s ease-out 1;
+}
+
+@keyframes gmPriceListen {
+  0%,
+  100% { transform: scaleY(0.35); opacity: 0.35; }
+  50% { transform: scaleY(1); opacity: 0.85; }
+}
+
+@keyframes gmPriceCommit {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(110%); }
 }
 
 .gm-price-chart-head {
@@ -2486,7 +2557,7 @@
 
 .gm-bulletin-compact {
   grid-template-columns: 1fr;
-  min-height: 96px;
+  min-height: 126px;
 }
 
 .gm-bulletin-compact .gm-bulletin-art,
@@ -2496,20 +2567,22 @@
 
 .gm-bulletin-compact .gm-bulletin-copy {
   display: grid;
-  grid-template-columns: minmax(150px, 0.42fr) minmax(180px, 0.55fr) minmax(260px, 1.2fr);
+  grid-template-columns: minmax(160px, 0.38fr) minmax(250px, 0.68fr) minmax(300px, 1.25fr);
   align-items: center;
-  gap: 24px;
-  padding: 20px 28px;
+  gap: 30px;
+  padding: 27px 32px;
 }
 
 .gm-bulletin-compact .gm-bulletin-copy h2 {
   margin: 0;
-  font-size: clamp(24px, 2.7vw, 38px);
+  font-size: clamp(32px, 3.25vw, 48px);
+  line-height: 0.95;
 }
 
 .gm-bulletin-compact .gm-bulletin-copy > p:not(.label) {
-  font-size: 9px;
-  line-height: 1.65;
+  max-width: 720px;
+  font-size: 12px;
+  line-height: 1.75;
 }
 
 .gm-bulletin-compact .gm-bulletin-stamp {
@@ -2522,9 +2595,9 @@
 .gm-battle-desk {
   display: grid;
   grid-template-columns:
-    minmax(260px, 0.78fr)
-    minmax(430px, 1.28fr)
-    minmax(270px, 0.76fr);
+    minmax(250px, 0.72fr)
+    minmax(0, 1.46fr)
+    minmax(290px, 0.82fr);
   height: clamp(650px, calc(100dvh - 180px), 760px);
   min-height: 0;
   overflow: hidden;
@@ -2537,6 +2610,7 @@
 .gm-desk-core {
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   background: var(--ink);
 }
 
@@ -2590,7 +2664,7 @@
 }
 
 .gm-desk-market .gm-price-card {
-  min-height: 104px;
+  min-height: 132px;
   padding: 12px;
 }
 
@@ -2621,6 +2695,24 @@
 .gm-desk-core {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  isolation: isolate;
+}
+
+.gm-desk-core > *,
+.gm-desk-terminal,
+.gm-desk-terminal > div,
+.gm-desk-terminal .gm-negotiation-terminal,
+.gm-desk-terminal .crt {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gm-desk-inspector {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
 }
 
 .gm-desk-core-head {
@@ -2643,6 +2735,11 @@
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.gm-desk-core-head > div:first-child {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .gm-desk-core-meta {
@@ -2727,6 +2824,15 @@
 .gm-desk-inspector .gm-chronicle-list article {
   grid-template-columns: 48px minmax(0, 1fr);
   padding: 14px 0;
+}
+
+.gm-desk-inspector .gm-chronicle-list article > div {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.gm-desk-inspector .gm-chronicle-list article p {
+  overflow-wrap: anywhere;
 }
 
 .gm-desk-inspector .gm-chronicle-list article::before { left: 42px; }
@@ -2991,6 +3097,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gm-price-ticker-track,
+  .gm-price-listening i,
+  .gm-price-commit-pulse,
   .gm-live-dot,
   .gm-ritual-step.is-active,
   .gm-bulletin,

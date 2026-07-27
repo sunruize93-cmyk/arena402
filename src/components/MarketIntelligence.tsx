@@ -27,6 +27,51 @@ function qualityLabel(good: BroadcastGood): string {
   return 'AWAITING AUTHORITY';
 }
 
+function PriceSignal({ good }: { good: BroadcastGood }) {
+  const closes = good.candles.slice(-6).map((candle) => candle.close);
+  const direction =
+    good.changePercent === null
+      ? 'is-listening'
+      : good.changePercent >= 0
+        ? 'is-up'
+        : 'is-down';
+  const pulseKey = `${good.goodId}-${good.currentAtomic ?? 'pending'}`;
+
+  if (closes.length < 2) {
+    return (
+      <span className={`gm-price-signal ${direction}`} aria-hidden="true">
+        <span className="gm-price-listening">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="gm-price-commit-pulse" key={pulseKey} />
+      </span>
+    );
+  }
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const span = Math.max(max - min, 1);
+  const points = closes
+    .map((value, index) => {
+      const x = (index / (closes.length - 1)) * 72;
+      const y = 19 - ((value - min) / span) * 16;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  return (
+    <span className={`gm-price-signal ${direction}`} aria-hidden="true">
+      <svg viewBox="0 0 72 22" preserveAspectRatio="none">
+        <polyline points={points} />
+      </svg>
+      <span className="gm-price-commit-pulse" key={pulseKey} />
+    </span>
+  );
+}
+
 function CandleChart({ good }: { good: BroadcastGood }) {
   const candles = good.candles.slice(-8);
   if (candles.length === 0) {
@@ -151,12 +196,20 @@ export default function MarketIntelligence({
         {goods.map((good) => (
           <button
             type="button"
-            className={`gm-price-card ${good.goodId === selected.goodId ? 'is-selected' : ''}`}
+            className={`gm-price-card ${
+              good.goodId === selected.goodId ? 'is-selected' : ''
+            } ${
+              good.changePercent === null
+                ? 'is-awaiting'
+                : good.changePercent >= 0
+                  ? 'is-rising'
+                  : 'is-falling'
+            }`}
             key={good.goodId}
             onClick={() => setSelectedGoodId(good.goodId)}
             aria-pressed={good.goodId === selected.goodId}
           >
-            <span>{good.mark}</span>
+            <span className="gm-price-mark">{good.mark}</span>
             <strong>{good.name}</strong>
             <b>{gold(good.currentAtomic)} <small>GOLD</small></b>
             <em className={
@@ -171,6 +224,7 @@ export default function MarketIntelligence({
             <small className="gm-price-card-meta">
               VOL {good.latestVolume ?? '—'} · {qualityLabel(good)}
             </small>
+            <PriceSignal good={good} />
           </button>
         ))}
       </div>
