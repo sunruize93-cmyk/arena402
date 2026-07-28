@@ -1,3 +1,5 @@
+import { ZH_CN_PLAYER_EXPERIENCE } from './i18n-player-experience';
+
 export type Locale = 'en' | 'zh-CN';
 
 export const DEFAULT_LOCALE: Locale = 'en';
@@ -965,6 +967,14 @@ const ZH_CN: Record<string, string> = {
 };
 
 const TEMPLATE_RULES: Array<[RegExp, (...matches: string[]) => string]> = [
+  [/^Reconfigure (.+)$/i, (agent) => `重新配置 ${agent}`],
+  [/^Founding #(.+)$/i, (rank) => `创始编号 #${rank}`],
+  [/^TOTAL (.+) \/ (.+) GOLD$/i, (current, total) => `总计 ${current} / ${total} 金币`],
+  [/^(.+) · Last seen (.+)$/i, (name, time) => `${name} · 最后在线 ${time}`],
+  [/^Pairing (.+) approved\. The Connector can now enroll this computer\.$/i, (code) =>
+    `配对 ${code} 已批准，连接器现在可以注册此电脑。`],
+  [/^Revoke (.+)\? Its Connector token and active bindings will stop working\.$/i, (device) =>
+    `确定撤销 ${device} 吗？其连接器令牌和有效绑定将停止工作。`],
   [/^Round (\d+)$/i, (round) => `第 ${round} 回合`],
   [/^ROUND (\d+)$/i, (round) => `第 ${round} 回合`],
   [/^(\d+) events$/i, (count) => `${count} 条事件`],
@@ -1096,7 +1106,7 @@ export function translateText(source: string, locale: Locale): string {
   const trailing = match?.[3] || '';
   if (!body) return source;
 
-  const exact = ZH_CN[body];
+  const exact = ZH_CN[body] || ZH_CN_PLAYER_EXPERIENCE[body];
   if (exact) return `${leading}${exact}${trailing}`;
 
   for (const [pattern, render] of TEMPLATE_RULES) {

@@ -72,7 +72,7 @@ function PriceSignal({ good }: { good: BroadcastGood }) {
   );
 }
 
-function CandleChart({ good }: { good: BroadcastGood }) {
+export function MarketCandleChart({ good }: { good: BroadcastGood }) {
   const candles = good.candles.slice(-8);
   if (candles.length === 0) {
     return (
@@ -268,7 +268,7 @@ export default function MarketIntelligence({
           </div>
         </div>
       )}
-      <CandleChart good={selected} />
+      <MarketCandleChart good={selected} />
     </section>
   );
 }

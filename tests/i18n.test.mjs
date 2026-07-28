@@ -6,17 +6,33 @@ import ts from 'typescript';
 
 function loadI18n() {
   const filePath = fileURLToPath(new URL('../src/lib/i18n.ts', import.meta.url));
+  const playerExperiencePath = fileURLToPath(
+    new URL('../src/lib/i18n-player-experience.ts', import.meta.url),
+  );
+  const compile = (sourcePath) =>
+    ts.transpileModule(readFileSync(sourcePath, 'utf8'), {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+      fileName: sourcePath,
+    }).outputText;
+  const playerExperienceModule = { exports: {} };
+  Function('require', 'module', 'exports', compile(playerExperiencePath))(
+    undefined,
+    playerExperienceModule,
+    playerExperienceModule.exports,
+  );
   const source = readFileSync(filePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filePath,
-  }).outputText;
+  const compiled = compile(filePath);
   const module = { exports: {} };
   Function('require', 'module', 'exports', compiled)(
-    undefined,
+    (specifier) => {
+      if (specifier === './i18n-player-experience') {
+        return playerExperienceModule.exports;
+      }
+      throw new Error(`Unexpected i18n dependency: ${specifier}`);
+    },
     module,
     module.exports,
   );
@@ -109,5 +125,63 @@ test('Chinese translation covers waiting-room and matchmaking states', () => {
   assert.equal(
     translateText('No player start button is required.', 'zh-CN'),
     '玩家不需要点击开始按钮。',
+  );
+});
+
+test('Chinese translation covers the complete player journey surfaces', () => {
+  const { translateText } = loadI18n();
+
+  assert.equal(translateText('Enter the Arena.', 'zh-CN'), '进入竞技场。');
+  assert.equal(
+    translateText('Username must be at least 3 characters.', 'zh-CN'),
+    '用户名至少需要 3 个字符。',
+  );
+  assert.equal(
+    translateText('Current game · Entry desk', 'zh-CN'),
+    '当前对局 · 入场台',
+  );
+  assert.equal(translateText('Treasury wallet', 'zh-CN'), '金库钱包');
+  assert.equal(
+    translateText('No settlement has reached the public ledger.', 'zh-CN'),
+    '尚无结算进入公开账本。',
+  );
+});
+
+test('Chinese translation covers live market, history, and accessibility copy', () => {
+  const { translateText } = loadI18n();
+
+  assert.equal(
+    translateText('Back to the previous Arena view', 'zh-CN'),
+    '返回上一个 Arena 页面',
+  );
+  assert.equal(
+    translateText('Market chronicle · Four goods', 'zh-CN'),
+    '市场纪事 · 四种物品',
+  );
+  assert.equal(
+    translateText('Four-good round price history', 'zh-CN'),
+    '四种物品的逐回合价格历史',
+  );
+  assert.equal(
+    translateText('Reconfigure test222', 'zh-CN'),
+    '重新配置 test222',
+  );
+  assert.equal(
+    translateText('Cassius · Last seen 2m ago', 'zh-CN'),
+    'Cassius · 最后在线 2m ago',
+  );
+  assert.equal(
+    translateText(
+      'Revoke Studio PC? Its Connector token and active bindings will stop working.',
+      'zh-CN',
+    ),
+    '确定撤销 Studio PC 吗？其连接器令牌和有效绑定将停止工作。',
+  );
+  assert.equal(
+    translateText(
+      'Leave this pool and revoke the unused game mandate?',
+      'zh-CN',
+    ),
+    '确定退出匹配池并撤销未使用的对局支付授权吗？',
   );
 });

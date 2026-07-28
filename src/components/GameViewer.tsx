@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AgentReputationCard from '@/components/AgentReputationCard';
 import MarketIntelligence from '@/components/MarketIntelligence';
+import MarketHistoryBoard from '@/components/MarketHistoryBoard';
 import MatchmakingPool from '@/components/MatchmakingPool';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
 import SettlementRail from '@/components/SettlementRail';
 import { useLocale } from '@/components/LocaleProvider';
+import { translateText } from '@/lib/i18n';
 import {
   advanceDemoPlayback,
   buildDemoGameState,
@@ -750,7 +752,14 @@ export default function GameViewer({ gameId }: { gameId: string }) {
 
   async function leavePool() {
     if (!myParticipantId || !registrationOpen || leavingPool) return;
-    if (!window.confirm('Leave this pool and revoke the unused game mandate?')) {
+    if (
+      !window.confirm(
+        translateText(
+          'Leave this pool and revoke the unused game mandate?',
+          locale,
+        ),
+      )
+    ) {
       return;
     }
     setLeavingPool(true);
@@ -1346,6 +1355,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             </div>
           </aside>
         </section>
+      )}
+
+      {!isRegistration && (
+        <MarketHistoryBoard state={viewState} events={events} />
       )}
 
       <section className={`gm-audit ${auditOpen ? 'is-open' : ''}`}>

@@ -45,6 +45,8 @@ import {
   revokeConnectorDevice,
   sendBindingCommand,
 } from '@/lib/connector-api';
+import { useLocale } from '@/components/LocaleProvider';
+import { translateText } from '@/lib/i18n';
 
 const REFRESH_INTERVAL_MS = 8_000;
 const CONNECTOR_DEMO_ENABLED =
@@ -487,6 +489,7 @@ export default function ConnectorConsole({
   onReadyChange,
   onOpenHostedPath,
 }: ConnectorConsoleProps) {
+  const { locale } = useLocale();
   const [deviceName, setDeviceName] = useState('My computer');
   const [approvalCode, setApprovalCode] = useState('');
   const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -700,7 +703,10 @@ export default function ConnectorConsole({
 
   async function handleRevokeDevice(device: ConnectorDevice) {
     const confirmed = window.confirm(
-      `Revoke ${device.name}? Its Connector token and active bindings will stop working.`,
+      translateText(
+        `Revoke ${device.name}? Its Connector token and active bindings will stop working.`,
+        locale,
+      ),
     );
     if (!confirmed) return;
 

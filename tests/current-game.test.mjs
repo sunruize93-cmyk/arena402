@@ -444,6 +444,28 @@ test('live battle desk contains its terminal and exposes authoritative price mot
   assert.match(styles, /\.gm-bulletin-compact \.gm-bulletin-copy h2[\s\S]*48px/);
 });
 
+test('game page keeps a four-good K-line chronicle below the battle desk', () => {
+  const viewer = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+  const history = readFileSync(
+    new URL('../src/components/MarketHistoryBoard.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(viewer, /import MarketHistoryBoard/);
+  assert.match(
+    viewer,
+    /gm-battle-desk[\s\S]*<MarketHistoryBoard state=\{viewState\} events=\{events\}/,
+  );
+  assert.match(history, /buildBroadcastGoods/);
+  assert.match(history, /gm-market-history-grid/);
+  assert.match(history, /goods\.map/);
+  assert.match(history, /MarketCandleChart good=\{good\}/);
+  assert.match(history, /Arena-owned OHLC only/);
+});
+
 test('Play loads entry resources independently and exposes retryable failures', () => {
   const source = readFileSync(
     new URL('../src/components/PlayJourney.tsx', import.meta.url),
