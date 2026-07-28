@@ -43,6 +43,76 @@ test('active pairings exclude every pairing already closed in the visible timeli
   );
 });
 
+test('production terminal events close pairings without a synthetic pairing.closed event', () => {
+  const rejected = [
+    event(1, 'pairing.created', { pairingId: 'pair-rejected' }),
+    event(2, 'negotiation.message', {
+      negotiationId: 'neg:pair-rejected',
+      action: 'reject',
+    }),
+  ];
+  const settled = [
+    event(3, 'pairing.created', { pairingId: 'pair-settled' }),
+    event(4, 'settlement.inventory_committed', {
+      pairingId: 'pair-settled',
+    }),
+  ];
+
+  assert.deepEqual(projection.activePairingIds(rejected), []);
+  assert.deepEqual(projection.activePairingIds(settled), []);
+});
+
+test('a round close clears a pairing even when its terminal event was missed', () => {
+  const events = [
+    { ...event(1, 'pairing.created', { pairingId: 'pair-stale' }), roundId: 'round-1' },
+    { ...event(2, 'round.closed', {}), roundId: 'round-1' },
+  ];
+
+  assert.deepEqual(projection.activePairingIds(events), []);
+});
+
+test('thinking stops on negotiation, settlement, round, or snapshot terminal state', () => {
+  const proposed = [
+    event(1, 'pairing.created', { pairingId: 'pair-1' }),
+    event(2, 'negotiation.message', {
+      negotiationId: 'neg:pair-1',
+      action: 'propose',
+    }),
+  ];
+
+  assert.equal(
+    projection.isPairingAwaitingAgentAction(proposed, 'pair-1'),
+    true,
+  );
+  assert.equal(
+    projection.isPairingAwaitingAgentAction(
+      [
+        ...proposed,
+        event(3, 'negotiation.message', {
+          negotiationId: 'neg:pair-1',
+          action: 'accept',
+        }),
+      ],
+      'pair-1',
+    ),
+    false,
+  );
+  assert.equal(
+    projection.isPairingAwaitingAgentAction(proposed, 'pair-1', 'settling'),
+    false,
+  );
+  assert.equal(
+    projection.isPairingAwaitingAgentAction(
+      [
+        ...proposed,
+        event(3, 'settlement.intent_frozen', { pairingId: 'pair-1' }),
+      ],
+      'pair-1',
+    ),
+    false,
+  );
+});
+
 test('replay price snapshots are visible only after that round closes', () => {
   const snapshots = [
     { round: 1, close: '5' },

@@ -308,6 +308,13 @@ function pairingRows(
   state: PawnhouseGameState | null,
 ) {
   const activeIds = new Set(activePairingIds(events));
+  const pairingStatuses = new Map<string, string>();
+  const snapshotPairings = Array.isArray(state?.pairings) ? state.pairings : [];
+  snapshotPairings.forEach((pairing) => {
+    const id = String(pick(pairing, 'pairingId', 'pairing_id') || '');
+    const status = String(pick(pairing, 'status') || '').toLowerCase();
+    if (id && status) pairingStatuses.set(id, status);
+  });
   const participantNames = new Map<string, string>();
   const participants = Array.isArray(state?.participants) ? state.participants : [];
   participants.forEach((participant, index) => {
@@ -350,22 +357,24 @@ function pairingRows(
           'seller_participant_id',
         ) || '',
       );
+      const id = publicText(
+        pick(data, 'pairingId', 'pairing_id'),
+        `pair-${event.sequence}`,
+      );
+      const status = pairingStatuses.get(id) || '';
       return {
-        id: publicText(
-          pick(data, 'pairingId', 'pairing_id'),
-          `pair-${event.sequence}`,
-        ),
+        id,
+        status,
+        roundId: String(event.roundId || pick(data, 'roundId', 'round_id') || ''),
+        roundIndex: Number(pick(data, 'round', 'roundIndex', 'round_index') || 0),
         buyerId,
         sellerId,
         buyer: participantNames.get(buyerId) || shortAgent(buyerId, 'Buyer'),
         seller: participantNames.get(sellerId) || shortAgent(sellerId, 'Seller'),
         good: publicText(pick(data, 'goodId', 'good_id', 'good'), 'goods').toUpperCase(),
-        active: activeIds.has(
-          publicText(
-            pick(data, 'pairingId', 'pairing_id'),
-            `pair-${event.sequence}`,
-          ),
-        ),
+        active:
+          activeIds.has(id)
+          && !['rejected', 'timeout', 'settled', 'settlement_failed'].includes(status),
       };
     });
 }
@@ -448,8 +457,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     let stopped = false;
     let hasSnapshot = false;
     let fallbackTimer: number | undefined;
+    let staleWatchTimer: number | undefined;
     let stateRefreshTimer: number | undefined;
     let eventSource: EventSource | undefined;
+    let lastEventAt = Date.now();
+    let gameTerminal = false;
     const controller = new AbortController();
 
     function mergeEvents(events: PawnhouseTimelineEvent[], nextAfter?: number) {
@@ -468,8 +480,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               index,
           )
           .sort((left, right) => left.sequence - right.sequence)
-          .slice(-120);
+          .slice(-1_000);
       });
+      lastEventAt = Date.now();
     }
 
     async function refreshState(signal?: AbortSignal) {
@@ -480,6 +493,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         ]);
         if (stopped) return;
         hasSnapshot = true;
+        gameTerminal = String(nextState.phase || '').toLowerCase() === 'completed';
         setLiveState(nextState);
         setCurrentGame(
           current?.game.gameId === gameId ? current.game : null,
@@ -506,11 +520,14 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         ]);
         if (stopped) return;
         setLiveState(nextState);
+        hasSnapshot = true;
+        gameTerminal = String(nextState.phase || '').toLowerCase() === 'completed';
         setCurrentGame(
           current?.game.gameId === gameId ? current.game : null,
         );
         mergeEvents(timeline.events, timeline.nextAfter);
         setError('');
+        setFeedDelayed(false);
       } catch (cause) {
         if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
           setError('This table is not available from the public Arena API.');
@@ -529,6 +546,15 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       fallbackTimer = undefined;
     }
 
+    function startStaleWatch() {
+      if (staleWatchTimer !== undefined || stopped) return;
+      staleWatchTimer = window.setInterval(() => {
+        if (gameTerminal || Date.now() - lastEventAt < 5_000) return;
+        setFeedDelayed(true);
+        void refreshAll();
+      }, 3_000);
+    }
+
     void refreshAll(controller.signal).then(() => {
       if (stopped) return;
       if (typeof EventSource === 'undefined') {
@@ -537,8 +563,12 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       }
 
       eventSource = new EventSource(getPawnhouseEventsUrl(gameId, after));
-      eventSource.onopen = stopFallback;
+      eventSource.onopen = () => {
+        lastEventAt = Date.now();
+        stopFallback();
+      };
       eventSource.onerror = startFallback;
+      startStaleWatch();
       eventSource.addEventListener('arena', (message) => {
         try {
           const event = JSON.parse(message.data) as PawnhouseTimelineEvent;
@@ -569,6 +599,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       controller.abort();
       eventSource?.close();
       stopFallback();
+      if (staleWatchTimer !== undefined) {
+        window.clearInterval(staleWatchTimer);
+      }
       if (stateRefreshTimer !== undefined) {
         window.clearTimeout(stateRefreshTimer);
       }
@@ -695,7 +728,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const myAgent = myParticipantId
     ? agents.find((agent) => agent.participantId === myParticipantId)
     : undefined;
-  const currentPair = pairs.find((pair) => pair.active);
+  const currentPair = pairs.find((pair) => pair.active) || pairs[0];
 
   async function leavePool() {
     if (!myParticipantId || !registrationOpen || leavingPool) return;
@@ -1150,6 +1183,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                 <NegotiationTerminal
                   events={events}
                   pairingId={currentPair.id}
+                  pairingStatus={currentPair.status}
                   onReplay={
                     demo
                       ? () =>

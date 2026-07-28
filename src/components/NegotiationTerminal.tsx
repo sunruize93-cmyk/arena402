@@ -5,16 +5,19 @@ import type { PawnhouseTimelineEvent } from '@/lib/game-api';
 import { buildNegotiationTerminalLines } from '@/lib/negotiation-terminal';
 import { useLocale } from '@/components/LocaleProvider';
 import { translateText } from '@/lib/i18n';
+import { isPairingAwaitingAgentAction } from '@/lib/timeline-projection';
 
 interface NegotiationTerminalProps {
   events: PawnhouseTimelineEvent[];
   pairingId: string;
+  pairingStatus?: string;
   onReplay?: () => void;
 }
 
 export default function NegotiationTerminal({
   events,
   pairingId,
+  pairingStatus,
   onReplay,
 }: NegotiationTerminalProps) {
   const { locale } = useLocale();
@@ -109,11 +112,6 @@ export default function NegotiationTerminal({
       negotiationEvents.at(-1)?.data.actor_agent_id ||
       '',
   );
-  const settled = events.some(
-    (event) =>
-      event.type === 'settlement.inventory_committed' &&
-      matchesPairing(event),
-  );
   const reportedRole = String(
     negotiationEvents.at(-1)?.data.role ||
       negotiationEvents.at(-1)?.data.actorRole ||
@@ -125,7 +123,11 @@ export default function NegotiationTerminal({
       : reportedRole === 'seller' || lastActorId === sellerId
         ? 'BUYER'
         : 'SELLER';
-  const waiting = lastAction !== 'accept' && lastAction !== 'reject' && !settled;
+  const waiting = isPairingAwaitingAgentAction(
+    events,
+    pairingId,
+    pairingStatus,
+  );
 
   return (
     <div className="gm-negotiation-terminal">

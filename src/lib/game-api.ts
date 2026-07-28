@@ -28,6 +28,7 @@ export interface PawnhouseTimelineEvent {
   sequence: number;
   type: string;
   data: Record<string, unknown>;
+  roundId?: string | null;
   occurredAt?: string;
   createdAt?: string;
 }

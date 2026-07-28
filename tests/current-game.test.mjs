@@ -331,6 +331,9 @@ test('Live Game viewer uses SSE with a polling fallback', () => {
   assert.match(source, /getPawnhouseEventsUrl/);
   assert.match(source, /addEventListener\('arena'/);
   assert.match(source, /window\.setInterval/);
+  assert.match(source, /Date\.now\(\) - lastEventAt < 5_000/);
+  assert.match(source, /startStaleWatch\(\)/);
+  assert.match(source, /void refreshAll\(\)/);
 });
 
 test('registration and portfolio setup render an explicit waiting room instead of a live round', () => {
