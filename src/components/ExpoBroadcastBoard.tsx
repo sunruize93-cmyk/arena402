@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   advanceDemoPlayback,
@@ -235,6 +236,13 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
   });
 
   useEffect(() => {
+    setLiveState(null);
+    setLiveEvents([]);
+    setError('');
+    setLastUpdated(Date.now());
+  }, [gameId]);
+
+  useEffect(() => {
     document.body.classList.add('broadcast-active');
     return () => document.body.classList.remove('broadcast-active');
   }, []);
@@ -380,6 +388,13 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
       </section>
 
       <header className="broadcast-status">
+        <Link
+          className="broadcast-back"
+          href={demo ? '/' : `/game/${encodeURIComponent(gameId)}`}
+          aria-label="Back to the previous Arena view"
+        >
+          ← BACK
+        </Link>
         <div className="broadcast-brand">
           <span className="broadcast-brand-mark">A402</span>
           <span>

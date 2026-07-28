@@ -96,6 +96,82 @@ test('Hosted credential creation obtains CSRF from the authenticated API session
   }
 });
 
+test('Hosted Agent reconfiguration uses the owner-scoped PATCH route with CSRF', async () => {
+  const calls = [];
+  const previousFetch = globalThis.fetch;
+  const previousDocument = globalThis.document;
+
+  globalThis.document = undefined;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url).endsWith('/api/auth/session')) {
+      return jsonResponse({
+        user: {
+          user_id: 'user_123',
+          username: 'octo-cat',
+          temporary: false,
+          auth_provider: 'github',
+        },
+        csrf_token: 'session-csrf-token',
+      });
+    }
+    if (String(url).endsWith('/api/hosted-agents/agent-test222')) {
+      assert.equal(init.method, 'PATCH');
+      assert.equal(
+        new Headers(init.headers).get('X-CSRF-Token'),
+        'session-csrf-token',
+      );
+      assert.equal(
+        new Headers(init.headers).get('Idempotency-Key'),
+        'hosted-update-test222',
+      );
+      return jsonResponse({
+        agentId: 'agent-test222',
+        displayName: 'test222',
+        providerId: 'deepseek',
+        modelId: 'deepseek-chat',
+        thinkingEnabled: false,
+        provisioningStatus: 'provisioning',
+        routeStatus: 'provisioning',
+        createdAt: '2026-07-28T00:00:00Z',
+        updatedAt: '2026-07-28T01:00:00Z',
+        schemaVersion: 'arena.hosted-control-plane.v1',
+      }, 202);
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const connectorApi = loadTypeScriptModule(
+      new URL('../src/lib/connector-api.ts', import.meta.url),
+    );
+    const hostedAgentApi = loadTypeScriptModule(
+      new URL('../src/lib/hosted-agent-api.ts', import.meta.url),
+      { '@/lib/connector-api': connectorApi },
+    );
+
+    const updated = await hostedAgentApi.updateHostedAgent(
+      'agent-test222',
+      {
+        providerId: 'deepseek',
+        modelId: 'deepseek-chat',
+        thinkingEnabled: false,
+        strategyInstructions: 'Counter when the opening spread is wide.',
+      },
+      'hosted-update-test222',
+    );
+
+    assert.equal(updated.agentId, 'agent-test222');
+    assert.deepEqual(
+      calls.map(({ url }) => new URL(url, 'https://www.arena402.com').pathname),
+      ['/api/auth/session', '/api/hosted-agents/agent-test222'],
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.document = previousDocument;
+  }
+});
+
 test('Current Game mutations obtain CSRF from the cross-origin API session', async () => {
   const calls = [];
   const previousFetch = globalThis.fetch;

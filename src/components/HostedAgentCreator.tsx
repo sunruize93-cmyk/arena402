@@ -21,19 +21,23 @@ import {
   CredentialMetadata,
   HostedAgentApiError,
   HostedAgentCapabilities,
+  HostedAgentDetail,
   HostedAgentSummary,
   HostedModelCapability,
   createHostedAgent,
   createHostedIdempotencyKey,
   createModelCredential,
+  getHostedAgent,
   getHostedAgentCapabilities,
   getHostedAgents,
+  updateHostedAgent,
 } from '@/lib/hosted-agent-api';
 
 type SubmitStage =
   | 'idle'
   | 'saving-credential'
   | 'creating-agent'
+  | 'updating-agent'
   | 'agent-failed'
   | 'complete';
 
@@ -143,6 +147,10 @@ export default function HostedAgentCreator({
   const [pendingAgent, setPendingAgent] = useState<PendingAgentInput | null>(
     null,
   );
+  const [editingAgent, setEditingAgent] = useState<HostedAgentDetail | null>(
+    null,
+  );
+  const [editingAgentId, setEditingAgentId] = useState('');
   const [stage, setStage] = useState<SubmitStage>('idle');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -224,9 +232,9 @@ export default function HostedAgentCreator({
   }, [agents, onReadyChange]);
 
   useEffect(() => {
-    if (!selectedCapability || pendingAgent) return;
+    if (!selectedCapability || pendingAgent || editingAgent) return;
     setThinkingEnabled(selectedCapability.effectiveThinkingDefault);
-  }, [pendingAgent, selectedCapability]);
+  }, [editingAgent, pendingAgent, selectedCapability]);
 
   function rotateCredentialRequest() {
     credentialRequestKey.current = createHostedIdempotencyKey('credential');
@@ -285,12 +293,51 @@ export default function HostedAgentCreator({
       !capabilities?.creationEnabled ||
       authRequired ||
       stage === 'saving-credential' ||
-      stage === 'creating-agent'
+      stage === 'creating-agent' ||
+      stage === 'updating-agent'
     ) {
       return;
     }
 
     setFormError(null);
+    if (editingAgent) {
+      if (
+        !selectedCapability ||
+        selectedCapability.providerId !== editingAgent.providerId
+      ) {
+        setFormError('Choose a model from the Agent’s current provider.');
+        return;
+      }
+      setStage('updating-agent');
+      try {
+        const updated = await updateHostedAgent(
+          editingAgent.agentId,
+          {
+            providerId: selectedCapability.providerId,
+            modelId: selectedCapability.modelId,
+            thinkingEnabled,
+            strategyInstructions: strategyInstructions.trim(),
+          },
+          createHostedIdempotencyKey('update'),
+        );
+        setAgents((current) =>
+          current.map((agent) =>
+            agent.agentId === updated.agentId ? updated : agent,
+          ),
+        );
+        setStage('complete');
+      } catch (error) {
+        setStage('idle');
+        setFormError(
+          safeErrorMessage(
+            error,
+            'The Agent could not be reconfigured. Active-game Agents remain frozen until that game ends.',
+          ),
+        );
+      }
+      return;
+    }
+
     let activeCredential = credential;
     let activeInput = pendingAgent;
 
@@ -350,10 +397,47 @@ export default function HostedAgentCreator({
     setStrategyInstructions('');
     setCredential(null);
     setPendingAgent(null);
+    setEditingAgent(null);
+    setEditingAgentId('');
     setStage('idle');
     setFormError(null);
     if (selectedCapability) {
       setThinkingEnabled(selectedCapability.effectiveThinkingDefault);
+    }
+  }
+
+  async function beginReconfigure(agent: HostedAgentSummary) {
+    if (busy) return;
+    setEditingAgentId(agent.agentId);
+    setFormError(null);
+    try {
+      const detail = await getHostedAgent(agent.agentId);
+      const choice = capabilities?.models.find(
+        (capability) =>
+          capability.providerId === detail.providerId &&
+          capability.modelId === detail.modelId,
+      );
+      if (!choice) {
+        setFormError(
+          'This Agent’s current model is no longer available for reconfiguration.',
+        );
+        return;
+      }
+      if (apiKeyRef.current) apiKeyRef.current.value = '';
+      setCredential(null);
+      setPendingAgent(null);
+      setEditingAgent(detail);
+      setDisplayName(detail.displayName);
+      setSelectedModel(modelChoice(choice));
+      setThinkingEnabled(detail.thinkingEnabled);
+      setStrategyInstructions(detail.strategyInstructions);
+      setStage('idle');
+    } catch (error) {
+      setFormError(
+        safeErrorMessage(error, 'The Agent configuration could not be loaded.'),
+      );
+    } finally {
+      setEditingAgentId('');
     }
   }
 
@@ -365,7 +449,15 @@ export default function HostedAgentCreator({
           .join(' ')
       : '';
   const locked = Boolean(credential && pendingAgent);
-  const busy = stage === 'saving-credential' || stage === 'creating-agent';
+  const busy =
+    stage === 'saving-credential' ||
+    stage === 'creating-agent' ||
+    stage === 'updating-agent';
+  const selectableModels = editingAgent
+    ? capabilities?.models.filter(
+        (capability) => capability.providerId === editingAgent.providerId,
+      ) || []
+    : capabilities?.models || [];
 
   return (
     <section
@@ -382,12 +474,12 @@ export default function HostedAgentCreator({
             id="hosted-agents-heading"
             className="mt-1 text-2xl font-bold text-white"
           >
-            Create a Hosted Agent
+            {editingAgent ? `Reconfigure ${editingAgent.displayName}` : 'Create a Hosted Agent'}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Choose an approved model. Arena stores the provider key through its
-            dedicated credential ingress, then provisions an Agent that can
-            remain online when your browser is closed.
+            {editingAgent
+              ? 'Update the model and strategy without resending its stored provider key. Active-game snapshots remain unchanged.'
+              : 'Choose an approved model. Arena stores the provider key through its dedicated credential ingress, then provisions an Agent that can remain online when your browser is closed.'}
           </p>
         </div>
         <button
@@ -463,7 +555,7 @@ export default function HostedAgentCreator({
                   required
                   maxLength={100}
                   value={displayName}
-                  disabled={locked}
+                  disabled={locked || Boolean(editingAgent)}
                   onChange={(event) => {
                     setDisplayName(event.target.value);
                     rotateAgentRequest();
@@ -493,7 +585,7 @@ export default function HostedAgentCreator({
                   }}
                   className="rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2.5 text-sm text-white outline-none focus:border-purple-400/50 disabled:opacity-60"
                 >
-                  {capabilities.models.map((capability) => (
+                  {selectableModels.map((capability) => (
                     <option
                       key={`${capability.providerId}:${capability.modelId}`}
                       value={modelChoice(capability)}
@@ -505,7 +597,7 @@ export default function HostedAgentCreator({
               </label>
             </div>
 
-            {!locked && (
+            {!locked && !editingAgent && (
               <label className="mt-4 grid gap-1.5 text-xs font-medium text-gray-400">
                 Model API key
                 <input
@@ -590,14 +682,14 @@ export default function HostedAgentCreator({
                 <>
                   <span className="inline-flex items-center gap-2 text-sm font-medium text-arena-success">
                     <CheckCircle2 className="h-4 w-4" />
-                    Agent created
+                    {editingAgent ? 'Agent reconfiguration queued' : 'Agent created'}
                   </span>
                   <button
                     type="button"
                     onClick={resetForm}
                     className="rounded-lg border border-arena-border px-4 py-2 text-sm text-gray-400 hover:text-white"
                   >
-                    Create another
+                    {editingAgent ? 'Done' : 'Create another'}
                   </button>
                 </>
               ) : (
@@ -615,9 +707,13 @@ export default function HostedAgentCreator({
                     ? 'Saving model key…'
                     : stage === 'creating-agent'
                       ? 'Creating Agent…'
+                      : stage === 'updating-agent'
+                        ? 'Reconfiguring Agent…'
                       : stage === 'agent-failed'
                         ? 'Retry Agent creation'
-                        : 'Create Hosted Agent'}
+                        : editingAgent
+                          ? 'Reconfigure Agent'
+                          : 'Create Hosted Agent'}
                 </button>
               )}
               <span className="text-xs text-gray-600">
@@ -683,6 +779,16 @@ export default function HostedAgentCreator({
                     <p className="mt-2 text-[10px] text-gray-700">
                       Updated {formatTimestamp(agent.updatedAt)}
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => void beginReconfigure(agent)}
+                      disabled={busy || Boolean(editingAgentId)}
+                      className="mt-3 rounded-md border border-arena-border px-2.5 py-1.5 text-[10px] font-medium text-gray-400 transition hover:border-purple-400/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {editingAgentId === agent.agentId
+                        ? 'Loading…'
+                        : 'Reconfigure'}
+                    </button>
                   </li>
                 ))}
               </ul>

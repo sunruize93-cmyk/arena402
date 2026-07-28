@@ -439,6 +439,17 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   });
 
   useEffect(() => {
+    setLiveState(null);
+    setCurrentGame(null);
+    setLiveEvents([]);
+    setCurrentProjection(null);
+    setMyParticipantId('');
+    setError('');
+    setFeedDelayed(false);
+    setReplayEventCount(null);
+  }, [gameId]);
+
+  useEffect(() => {
     if (!demo || replayRequested) return;
     const timer = window.setInterval(() => {
       setDemoPlayback((current) => advanceDemoPlayback(current));
@@ -500,6 +511,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         );
         if (current?.game.gameId === gameId) {
           setCurrentProjection(current.game);
+        } else {
+          setCurrentProjection(null);
         }
         setError('');
         setFeedDelayed(false);
@@ -525,6 +538,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         setCurrentGame(
           current?.game.gameId === gameId ? current.game : null,
         );
+        if (current?.game.gameId === gameId) {
+          setCurrentProjection(current.game);
+        } else {
+          setCurrentProjection(null);
+        }
         mergeEvents(timeline.events, timeline.nextAfter);
         setError('');
         setFeedDelayed(false);

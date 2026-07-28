@@ -336,6 +336,51 @@ test('Live Game viewer uses SSE with a polling fallback', () => {
   assert.match(source, /void refreshAll\(\)/);
 });
 
+test('Live Game viewer clears the previous game projection before loading another game', () => {
+  const source = readFileSync(
+    new URL('../src/components/GameViewer.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /setLiveState\(null\)/);
+  assert.match(source, /setLiveEvents\(\[\]\)/);
+  assert.match(source, /setCurrentGame\(null\)/);
+  assert.match(source, /setCurrentProjection\(null\)/);
+  assert.match(source, /setMyParticipantId\(''\)/);
+  assert.match(
+    source,
+    /current\?\.game\.gameId === gameId[\s\S]*setCurrentProjection\(current\.game\)[\s\S]*setCurrentProjection\(null\)/,
+  );
+});
+
+test('Play resets the joined stage when the current game has no participation', () => {
+  const source = readFileSync(
+    new URL('../src/components/PlayJourney.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /setJoinStage\(currentParticipation \? 'joined' : 'idle'\)/,
+  );
+  assert.match(source, /Manage or create Agent/);
+});
+
+test('Expo broadcast clears prior game data and provides an in-app back route', () => {
+  const source = readFileSync(
+    new URL('../src/components/ExpoBroadcastBoard.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /setLiveState\(null\)/);
+  assert.match(source, /setLiveEvents\(\[\]\)/);
+  assert.match(source, /className="broadcast-back"/);
+  assert.match(
+    source,
+    /href=\{demo \? '\/' : `\/game\/\$\{encodeURIComponent\(gameId\)\}`\}/,
+  );
+});
+
 test('registration and portfolio setup render an explicit waiting room instead of a live round', () => {
   const source = readFileSync(
     new URL('../src/components/GameViewer.tsx', import.meta.url),

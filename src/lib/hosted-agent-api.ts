@@ -46,6 +46,11 @@ export interface HostedAgentSummary {
   schemaVersion: string;
 }
 
+export interface HostedAgentDetail extends HostedAgentSummary {
+  credentialId: string;
+  strategyInstructions: string;
+}
+
 export interface CredentialMetadata {
   credentialId: string;
   providerId: string;
@@ -83,6 +88,7 @@ const SAFE_ERROR_CODES = new Set([
   'repository_unavailable',
   'secret_store_unavailable',
   'agent_not_found',
+  'agent_not_ready',
 ]);
 
 export type HostedAgentApiErrorCode =
@@ -163,7 +169,7 @@ async function request<T>(
 }
 
 export function createHostedIdempotencyKey(
-  operation: 'credential' | 'agent',
+  operation: 'credential' | 'agent' | 'update',
 ): string {
   const suffix =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -183,6 +189,14 @@ export async function getHostedAgents(): Promise<HostedAgentSummary[]> {
     '/api/hosted-agents?scope=mine',
   );
   return response.agents || [];
+}
+
+export async function getHostedAgent(
+  agentId: string,
+): Promise<HostedAgentDetail> {
+  return request<HostedAgentDetail>(
+    `/api/hosted-agents/${encodeURIComponent(agentId)}`,
+  );
 }
 
 export async function createModelCredential(
@@ -218,6 +232,27 @@ export async function createHostedAgent(
     '/api/hosted-agents',
     {
       method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(input),
+    },
+    { csrf: true },
+  );
+}
+
+export async function updateHostedAgent(
+  agentId: string,
+  input: {
+    providerId: string;
+    modelId: string;
+    thinkingEnabled: boolean;
+    strategyInstructions: string;
+  },
+  idempotencyKey: string,
+): Promise<HostedAgentSummary> {
+  return request<HostedAgentSummary>(
+    `/api/hosted-agents/${encodeURIComponent(agentId)}`,
+    {
+      method: 'PATCH',
       headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify(input),
     },

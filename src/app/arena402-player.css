@@ -540,6 +540,30 @@
   white-space: nowrap;
 }
 
+.play-agent-manage {
+  margin-top: 20px;
+  border: 1px solid var(--line);
+}
+
+.play-agent-manage > summary {
+  padding: 18px 22px;
+  color: var(--paper);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.play-agent-manage[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.play-agent-manage > #hosted-agents {
+  margin: 0;
+  padding: 28px 22px;
+  border-top: 0;
+}
+
 .play-matchmaking-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

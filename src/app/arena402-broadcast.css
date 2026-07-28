@@ -111,12 +111,36 @@
 
 .broadcast-status {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 24px;
   padding: 0 var(--edge);
   border-bottom: 1px solid var(--line-strong);
   background: var(--ink);
+}
+
+.broadcast-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: clamp(8px, 0.52vw, 11px);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.broadcast-back:hover,
+.broadcast-back:focus-visible {
+  border-color: var(--paper);
+  background: rgba(244, 242, 236, 0.08);
+  outline: none;
 }
 
 .broadcast-brand {

@@ -199,7 +199,7 @@ export default function PlayJourney() {
           return currentParticipation?.agentId || nextAgents[0]?.agentId || '';
         });
       }
-      if (currentParticipation) setJoinStage('joined');
+      setJoinStage(currentParticipation ? 'joined' : 'idle');
       setLoadError(warnings.join(' '));
       setLoadState(warnings.length === 0 ? 'ready' : 'error');
     } catch (cause) {
@@ -207,6 +207,13 @@ export default function PlayJourney() {
       setLoadState('error');
     }
   }, []);
+
+  const handleHostedReadyChange = useCallback(
+    (ready: boolean) => {
+      if (ready) void refresh();
+    },
+    [refresh],
+  );
 
   useEffect(() => {
     void refresh();
@@ -391,26 +398,34 @@ export default function PlayJourney() {
         </div>
 
         {readyAgents.length > 0 ? (
-          <div className="play-agent-select">
-            {readyAgents.map((agent) => (
-              <button
-                type="button"
-                className={selectedAgentId === agent.agentId ? 'is-selected' : ''}
-                key={agent.agentId}
-                onClick={() => setSelectedAgentId(agent.agentId)}
-                disabled={joined}
-              >
-                <span className="label">{agent.providerId} / {agent.modelId}</span>
-                <strong>{agent.displayName}</strong>
-                <small>READY · {agent.agentId}</small>
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="play-agent-select">
+              {readyAgents.map((agent) => (
+                <button
+                  type="button"
+                  className={selectedAgentId === agent.agentId ? 'is-selected' : ''}
+                  key={agent.agentId}
+                  onClick={() => setSelectedAgentId(agent.agentId)}
+                  disabled={joined}
+                >
+                  <span className="label">{agent.providerId} / {agent.modelId}</span>
+                  <strong>{agent.displayName}</strong>
+                  <small>READY · {agent.agentId}</small>
+                </button>
+              ))}
+            </div>
+            {!joined && (
+              <details className="play-agent-manage">
+                <summary>Manage or create Agent</summary>
+                <HostedAgentCreator
+                  onReadyChange={handleHostedReadyChange}
+                />
+              </details>
+            )}
+          </>
         ) : (
           <HostedAgentCreator
-            onReadyChange={(ready) => {
-              if (ready) void refresh();
-            }}
+            onReadyChange={handleHostedReadyChange}
           />
         )}
       </section>
