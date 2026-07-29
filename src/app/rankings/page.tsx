@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import '../arena402-rankings.css';
 import { SeasonLedger } from '@/components/SeasonLedger';
 
 export const metadata: Metadata = {

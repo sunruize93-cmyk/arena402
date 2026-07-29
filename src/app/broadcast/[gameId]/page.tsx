@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import '../../arena402-broadcast.css';
 import ExpoBroadcastBoard from '@/components/ExpoBroadcastBoard';
 
 export const metadata: Metadata = {

@@ -1,6 +1,10 @@
 import type { PawnhouseTimelineEvent } from '@/lib/game-api';
-
-type RecordValue = Record<string, unknown>;
+import {
+  projectionValue as pick,
+  publicAgentName,
+  publicProjectionText,
+} from '@/lib/public-projection';
+import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
 
 export type NegotiationTerminalLineKind =
   | 'sys'
@@ -17,28 +21,12 @@ export interface NegotiationTerminalLine {
   highlight?: boolean;
 }
 
-function pick(record: RecordValue | undefined, ...keys: string[]): unknown {
-  if (!record) return undefined;
-  for (const key of keys) {
-    if (record[key] !== undefined && record[key] !== null) return record[key];
-  }
-  return undefined;
-}
-
 function cleanText(value: unknown, fallback: string): string {
-  if (typeof value !== 'string' && typeof value !== 'number') return fallback;
-  const clean = String(value).trim();
-  return clean ? clean.slice(0, 180) : fallback;
+  return publicProjectionText(value, fallback);
 }
 
 function agentName(value: unknown, fallback: string): string {
-  return cleanText(value, fallback)
-    .replace(/^agent[_:-]?/i, '')
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, 28);
+  return publicAgentName(value, fallback, 120);
 }
 
 function eventPairingId(event: PawnhouseTimelineEvent): string {

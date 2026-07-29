@@ -2,10 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import {
-  ConnectorAuthSession,
-  getConnectorAuthSession,
-} from '@/lib/connector-api';
+import { useAuthSession } from '@/components/AuthSessionProvider';
 import {
   GameParticipation,
   getGameParticipations,
@@ -47,28 +44,27 @@ const BOARD_MODULES = [
 ] as const;
 
 export default function PlayerArenaObservatory() {
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
+  const { session, loading: sessionLoading } = useAuthSession();
   const [participations, setParticipations] = useState<GameParticipation[]>([]);
   const [selectedParticipationId, setSelectedParticipationId] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (sessionLoading) return;
     let cancelled = false;
-    void getConnectorAuthSession()
-      .then(async (nextSession) => {
-        if (cancelled) return;
-        setSession(nextSession);
-        if (nextSession) {
-          const values = await getGameParticipations();
-          if (!cancelled) {
-            setParticipations(values);
-            setSelectedParticipationId(values[0]?.gameAgentId || '');
-          }
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+    void getGameParticipations()
+      .then((values) => {
+        if (!cancelled) {
+          setParticipations(values);
+          setSelectedParticipationId(values[0]?.gameAgentId || '');
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setSession(null);
           setParticipations([]);
         }
       })
@@ -78,7 +74,7 @@ export default function PlayerArenaObservatory() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session, sessionLoading]);
 
   if (loading) {
     return (

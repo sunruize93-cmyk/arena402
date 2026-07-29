@@ -1,29 +1,30 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import HostedAgentCreator from '@/components/HostedAgentCreator';
-import {
-  ConnectorAuthSession,
-  getConnectorAuthSession,
-} from '@/lib/connector-api';
+import { useAuthSession } from '@/components/AuthSessionProvider';
 import {
   CurrentGame,
-  createCurrentGameMandate,
-  getActivePaymentMandate,
   getCurrentGame,
   getGameParticipations,
-  joinCurrentGame,
-  preflightCurrentGame,
-  revokeCurrentGameMandate,
 } from '@/lib/game-api';
+import {
+  prepareCurrentGameEntry,
+  sealCurrentGameEntry,
+} from '@/lib/current-game-entry';
 import {
   HostedAgentSummary,
   getHostedAgents,
 } from '@/lib/hosted-agent-api';
 import { ArenaApiError } from '@/lib/platform-api';
 import { MyWallet, getMyWallet } from '@/lib/wallet-api';
+
+const HostedAgentCreator = dynamic(
+  () => import('@/components/HostedAgentCreator'),
+  { loading: () => <p className="data-state">Opening Hosted Agent tools…</p> },
+);
 
 type LoadState = 'loading' | 'ready' | 'error';
 type JoinStage = 'idle' | 'preflight' | 'mandate' | 'joining' | 'joined';
@@ -42,6 +43,17 @@ function stableSessionId(key: string, prefix: string): string {
   const current = window.sessionStorage.getItem(key);
   if (current) return current;
   const created = randomId(prefix);
+  window.sessionStorage.setItem(key, created);
+  return created;
+}
+
+function stableSessionTimestamp(key: string): string {
+  if (typeof window === 'undefined') {
+    return new Date(Date.now() - 5_000).toISOString();
+  }
+  const current = window.sessionStorage.getItem(key);
+  if (current) return current;
+  const created = new Date(Date.now() - 5_000).toISOString();
   window.sessionStorage.setItem(key, created);
   return created;
 }
@@ -112,8 +124,8 @@ function formatCountdown(milliseconds: number): string {
 
 export default function PlayJourney() {
   const router = useRouter();
+  const { session, loading: sessionLoading } = useAuthSession();
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
   const [wallet, setWallet] = useState<MyWallet | null>(null);
   const [agents, setAgents] = useState<HostedAgentSummary[]>([]);
   const [game, setGame] = useState<CurrentGame | null>(null);
@@ -136,9 +148,8 @@ export default function PlayJourney() {
 
   const refresh = useCallback(async () => {
     try {
-      const nextSession = await getConnectorAuthSession();
-      setSession(nextSession);
-      if (!nextSession) {
+      if (sessionLoading) return;
+      if (!session) {
         setLoadState('ready');
         return;
       }
@@ -206,7 +217,7 @@ export default function PlayJourney() {
       setLoadError(joinError(cause));
       setLoadState('error');
     }
-  }, []);
+  }, [session, sessionLoading]);
 
   const handleHostedReadyChange = useCallback(
     (ready: boolean) => {
@@ -248,16 +259,25 @@ export default function PlayJourney() {
     const preflightKey = `${storageKey}:preflight`;
     const mandateKey = `${storageKey}:mandate`;
     const joinKey = `${storageKey}:join`;
+    const resetEntryKeys = () => {
+      [
+        preflightKey,
+        mandateKey,
+        `${mandateKey}:request`,
+        `${mandateKey}:valid-from`,
+        joinKey,
+      ].forEach((key) => window.sessionStorage.removeItem(key));
+    };
     let failedStage: JoinStage = 'preflight';
     try {
       setJoinStage('preflight');
       let preflight;
       try {
-        preflight = await preflightCurrentGame(
-          game.gameId,
-          selectedAgentId,
-          stableSessionId(preflightKey, 'join-preflight'),
-        );
+        preflight = await prepareCurrentGameEntry({
+          gameId: game.gameId,
+          agentId: selectedAgentId,
+          preflightKey: stableSessionId(preflightKey, 'join-preflight'),
+        });
       } catch (cause) {
         if (
           !(cause instanceof ArenaApiError)
@@ -265,48 +285,43 @@ export default function PlayJourney() {
         ) {
           throw cause;
         }
-        window.sessionStorage.removeItem(preflightKey);
-        window.sessionStorage.removeItem(mandateKey);
-        preflight = await preflightCurrentGame(
-          game.gameId,
-          selectedAgentId,
-          stableSessionId(preflightKey, 'join-preflight'),
-        );
+        resetEntryKeys();
+        preflight = await prepareCurrentGameEntry({
+          gameId: game.gameId,
+          agentId: selectedAgentId,
+          preflightKey: stableSessionId(preflightKey, 'join-preflight'),
+        });
       }
 
       failedStage = 'mandate';
       setJoinStage('mandate');
-      let mandate = await getActivePaymentMandate(game.gameId);
-      if (mandate?.joinAuthorizationId !== preflight.joinAuthorizationId) {
-        if (mandate) {
-          await revokeCurrentGameMandate(mandate.mandateId);
-        }
-        window.sessionStorage.removeItem(mandateKey);
-        mandate = null;
-      }
-      if (!mandate) {
-        mandate = await createCurrentGameMandate(
-          game.gameId,
-          preflight,
-          stableSessionId(mandateKey, 'mandate'),
-        );
-      }
-
-      failedStage = 'joining';
-      setJoinStage('joining');
-      await joinCurrentGame(
-        game.gameId,
-        {
-          agentId: selectedAgentId,
-          joinAuthorizationId: preflight.joinAuthorizationId,
-          paymentMandateId: mandate.mandateId,
+      await sealCurrentGameEntry({
+        gameId: game.gameId,
+        agentId: selectedAgentId,
+        preflight,
+        keys: {
+          mandateId: stableSessionId(mandateKey, 'mandate'),
+          mandateRequest: stableSessionId(`${mandateKey}:request`, 'mandate-request'),
+          mandateValidFrom: stableSessionTimestamp(`${mandateKey}:valid-from`),
+          join: stableSessionId(joinKey, 'join'),
         },
-        stableSessionId(joinKey, 'join'),
-      );
+        onStage: (stage) => {
+          if (stage === 'join') {
+            failedStage = 'joining';
+            setJoinStage('joining');
+          }
+        },
+      });
       setJoinedAgentId(selectedAgentId);
       setJoinStage('joined');
       await refresh();
     } catch (cause) {
+      if (
+        cause instanceof ArenaApiError
+        && cause.code === 'join_authorization_expired'
+      ) {
+        resetEntryKeys();
+      }
       setJoinStage('idle');
       setError(joinError(cause, failedStage));
     }

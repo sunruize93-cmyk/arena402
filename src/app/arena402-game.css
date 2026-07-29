@@ -1540,6 +1540,8 @@
 .gm-chronicle { flex: 1; }
 
 .gm-chronicle-list article {
+  content-visibility: auto;
+  contain-intrinsic-size: 72px;
   position: relative;
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);

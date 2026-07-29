@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import '../arena402-ledger.css';
 import ImperialLedger from '@/components/ImperialLedger';
 
 export const metadata: Metadata = {

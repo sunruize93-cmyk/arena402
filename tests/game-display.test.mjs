@@ -1,32 +1,20 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { loadTypeScriptModule } from './load-typescript.mjs';
 
-function loadTypeScriptModule(path) {
-  const filePath = path instanceof URL ? fileURLToPath(path) : path;
-  const source = readFileSync(filePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filePath,
-  }).outputText;
-  const module = { exports: {} };
-  Function('require', 'module', 'exports', compiled)(
-    undefined,
-    module,
-    module.exports,
+const publicProjection = loadTypeScriptModule(
+  new URL('../src/lib/public-projection.ts', import.meta.url),
+);
+
+function loadGameDisplay() {
+  return loadTypeScriptModule(
+    new URL('../src/lib/game-display.ts', import.meta.url),
+    { '@/lib/public-projection': publicProjection },
   );
-  return module.exports;
 }
 
 test('historical rankings prefer the frozen Agent display name', () => {
-  const { rankingAgentIdentity } = loadTypeScriptModule(
-    new URL('../src/lib/game-display.ts', import.meta.url),
-  );
+  const { rankingAgentIdentity } = loadGameDisplay();
 
   assert.deepEqual(
     rankingAgentIdentity(
@@ -45,9 +33,7 @@ test('historical rankings prefer the frozen Agent display name', () => {
 });
 
 test('historical rankings use a compact stable ID only as a fallback', () => {
-  const { rankingAgentIdentity } = loadTypeScriptModule(
-    new URL('../src/lib/game-display.ts', import.meta.url),
-  );
+  const { rankingAgentIdentity } = loadGameDisplay();
 
   assert.deepEqual(
     rankingAgentIdentity(

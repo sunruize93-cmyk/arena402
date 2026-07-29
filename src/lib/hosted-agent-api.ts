@@ -1,8 +1,7 @@
 import {
-  CONNECTOR_API_BASE_URL,
-  ConnectorApiError,
-  getConnectorCsrfToken,
-} from '@/lib/connector-api';
+  ArenaHttpError,
+  arenaHttpRequest,
+} from '@/lib/arena-http';
 
 export type HostedAgentStatus =
   | 'provisioning'
@@ -108,64 +107,25 @@ export class HostedAgentApiError extends Error {
   }
 }
 
-function safeErrorCode(body: unknown): string | null {
-  if (!body || typeof body !== 'object') return null;
-  const detail = Reflect.get(body, 'detail');
-  if (!detail || typeof detail !== 'object') return null;
-  const code = Reflect.get(detail, 'code');
-  return typeof code === 'string' && SAFE_ERROR_CODES.has(code) ? code : null;
-}
-
 async function request<T>(
   path: string,
   init?: RequestInit,
   options?: { csrf?: boolean },
 ): Promise<T> {
-  const headers = new Headers(init?.headers);
-  headers.set('Accept', 'application/json');
-  if (init?.body) headers.set('Content-Type', 'application/json');
-
-  if (options?.csrf) {
-    try {
-      headers.set('X-CSRF-Token', await getConnectorCsrfToken());
-    } catch (error) {
-      if (error instanceof ConnectorApiError) {
-        throw new HostedAgentApiError(
-          error.status === 401 ? 'authentication_required' : 'request_failed',
-          error.status,
-        );
-      }
-      throw new HostedAgentApiError('network_unavailable', 0);
-    }
-  }
-
-  let response: Response;
   try {
-    response = await fetch(`${CONNECTOR_API_BASE_URL}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers,
-    });
-  } catch {
-    throw new HostedAgentApiError('network_unavailable', 0);
-  }
-
-  if (!response.ok) {
-    let code: string | null = null;
-    try {
-      // Only the allowlisted machine code is retained. Response text and
-      // arbitrary detail fields are never surfaced to the UI.
-      code = safeErrorCode(await response.json());
-    } catch {
-      // The HTTP status is enough to choose a safe local message.
+    return await arenaHttpRequest<T>(path, init, { csrf: options?.csrf });
+  } catch (error) {
+    if (error instanceof ArenaHttpError) {
+      let code = SAFE_ERROR_CODES.has(error.code) ? error.code : 'request_failed';
+      if (error.status === 0) code = 'network_unavailable';
+      if (error.status === 401) code = 'authentication_required';
+      if (error.status === 403 && error.code === 'csrf_required') {
+        code = 'csrf_required';
+      }
+      throw new HostedAgentApiError(code, error.status);
     }
-
-    if (response.status === 401) code = 'authentication_required';
-    if (response.status === 403 && !code) code = 'csrf_required';
-    throw new HostedAgentApiError(code || 'request_failed', response.status);
+    throw error;
   }
-
-  return response.json() as Promise<T>;
 }
 
 export function createHostedIdempotencyKey(

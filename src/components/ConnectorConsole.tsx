@@ -51,8 +51,6 @@ import { translateText } from '@/lib/i18n';
 const REFRESH_INTERVAL_MS = 8_000;
 const CONNECTOR_DEMO_ENABLED =
   process.env.NEXT_PUBLIC_CONNECTOR_DEMO === 'true';
-// Replace with the authenticated platform user once the existing login flow exposes it.
-const CURRENT_OWNER_ID = 'demo-user';
 
 function formatTimestamp(value?: string): string {
   if (!value) return 'Not reported';
@@ -604,7 +602,6 @@ export default function ConnectorConsole({
     setNotice(null);
     try {
       const nextPairing = await createPairing({
-        owner_id: CURRENT_OWNER_ID,
         device_name: deviceName.trim() || 'Local computer',
       });
       setPairing(nextPairing);
@@ -620,7 +617,7 @@ export default function ConnectorConsole({
     setPairingBusy(true);
     setApiError(null);
     try {
-      const approved = await approvePairing(pairing.user_code, CURRENT_OWNER_ID);
+      const approved = await approvePairing(pairing.user_code);
       setPairing((current) => (current ? { ...current, ...approved } : approved));
       setNotice('Pairing approved. The Connector can now complete device enrollment.');
       void refresh(true);
@@ -639,7 +636,7 @@ export default function ConnectorConsole({
     setApiError(null);
     setNotice(null);
     try {
-      const approved = await approvePairing(userCode, CURRENT_OWNER_ID);
+      const approved = await approvePairing(userCode);
       setApprovalCode('');
       setPairing((current) =>
         current?.user_code === approved.user_code ? { ...current, ...approved } : current,
@@ -713,7 +710,7 @@ export default function ConnectorConsole({
     setRevokingDeviceId(device.device_id);
     setApiError(null);
     try {
-      await revokeConnectorDevice(device.device_id, CURRENT_OWNER_ID);
+      await revokeConnectorDevice(device.device_id);
       setNotice(`${device.name} was revoked.`);
       await refresh(true);
     } catch (error) {

@@ -1,4 +1,5 @@
 import WalletSurface from '@/components/WalletSurface';
+import '../arena402-wallet.css';
 
 export const metadata = {
   title: 'Treasury',

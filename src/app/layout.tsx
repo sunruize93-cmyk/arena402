@@ -1,21 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './arena402-design.css';
-import './arena402-game.css';
-import './arena402-terminal.css';
-import './arena402-parallax.css';
-import './arena402-integration.css';
-import './arena402-auth.css';
-import './arena402-admin.css';
-import './arena402-broadcast.css';
-import './arena402-rankings.css';
-import './arena402-player.css';
-import './arena402-wallet.css';
-import './arena402-ledger.css';
-import './arena402-founding.css';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import LocaleProvider from '@/components/LocaleProvider';
+import AuthSessionProvider from '@/components/AuthSessionProvider';
 
 export const metadata: Metadata = {
   title: {
@@ -34,11 +23,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
         <LocaleProvider>
-          <SiteHeader />
-          <div id="page">
-            <main id="main-content">{children}</main>
-          </div>
-          <SiteFooter />
+          <AuthSessionProvider>
+            <SiteHeader />
+            <div id="page">
+              <main id="main-content">{children}</main>
+            </div>
+            <SiteFooter />
+          </AuthSessionProvider>
         </LocaleProvider>
       </body>
     </html>

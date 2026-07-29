@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import '../arena402-auth.css';
 import { Github } from 'lucide-react';
 import CredentialAuthForm from '@/components/CredentialAuthForm';
 import SignedInRedirect from '@/components/SignedInRedirect';

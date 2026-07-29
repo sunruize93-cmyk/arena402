@@ -1,41 +1,27 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
-import ConnectorConsole from '@/components/ConnectorConsole';
-import HostedAgentCreator from '@/components/HostedAgentCreator';
-import {
-  ConnectorAuthSession,
-  getConnectorAuthSession,
-} from '@/lib/connector-api';
+import { useAuthSession } from '@/components/AuthSessionProvider';
+
+const ConnectorConsole = dynamic(() => import('@/components/ConnectorConsole'), {
+  loading: () => <p className="data-state">Opening local Connector tools…</p>,
+});
+const HostedAgentCreator = dynamic(
+  () => import('@/components/HostedAgentCreator'),
+  { loading: () => <p className="data-state">Opening Hosted Agent tools…</p> },
+);
 
 type DeploymentPath = 'local' | 'hosted';
 
 export default function AgentDeploymentJourney() {
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { session, loading } = useAuthSession();
   const [path, setPath] = useState<DeploymentPath>('local');
   const [localReady, setLocalReady] = useState(false);
   const [hostedReady, setHostedReady] = useState(false);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const hashApplied = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getConnectorAuthSession()
-      .then((value) => {
-        if (!cancelled) setSession(value);
-      })
-      .catch(() => {
-        if (!cancelled) setSession(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Landing on /agents#hosted-agents (e.g. after sign-in) must open the
   // hosted tab first — the anchor target only exists once that tab renders.

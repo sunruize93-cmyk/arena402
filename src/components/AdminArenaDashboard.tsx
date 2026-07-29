@@ -305,12 +305,10 @@ function StatusPill({ children, tone }: { children: string; tone?: Tone }) {
 
 function TxLink({ hash }: { hash: string }) {
   if (hash === '—') return <span className="admin-dim">—</span>;
-  const href = `https://testnet.blockscout.injective.network/tx/${hash.replace('…', '')}`;
   return (
-    <a className="admin-link" href={href} target="_blank" rel="noreferrer">
+    <span className="admin-link" title="Fixture transaction reference">
       {hash}
-      <ArrowUpRight aria-hidden="true" />
-    </a>
+    </span>
   );
 }
 
@@ -370,6 +368,10 @@ export default function AdminArenaDashboard() {
 
   return (
     <div className="admin-page">
+      <div className="admin-preview-banner" role="note">
+        Interface fixture only · values are non-authoritative · actions send no
+        API or chain request
+      </div>
       <header className="admin-topbar">
         <a className="admin-wordmark" href="#overview" aria-label="Arena Control home">
           <span>Arena 402</span>
@@ -378,8 +380,8 @@ export default function AdminArenaDashboard() {
         </a>
         <div className="admin-topbar-state">
           <span className="admin-environment"><i /> Injective EVM Testnet · 1439</span>
-          <span>Snapshot 14:31:18 UTC</span>
-          <span className="admin-operator"><ShieldCheck /> gh:ad…19c1</span>
+          <span>Fixture snapshot · 14:31:18 UTC</span>
+          <span className="admin-operator"><ShieldCheck /> Example operator</span>
         </div>
       </header>
 
@@ -396,8 +398,8 @@ export default function AdminArenaDashboard() {
           </nav>
           <div className="admin-rail-foot">
             <LockKeyhole aria-hidden="true" />
-            <p>Server-authorized</p>
-            <small>Session · CSRF · Audit</small>
+            <p>Contract preview</p>
+            <small>Session · CSRF · Audit required</small>
           </div>
         </aside>
 
@@ -425,7 +427,7 @@ export default function AdminArenaDashboard() {
                 <p className="label">01 · Platform overview</p>
                 <h2 id="overview-title">Operating position</h2>
               </div>
-              <span className="admin-live-mark"><Radio aria-hidden="true" /> live read model</span>
+              <span className="admin-live-mark"><Radio aria-hidden="true" /> fixture read model</span>
             </div>
 
             <div className="admin-metric-grid">

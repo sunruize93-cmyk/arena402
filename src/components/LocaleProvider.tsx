@@ -144,35 +144,55 @@ export default function LocaleProvider({
     // a second render before receiving translated copy.
     document.documentElement.lang = nextLocale;
     document.documentElement.dataset.locale = nextLocale;
-    translateSubtree(document.documentElement, nextLocale);
   }, []);
 
   useLayoutEffect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dataset.locale = locale;
-    translateSubtree(document.documentElement, locale);
+    translateSubtree(document.body, locale);
+    if (locale === 'en') return;
 
+    const pending = new Set<Node>();
+    let frame: number | null = null;
+    const flush = () => {
+      frame = null;
+      const roots = [...pending].filter(
+        (node) =>
+          ![...pending].some(
+            (candidate) =>
+              candidate !== node
+              && candidate instanceof Element
+              && candidate.contains(node),
+          ),
+      );
+      pending.clear();
+      for (const root of roots) translateSubtree(root, locale);
+    };
+    const schedule = (node: Node) => {
+      pending.add(node);
+      if (frame === null) frame = window.requestAnimationFrame(flush);
+    };
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        if (mutation.type === 'characterData') {
-          translateTextNode(mutation.target as Text, locale);
-          continue;
+        if (mutation.type === 'characterData' || mutation.type === 'attributes') {
+          schedule(mutation.target);
+        } else {
+          for (const node of mutation.addedNodes) schedule(node);
         }
-        if (mutation.type === 'attributes') {
-          translateElementAttributes(mutation.target as Element, locale);
-          continue;
-        }
-        for (const node of mutation.addedNodes) translateSubtree(node, locale);
       }
     });
-    observer.observe(document.documentElement, {
+    observer.observe(document.body, {
       subtree: true,
       childList: true,
       characterData: true,
       attributes: true,
       attributeFilter: [...TRANSLATED_ATTRIBUTES],
     });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      pending.clear();
+    };
   }, [locale]);
 
   const value = useMemo(

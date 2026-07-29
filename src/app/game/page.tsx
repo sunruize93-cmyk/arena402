@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import '../arena402-game.css';
 import GameLobby from '@/components/GameLobby';
 
 export default function GameLobbyPage() {

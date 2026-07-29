@@ -2,28 +2,16 @@ import type {
   PawnhouseGameState,
   PawnhouseTimelineEvent,
 } from '@/lib/game-api';
-
-type RecordValue = Record<string, unknown>;
+import {
+  projectionValue as pick,
+  publicAgentName,
+} from '@/lib/public-projection';
+import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
 
 const GOODS = ['grain', 'iron', 'warhorse', 'gems'] as const;
 
-function pick(record: RecordValue | undefined, ...keys: string[]): unknown {
-  if (!record) return undefined;
-  for (const key of keys) {
-    if (record[key] !== undefined && record[key] !== null) return record[key];
-  }
-  return undefined;
-}
-
 function displayName(value: unknown, fallback: string): string {
-  if (typeof value !== 'string' || !value.trim()) return fallback;
-  return value
-    .replace(/^agent[_:-]?/i, '')
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, 28);
+  return publicAgentName(value, fallback, 120);
 }
 
 export default function MatchmakingPool({

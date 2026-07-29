@@ -3,10 +3,8 @@
 import Link from 'next/link';
 import { ArrowUpRight, Check, Copy, ExternalLink, ShieldCheck, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ConnectorAuthSession,
-  getConnectorAuthSession,
-} from '@/lib/connector-api';
+import { useAuthSession } from '@/components/AuthSessionProvider';
+import type { ArenaAuthSession } from '@/lib/arena-http';
 import {
   ExternalWallet,
   WalletApiError,
@@ -34,7 +32,7 @@ const NETWORK_FACTS = [
   ['Explorer', 'Testnet Blockscout'],
 ] as const;
 
-function shortUser(session: ConnectorAuthSession | null): string {
+function shortUser(session: ArenaAuthSession | null): string {
   return session?.user.display_name || session?.user.username || 'Unclaimed player';
 }
 
@@ -117,7 +115,7 @@ async function useInjectiveTestnet(provider: EthereumProvider): Promise<void> {
 }
 
 export default function WalletSurface() {
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
+  const { session, loading: sessionLoading } = useAuthSession();
   const [wallet, setWallet] = useState<MyWallet | null>(null);
   const [externalWallet, setExternalWallet] = useState<ExternalWallet | null>(null);
   const [overview, setOverview] = useState<WalletOverview | null>(null);
@@ -153,14 +151,12 @@ export default function WalletSurface() {
   }, []);
 
   useEffect(() => {
+    if (sessionLoading) return;
     let cancelled = false;
 
     async function loadWallet() {
       try {
-        const value = await getConnectorAuthSession();
-        if (cancelled) return;
-        setSession(value);
-        if (!value) return;
+        if (!session) return;
 
         const [treasuryResult, externalResult] = await Promise.allSettled([
           loadTreasury(),
@@ -192,7 +188,7 @@ export default function WalletSurface() {
     return () => {
       cancelled = true;
     };
-  }, [loadTreasury]);
+  }, [loadTreasury, session, sessionLoading]);
 
   async function checkAssignment() {
     setBusy(true);

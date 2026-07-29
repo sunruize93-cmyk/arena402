@@ -1,10 +1,5 @@
 import {
-  ConnectorApiError,
-  getConnectorCsrfToken,
-} from '@/lib/connector-api';
-import {
   API_BASE_URL,
-  ArenaApiError,
   arenaApiRequest,
 } from '@/lib/platform-api';
 import type { InitialPortfolio } from '@/lib/initial-loadout';
@@ -288,44 +283,20 @@ export async function getGameParticipations(): Promise<GameParticipation[]> {
   return response.participations || [];
 }
 
-async function mutationHeaders(
-  idempotencyKey?: string,
-): Promise<Record<string, string>> {
-  let csrfToken: string;
-  try {
-    try {
-      csrfToken = await getConnectorCsrfToken();
-    } catch (error) {
-      if (error instanceof ConnectorApiError) throw error;
-      await new Promise((resolve) => globalThis.setTimeout(resolve, 250));
-      csrfToken = await getConnectorCsrfToken();
-    }
-  } catch (error) {
-    if (error instanceof ConnectorApiError) {
-      throw new ArenaApiError(
-        error.status,
-        error.status === 401 ? 'authentication_required' : 'csrf_session_unavailable',
-      );
-    }
-    throw new ArenaApiError(0, 'network_unavailable');
-  }
-  return {
-    'Content-Type': 'application/json',
-    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-    'X-CSRF-Token': csrfToken,
-  };
-}
-
 async function idempotentMutation<T>(
   path: string,
   body: Record<string, unknown>,
   idempotencyKey?: string,
 ): Promise<T> {
-  return arenaApiRequest<T>(path, {
-    method: 'POST',
-    headers: await mutationHeaders(idempotencyKey),
-    body: JSON.stringify(body),
-  });
+  return arenaApiRequest<T>(
+    path,
+    {
+      method: 'POST',
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      body: JSON.stringify(body),
+    },
+    { csrf: true },
+  );
 }
 
 export async function getJoinPreflight(
@@ -337,21 +308,10 @@ export async function getJoinPreflight(
     `/api/v1/games/${encodeURIComponent(gameId)}/join-preflight`,
     {
       method: 'POST',
-      headers: await mutationHeaders(idempotencyKey),
+      headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify({ agentId }),
     },
-  );
-}
-
-export function preflightCurrentGame(
-  gameId: string,
-  agentId: string,
-  idempotencyKey: string,
-): Promise<JoinPreflight> {
-  return idempotentMutation<JoinPreflight>(
-    `/api/v1/games/${encodeURIComponent(gameId)}/join-preflight`,
-    { agentId },
-    idempotencyKey,
+    { csrf: true },
   );
 }
 
@@ -361,11 +321,15 @@ export async function joinCurrentGame(
   idempotencyKey: string,
 ): Promise<JoinCurrentGameResponse> {
   const path = `/api/v1/games/${encodeURIComponent(gameId)}/participants`;
-  return arenaApiRequest<JoinCurrentGameResponse>(path, {
-    method: 'POST',
-    headers: await mutationHeaders(idempotencyKey),
-    body: JSON.stringify(payload),
-  });
+  return arenaApiRequest<JoinCurrentGameResponse>(
+    path,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    },
+    { csrf: true },
+  );
 }
 
 export function getArenaWallet(signal?: AbortSignal): Promise<{ wallet: ArenaWallet }> {
@@ -382,13 +346,6 @@ export function getPaymentMandate(
   );
 }
 
-export async function getActivePaymentMandate(
-  gameId: string,
-): Promise<PaymentMandate | null> {
-  const value = await getPaymentMandate(gameId);
-  return value.mandate;
-}
-
 export async function createPaymentMandate(
   payload: CreatePaymentMandatePayload,
   idempotencyKey: string,
@@ -397,35 +354,11 @@ export async function createPaymentMandate(
     '/api/v1/me/payment-mandates',
     {
       method: 'POST',
-      headers: await mutationHeaders(idempotencyKey),
+      headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify(payload),
     },
+    { csrf: true },
   );
-}
-
-export async function createCurrentGameMandate(
-  gameId: string,
-  preflight: JoinPreflight,
-  mandateId: string,
-): Promise<PaymentMandate> {
-  const value = await idempotentMutation<{ mandate: PaymentMandate }>(
-    '/api/v1/me/payment-mandates',
-    {
-      mandateId,
-      gameId,
-      chainId: preflight.mandateRequirements.chainId,
-      tokenAddress: preflight.mandateRequirements.tokenAddress,
-      maxPerPaymentAtomic: preflight.mandateRequirements.maxPerPaymentAtomic,
-      maxCumulativeAtomic: preflight.mandateRequirements.maxCumulativeAtomic,
-      allowedPayees: [],
-      allowedPayeeRule: preflight.mandateRequirements.allowedPayeeRule,
-      joinAuthorizationId: preflight.joinAuthorizationId,
-      validFrom: new Date(Date.now() - 5_000).toISOString(),
-      expiresAt: preflight.mandateRequirements.expiresAt,
-    },
-    mandateId,
-  );
-  return value.mandate;
 }
 
 export async function revokeCurrentGameMandate(
@@ -448,7 +381,8 @@ export async function withdrawCurrentGameParticipant(
     `/api/v1/games/${encodeURIComponent(gameId)}/participants/${encodeURIComponent(participantId)}`,
     {
       method: 'DELETE',
-      headers: await mutationHeaders(idempotencyKey),
+      headers: { 'Idempotency-Key': idempotencyKey },
     },
+    { csrf: true },
   );
 }

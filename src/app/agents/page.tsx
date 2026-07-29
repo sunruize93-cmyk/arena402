@@ -1,5 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import '../arena402-integration.css';
+import '../arena402-player.css';
 import AgentDeploymentJourney from '@/components/AgentDeploymentJourney';
 import PlayerArenaObservatory from '@/components/PlayerArenaObservatory';
 

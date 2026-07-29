@@ -30,13 +30,21 @@ import {
 } from '@/lib/game-api';
 import { rankingAgentIdentity } from '@/lib/game-display';
 import { buildLedgerTrades, formatGold } from '@/lib/ledger-model';
+import {
+  mergeTimelineEvents,
+  timelineCursor,
+} from '@/lib/live-game-feed';
 import { readAgentReputation } from '@/lib/reputation';
 import {
   activePairingIds,
   visibleReplaySnapshots,
 } from '@/lib/timeline-projection';
-
-type RecordValue = Record<string, unknown>;
+import {
+  projectionValue as pick,
+  publicAgentName,
+  publicProjectionText as publicText,
+} from '@/lib/public-projection';
+import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
 type MarketPhase = 'omen' | 'decide' | 'queue' | 'bargain' | 'seal' | 'closed';
 
 const PHASES: Array<{ id: MarketPhase; roman: string; label: string }> = [
@@ -171,33 +179,8 @@ const EVENT_LABELS: Record<string, { title: string; description: string }> = {
   },
 };
 
-function pick(record: RecordValue | undefined, ...keys: string[]): unknown {
-  if (!record) return undefined;
-  for (const key of keys) {
-    if (record[key] !== undefined && record[key] !== null) return record[key];
-  }
-  return undefined;
-}
-
-function containsHan(value: string): boolean {
-  return /[\u3400-\u9fff]/u.test(value);
-}
-
-function publicText(value: unknown, fallback: string): string {
-  if (typeof value !== 'string') return fallback;
-  const clean = value.trim();
-  if (!clean || containsHan(clean)) return fallback;
-  return clean.slice(0, 180);
-}
-
 function shortAgent(value: unknown, fallback = 'Unknown Agent'): string {
-  const raw = publicText(value, fallback).replace(/^agent[_:-]?/i, '');
-  return raw
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, 28);
+  return publicAgentName(value, fallback, 120);
 }
 
 function atomicGold(value: unknown): string | null {
@@ -215,6 +198,62 @@ function formatCountdown(milliseconds: number): string {
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function useDeadlineRemaining(deadlineAt: number | null): number | null {
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (deadlineAt === null || !Number.isFinite(deadlineAt)) {
+      setRemaining(null);
+      return;
+    }
+    let timer: number | undefined;
+    const tick = () => {
+      const next = deadlineAt - Date.now();
+      setRemaining(next);
+      if (next <= 0 && timer !== undefined) {
+        window.clearInterval(timer);
+        timer = undefined;
+      }
+    };
+    tick();
+    if (deadlineAt > Date.now()) {
+      timer = window.setInterval(tick, 1_000);
+    }
+    return () => {
+      if (timer !== undefined) window.clearInterval(timer);
+    };
+  }, [deadlineAt]);
+
+  return remaining;
+}
+
+function DecisionCountdown({ deadlineAt }: { deadlineAt: number | null }) {
+  const remaining = useDeadlineRemaining(deadlineAt);
+  if (remaining === null) return null;
+  return (
+    <div
+      className={`gm-decision-clock ${remaining <= 0 ? 'is-finalizing' : ''}`}
+      aria-live="polite"
+    >
+      <span>Decision window</span>
+      <strong>{remaining <= 0 ? 'FINALIZING' : formatCountdown(remaining)}</strong>
+    </div>
+  );
+}
+
+function FillCountdown({
+  fillAt,
+  emptyLabel,
+}: {
+  fillAt: string | null | undefined;
+  emptyLabel: string;
+}) {
+  const target = fillAt ? new Date(fillAt).getTime() : Number.NaN;
+  const remaining = useDeadlineRemaining(Number.isFinite(target) ? target : null);
+  if (remaining === null) return <>{emptyLabel}</>;
+  return <>{remaining <= 0 ? 'Filling now' : formatCountdown(remaining)}</>;
 }
 
 function eventAgent(data: RecordValue): string {
@@ -434,7 +473,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const [myParticipantId, setMyParticipantId] = useState('');
   const [leavingPool, setLeavingPool] = useState(false);
   const [replayEventCount, setReplayEventCount] = useState<number | null>(null);
-  const [clock, setClock] = useState(Date.now());
   const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
     roundIndex: 0,
     eventCount: DEMO_INITIAL_EVENT_COUNT,
@@ -460,42 +498,21 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   }, [demo, replayRequested]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setClock(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     if (demo) return;
     let after = 0;
     let stopped = false;
     let hasSnapshot = false;
     let fallbackTimer: number | undefined;
-    let staleWatchTimer: number | undefined;
     let stateRefreshTimer: number | undefined;
     let eventSource: EventSource | undefined;
-    let lastEventAt = Date.now();
-    let gameTerminal = false;
+    let fallbackRequestRunning = false;
     const controller = new AbortController();
 
     function mergeEvents(events: PawnhouseTimelineEvent[], nextAfter?: number) {
-      if (events.length === 0 || stopped) return;
-      after = Math.max(
-        after,
-        nextAfter || 0,
-        ...events.map((event) => Number(event.sequence) || 0),
-      );
-      setLiveEvents((current) => {
-        const merged = [...current, ...events];
-        return merged
-          .filter(
-            (event, index, rows) =>
-              rows.findIndex((candidate) => candidate.sequence === event.sequence) ===
-              index,
-          )
-          .sort((left, right) => left.sequence - right.sequence)
-          .slice(-1_000);
-      });
-      lastEventAt = Date.now();
+      if (stopped) return;
+      after = timelineCursor(after, events, nextAfter);
+      if (events.length === 0) return;
+      setLiveEvents((current) => mergeTimelineEvents(current, events));
     }
 
     async function refreshState(signal?: AbortSignal) {
@@ -506,7 +523,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         ]);
         if (stopped) return;
         hasSnapshot = true;
-        gameTerminal = String(nextState.phase || '').toLowerCase() === 'completed';
         setLiveState(nextState);
         setCurrentGame(
           current?.game.gameId === gameId ? current.game : null,
@@ -527,6 +543,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     }
 
     async function refreshAll(signal?: AbortSignal) {
+      if (fallbackRequestRunning) return;
+      fallbackRequestRunning = true;
       try {
         const [nextState, timeline, current] = await Promise.all([
           getPawnhouseGame(gameId, signal),
@@ -536,7 +554,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         if (stopped) return;
         setLiveState(nextState);
         hasSnapshot = true;
-        gameTerminal = String(nextState.phase || '').toLowerCase() === 'completed';
         setCurrentGame(
           current?.game.gameId === gameId ? current.game : null,
         );
@@ -552,6 +569,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
           setError('This table is not available from the public Arena API.');
         }
+      } finally {
+        fallbackRequestRunning = false;
       }
     }
 
@@ -566,15 +585,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       fallbackTimer = undefined;
     }
 
-    function startStaleWatch() {
-      if (staleWatchTimer !== undefined || stopped) return;
-      staleWatchTimer = window.setInterval(() => {
-        if (gameTerminal || Date.now() - lastEventAt < 5_000) return;
-        setFeedDelayed(true);
-        void refreshAll();
-      }, 3_000);
-    }
-
     void refreshAll(controller.signal).then(() => {
       if (stopped) return;
       if (typeof EventSource === 'undefined') {
@@ -584,11 +594,13 @@ export default function GameViewer({ gameId }: { gameId: string }) {
 
       eventSource = new EventSource(getPawnhouseEventsUrl(gameId, after));
       eventSource.onopen = () => {
-        lastEventAt = Date.now();
+        setFeedDelayed(false);
         stopFallback();
       };
-      eventSource.onerror = startFallback;
-      startStaleWatch();
+      eventSource.onerror = () => {
+        setFeedDelayed(true);
+        startFallback();
+      };
       eventSource.addEventListener('arena', (message) => {
         try {
           const event = JSON.parse(message.data) as PawnhouseTimelineEvent;
@@ -619,9 +631,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       controller.abort();
       eventSource?.close();
       stopFallback();
-      if (staleWatchTimer !== undefined) {
-        window.clearInterval(staleWatchTimer);
-      }
       if (stateRefreshTimer !== undefined) {
         window.clearTimeout(stateRefreshTimer);
       }
@@ -729,15 +738,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     typeof rawDecisionDeadline === 'string'
       ? new Date(rawDecisionDeadline).getTime()
       : Number.NaN;
-  const decisionRemaining = Number.isFinite(decisionDeadlineAt)
-    ? decisionDeadlineAt - clock
+  const decisionDeadline = Number.isFinite(decisionDeadlineAt)
+    ? decisionDeadlineAt
     : null;
-  const decisionCountdown =
-    decisionRemaining === null
-      ? null
-      : decisionRemaining <= 0
-        ? 'FINALIZING'
-        : formatCountdown(decisionRemaining);
   const gamePhase = String(state?.phase || '').toLowerCase();
   const registrationOpen = ['registration', 'portfolio_setup'].includes(
     gamePhase,
@@ -782,18 +785,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const startThreshold = currentGame?.startThreshold ?? 0;
   const seatsRemaining = Math.max(0, startThreshold - readyCount);
   const fillAt = currentGame?.matchmaking.fillAt;
-  const fillRemaining = fillAt
-    ? new Date(fillAt).getTime() - clock
-    : null;
   const fillBlocked = currentGame?.matchmaking.fillStatus === 'BLOCKED';
-  const matchingDelayed =
-    fillBlocked
-    || (
-      Boolean(fillAt)
-      && fillRemaining !== null
-      && fillRemaining < -15_000
-      && readyCount < startThreshold
-    );
+  const matchingDelayed = fillBlocked;
   const lobbyTitle = matchingDelayed
     ? 'Matchmaking needs attention.'
     : readyCount === 0
@@ -814,17 +807,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         : `${readyCount} ready ${
             readyCount === 1 ? 'seat is' : 'seats are'
           } confirmed. Join from Play to enter this table.`;
-  const fillLabel = fillBlocked
+  const fillEmptyLabel = fillBlocked
     ? 'Blocked'
-    : matchingDelayed
-      ? 'Delayed'
-    : fillRemaining === null
-      ? readyCount === 0
-        ? 'After first seat'
-        : 'Preparing'
-      : fillRemaining <= 0
-        ? 'Filling now'
-        : formatCountdown(fillRemaining);
+    : readyCount === 0
+      ? 'After first seat'
+      : 'Preparing';
   const settlementState = [...events]
     .reverse()
     .find((event) => event.type.startsWith('settlement.'));
@@ -881,17 +868,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                 : 'Waiting to start'
               : PHASES.find((item) => item.id === phase)?.label || 'Ledger closed'}
           </p>
-          {decisionCountdown && (
-            <div
-              className={`gm-decision-clock ${
-                decisionRemaining !== null && decisionRemaining <= 0 ? 'is-finalizing' : ''
-              }`}
-              aria-live="polite"
-            >
-              <span>Decision window</span>
-              <strong>{decisionCountdown}</strong>
-            </div>
-          )}
+          <DecisionCountdown deadlineAt={decisionDeadline} />
         </div>
       </header>
 
@@ -1026,9 +1003,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               aria-live="polite"
             >
               <small>
-                {fillRemaining === null ? 'Official fill status' : 'Official fill in'}
+                {fillAt ? 'Official fill in' : 'Official fill status'}
               </small>
-              <strong>{fillLabel}</strong>
+              <strong>
+                <FillCountdown fillAt={fillAt} emptyLabel={fillEmptyLabel} />
+              </strong>
               <em>
                 {startThreshold
                   ? (
@@ -1066,7 +1045,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             </div>
             <div>
               <dt>Official fill</dt>
-              <dd>{fillLabel}</dd>
+              <dd>
+                <FillCountdown fillAt={fillAt} emptyLabel={fillEmptyLabel} />
+              </dd>
             </div>
             <div>
               <dt>Match status</dt>
@@ -1289,7 +1270,8 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                     <p>Public events only</p>
                   </div>
                   <div className="gm-chronicle-list" aria-live="polite">
-                    {[...events]
+                    {events
+                      .slice(-200)
                       .reverse()
                       .map((event) => (
                         <article key={event.sequence}>
@@ -1302,6 +1284,12 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                           </div>
                         </article>
                       ))}
+                    {events.length > 200 && (
+                      <p className="empty">
+                        Showing the latest 200 of {events.length} public events.
+                        The proof drawer retains the current audit tail.
+                      </p>
+                    )}
                     {events.length === 0 && (
                       <p className="empty">Waiting for Arena events</p>
                     )}

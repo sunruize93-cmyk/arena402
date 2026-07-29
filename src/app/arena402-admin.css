@@ -23,6 +23,17 @@ body:has(.admin-page) #page {
   font-family: var(--mono);
 }
 
+.admin-preview-banner {
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid rgba(255, 196, 92, 0.45);
+  background: #4a2d08;
+  color: #ffe1a3;
+  font: 600 0.72rem/1.4 var(--mono, monospace);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .admin-page button,
 .admin-page input,
 .admin-page textarea {

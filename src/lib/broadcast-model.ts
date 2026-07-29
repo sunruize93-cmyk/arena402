@@ -1,3 +1,10 @@
+import {
+  asProjectionRecord as asRecord,
+  projectionValue as pick,
+  publicAgentName,
+} from '@/lib/public-projection';
+import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
+
 export const BROADCAST_GOODS = [
   {
     goodId: 'grain',
@@ -26,8 +33,6 @@ export type BroadcastDataQuality =
   | 'authoritative'
   | 'final_settlement'
   | 'awaiting_authority';
-
-type RecordValue = Record<string, unknown>;
 
 export interface BroadcastCandle {
   round: number;
@@ -66,35 +71,13 @@ export interface BroadcastRankings {
   rows: BroadcastRankingRow[];
 }
 
-function asRecord(value: unknown): RecordValue | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as RecordValue)
-    : null;
-}
-
-function pick(record: RecordValue | null, ...keys: string[]): unknown {
-  if (!record) return undefined;
-  for (const key of keys) {
-    if (record[key] !== undefined && record[key] !== null) return record[key];
-  }
-  return undefined;
-}
-
 function numeric(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function nameFromId(value: unknown, fallback: string): string {
-  if (typeof value !== 'string' || !value.trim()) return fallback;
-  return value
-    .trim()
-    .replace(/^agent[_:-]?/i, '')
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, 30);
+  return publicAgentName(value, fallback, 120);
 }
 
 function historyRows(state: RecordValue): RecordValue[] {

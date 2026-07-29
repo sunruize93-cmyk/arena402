@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import '../arena402-player.css';
+import '../arena402-integration.css';
 import PlayJourney from '@/components/PlayJourney';
 
 export const metadata = {

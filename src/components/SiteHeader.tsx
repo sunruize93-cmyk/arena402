@@ -3,12 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import {
-  ConnectorAuthSession,
-  getConnectorAuthSession,
-  logoutConnectorUser,
-} from '@/lib/connector-api';
+import { logoutConnectorUser } from '@/lib/connector-api';
 import { useLocale } from '@/components/LocaleProvider';
+import { useAuthSession } from '@/components/AuthSessionProvider';
 import { localeLabel, localeToggleLabel } from '@/lib/i18n';
 
 const PRIMARY_LINKS = [
@@ -27,27 +24,9 @@ function isActive(pathname: string, href: string): boolean {
 export default function SiteHeader() {
   const pathname = usePathname();
   const { locale, toggleLocale } = useLocale();
+  const { session, loading } = useAuthSession();
   const menuRef = useRef<HTMLDivElement>(null);
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
-  const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getConnectorAuthSession()
-      .then((value) => {
-        if (!cancelled) setSession(value);
-      })
-      .catch(() => {
-        if (!cancelled) setSession(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname]);
 
   // The header persists across route changes, so the dropdown must close
   // itself after a menu item navigates away.
@@ -67,9 +46,8 @@ export default function SiteHeader() {
   async function signOut() {
     if (!session) return;
     try {
-      await logoutConnectorUser(session.csrf_token);
+      await logoutConnectorUser();
     } finally {
-      setSession(null);
       setMenuOpen(false);
     }
   }

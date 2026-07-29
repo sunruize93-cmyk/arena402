@@ -1,5 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import '../../arena402-integration.css';
+import '../../arena402-terminal.css';
 import AgentConversationViewer from '@/components/AgentConversationViewer';
 
 export default function AgentConversationsPage() {

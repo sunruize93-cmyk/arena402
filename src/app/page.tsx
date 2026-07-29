@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import './arena402-parallax.css';
 import HomeLiveState from '@/components/HomeLiveState';
 import WorldStoryButton from '@/components/WorldStoryButton';
 

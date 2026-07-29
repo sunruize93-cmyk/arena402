@@ -1,4 +1,7 @@
-import { CONNECTOR_API_BASE_URL, getConnectorCsrfToken } from '@/lib/connector-api';
+import {
+  ArenaHttpError,
+  arenaHttpRequest,
+} from '@/lib/arena-http';
 
 export interface MyWallet {
   walletId: string;
@@ -41,11 +44,6 @@ export interface WalletChallenge {
   expiresAt: string;
 }
 
-interface WalletErrorBody {
-  detail?: string | { code?: string };
-  message?: string;
-}
-
 export class WalletApiError extends Error {
   constructor(
     message: string,
@@ -59,41 +57,16 @@ export class WalletApiError extends Error {
 
 async function walletRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method || 'GET').toUpperCase();
-  const headers = new Headers(init?.headers);
-  headers.set('Accept', 'application/json');
-  if (init?.body) headers.set('Content-Type', 'application/json');
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !headers.has('X-CSRF-Token')) {
-    headers.set('X-CSRF-Token', await getConnectorCsrfToken());
-  }
-
-  let response: Response;
   try {
-    response = await fetch(`${CONNECTOR_API_BASE_URL}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers,
+    return await arenaHttpRequest<T>(path, init, {
+      csrf: !['GET', 'HEAD', 'OPTIONS'].includes(method),
     });
-  } catch {
-    throw new WalletApiError('The Arena API is unreachable.', 0, 'network_unavailable');
-  }
-
-  if (!response.ok) {
-    let body: WalletErrorBody = {};
-    try {
-      body = (await response.json()) as WalletErrorBody;
-    } catch {
-      // Keep the HTTP status as the fallback error.
+  } catch (error) {
+    if (error instanceof ArenaHttpError) {
+      throw new WalletApiError(error.message, error.status, error.code);
     }
-    const detail = body.detail;
-    const code =
-      typeof detail === 'string'
-        ? detail
-        : detail?.code || body.message || `http_${response.status}`;
-    throw new WalletApiError(code, response.status, code);
+    throw error;
   }
-
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
 }
 
 // The Arena treasury custodies every player wallet. GET /api/v1/me/wallet

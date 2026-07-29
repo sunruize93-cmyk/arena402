@@ -3,11 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
+import { useAuthSession } from '@/components/AuthSessionProvider';
 import {
   AgentBinding,
-  ConnectorAuthSession,
   RuntimeEvent,
-  getConnectorAuthSession,
   listBindingEvents,
   listBindings,
 } from '@/lib/connector-api';
@@ -21,6 +20,10 @@ import {
   AgentConversationEntry,
   buildConversationEntries,
 } from '@/lib/agent-conversation';
+import {
+  mergeTimelineEvents,
+  timelineCursor,
+} from '@/lib/live-game-feed';
 
 function eventPairingId(event: PawnhouseTimelineEvent): string {
   const direct = String(event.data.pairingId || event.data.pairing_id || '');
@@ -63,7 +66,7 @@ function timestamp(value?: string): string {
 }
 
 export default function AgentConversationViewer() {
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
+  const { session, loading: sessionLoading } = useAuthSession();
   const [participations, setParticipations] = useState<GameParticipation[]>([]);
   const [bindings, setBindings] = useState<AgentBinding[]>([]);
   const [runtimeEvents, setRuntimeEvents] = useState<RuntimeEvent[]>([]);
@@ -75,16 +78,14 @@ export default function AgentConversationViewer() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (sessionLoading) return;
     let cancelled = false;
-    void getConnectorAuthSession()
-      .then(async (nextSession) => {
-        if (cancelled) return;
-        setSession(nextSession);
-        if (!nextSession) return;
-        const [nextParticipations, nextBindings] = await Promise.all([
-          getGameParticipations(),
-          listBindings(),
-        ]);
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+    void Promise.all([getGameParticipations(), listBindings()])
+      .then(([nextParticipations, nextBindings]) => {
         if (cancelled) return;
         setParticipations(nextParticipations);
         setBindings(nextBindings);
@@ -100,7 +101,7 @@ export default function AgentConversationViewer() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session, sessionLoading]);
 
   const selectedParticipation =
     participations.find(
@@ -113,13 +114,27 @@ export default function AgentConversationViewer() {
       setTimeline([]);
       return;
     }
+    setTimeline([]);
     let cancelled = false;
+    let after = 0;
+    let requestRunning = false;
     const controller = new AbortController();
-    const refresh = () =>
-      getPawnhouseTimeline(selectedParticipation.gameId, 0, controller.signal)
+    const refresh = () => {
+      if (requestRunning) return Promise.resolve();
+      requestRunning = true;
+      return getPawnhouseTimeline(
+        selectedParticipation.gameId,
+        after,
+        controller.signal,
+      )
         .then((value) => {
           if (!cancelled) {
-            setTimeline(value.events);
+            after = timelineCursor(after, value.events, value.nextAfter);
+            if (value.events.length > 0) {
+              setTimeline((current) =>
+                mergeTimelineEvents(current, value.events, 500),
+              );
+            }
             setError('');
           }
         })
@@ -130,7 +145,11 @@ export default function AgentConversationViewer() {
           ) {
             setError('This match dialogue is not available from the Arena API.');
           }
+        })
+        .finally(() => {
+          requestRunning = false;
         });
+    };
     void refresh();
     const timer = window.setInterval(() => void refresh(), 3_000);
     return () => {

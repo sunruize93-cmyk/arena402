@@ -29,6 +29,10 @@ import {
   mergeLedgerHead,
   shortHash,
 } from '@/lib/ledger-model';
+import {
+  mergeTimelineEvents,
+  timelineCursor,
+} from '@/lib/live-game-feed';
 
 const GOODS: Record<string, { label: string; nature: string }> = {
   grain: { label: 'Grain', nature: 'The staple' },
@@ -416,32 +420,31 @@ export default function ImperialLedger({
     if (source !== 'timeline' || !gameId) return;
     let after = 0;
     let stopped = false;
+    let requestRunning = false;
     // A fresh table starts from a clean slate; sequences from another game
     // would collide with the de-duplication below.
     setLiveEvents([]);
     setFeedError(false);
 
     async function refresh(signal?: AbortSignal) {
+      if (requestRunning) return;
+      requestRunning = true;
       try {
         const timeline = await getPawnhouseTimeline(gameId, after, signal);
         if (stopped) return;
+        after = timelineCursor(after, timeline.events, timeline.nextAfter);
         if (timeline.events.length > 0) {
-          after = timeline.nextAfter;
-          setLiveEvents((current) => {
-            const merged = [...current, ...timeline.events];
-            return merged.filter(
-              (event, index, rows) =>
-                rows.findIndex(
-                  (candidate) => candidate.sequence === event.sequence,
-                ) === index,
-            );
-          });
+          setLiveEvents((current) =>
+            mergeTimelineEvents(current, timeline.events),
+          );
         }
         setFeedError(false);
       } catch (cause) {
         if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
           setFeedError(true);
         }
+      } finally {
+        requestRunning = false;
       }
     }
 

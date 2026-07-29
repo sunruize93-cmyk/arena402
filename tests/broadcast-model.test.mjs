@@ -1,32 +1,20 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { loadTypeScriptModule } from './load-typescript.mjs';
 
-function loadTypeScriptModule(path) {
-  const filePath = path instanceof URL ? fileURLToPath(path) : path;
-  const source = readFileSync(filePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filePath,
-  }).outputText;
-  const module = { exports: {} };
-  Function('require', 'module', 'exports', compiled)(
-    undefined,
-    module,
-    module.exports,
+const publicProjection = loadTypeScriptModule(
+  new URL('../src/lib/public-projection.ts', import.meta.url),
+);
+
+function loadBroadcastModel() {
+  return loadTypeScriptModule(
+    new URL('../src/lib/broadcast-model.ts', import.meta.url),
+    { '@/lib/public-projection': publicProjection },
   );
-  return module.exports;
 }
 
 test('broadcast goods use authoritative round candles when the API supplies them', () => {
-  const { buildBroadcastGoods } = loadTypeScriptModule(
-    new URL('../src/lib/broadcast-model.ts', import.meta.url),
-  );
+  const { buildBroadcastGoods } = loadBroadcastModel();
   const state = {
     currentRound: 2,
     priceSnapshots: [
@@ -70,9 +58,7 @@ test('broadcast goods use authoritative round candles when the API supplies them
 });
 
 test('broadcast goods wait instead of rebuilding prices from public events', () => {
-  const { buildBroadcastGoods } = loadTypeScriptModule(
-    new URL('../src/lib/broadcast-model.ts', import.meta.url),
-  );
+  const { buildBroadcastGoods } = loadBroadcastModel();
   const events = [
     {
       sequence: 4,
@@ -100,9 +86,7 @@ test('broadcast goods wait instead of rebuilding prices from public events', () 
 });
 
 test('leaderboard prefers the live ranking projection and never treats seats as ELO', () => {
-  const { buildBroadcastRankings } = loadTypeScriptModule(
-    new URL('../src/lib/broadcast-model.ts', import.meta.url),
-  );
+  const { buildBroadcastRankings } = loadBroadcastModel();
   const live = buildBroadcastRankings({
     liveRankings: [
       { rank: 2, agentId: 'cassius', netWorthAtomic: '24900000' },
@@ -112,7 +96,7 @@ test('leaderboard prefers the live ranking projection and never treats seats as 
   });
   assert.deepEqual(
     live.rows.map((row) => row.name),
-    ['Livia', 'Cassius'],
+    ['livia', 'cassius'],
   );
   assert.equal(live.kind, 'live_net_worth');
 
@@ -124,9 +108,7 @@ test('leaderboard prefers the live ranking projection and never treats seats as 
 });
 
 test('a completed game uses its authoritative final settlement prices', () => {
-  const { buildBroadcastGoods } = loadTypeScriptModule(
-    new URL('../src/lib/broadcast-model.ts', import.meta.url),
-  );
+  const { buildBroadcastGoods } = loadBroadcastModel();
   const grain = buildBroadcastGoods(
     {
       phase: 'completed',

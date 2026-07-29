@@ -21,8 +21,15 @@ import {
   buildBroadcastGoods,
   buildBroadcastRankings,
 } from '@/lib/broadcast-model';
-
-type RecordValue = Record<string, unknown>;
+import {
+  mergeTimelineEvents,
+  timelineCursor,
+} from '@/lib/live-game-feed';
+import {
+  projectionValue as pick,
+  publicAgentName,
+} from '@/lib/public-projection';
+import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
 
 const WORLD_EVENT_NAMES: Record<string, string> = {
   'palace-requisition': 'Palace requisition',
@@ -37,23 +44,8 @@ const WORLD_EVENT_NAMES: Record<string, string> = {
   'stable-plague': 'Plague in the stables',
 };
 
-function pick(record: RecordValue | undefined, ...keys: string[]): unknown {
-  if (!record) return undefined;
-  for (const key of keys) {
-    if (record[key] !== undefined && record[key] !== null) return record[key];
-  }
-  return undefined;
-}
-
 function agentName(value: unknown, fallback = 'An Agent'): string {
-  if (typeof value !== 'string' || !value.trim()) return fallback;
-  return value
-    .replace(/^agent[_:-]?/i, '')
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, 24);
+  return publicAgentName(value, fallback, 120);
 }
 
 function gold(value: number | null): string {
@@ -265,8 +257,11 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
     if (demo) return;
     let after = 0;
     let stopped = false;
+    let requestRunning = false;
 
     async function refresh(signal?: AbortSignal) {
+      if (requestRunning) return;
+      requestRunning = true;
       try {
         const [nextState, timeline] = await Promise.all([
           getPawnhouseGame(gameId, signal),
@@ -274,19 +269,11 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
         ]);
         if (stopped) return;
         setLiveState(nextState);
+        after = timelineCursor(after, timeline.events, timeline.nextAfter);
         if (timeline.events.length > 0) {
-          after = timeline.nextAfter;
-          setLiveEvents((current) => {
-            const merged = [...current, ...timeline.events];
-            return merged
-              .filter(
-                (event, index, rows) =>
-                  rows.findIndex(
-                    (candidate) => candidate.sequence === event.sequence,
-                  ) === index,
-              )
-              .slice(-600);
-          });
+          setLiveEvents((current) =>
+            mergeTimelineEvents(current, timeline.events, 600),
+          );
         }
         setLastUpdated(Date.now());
         setError('');
@@ -297,6 +284,8 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
         ) {
           setError('FEED DELAYED');
         }
+      } finally {
+        requestRunning = false;
       }
     }
 

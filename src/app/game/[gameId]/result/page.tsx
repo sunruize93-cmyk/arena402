@@ -1,4 +1,5 @@
 import GameResult from '@/components/GameResult';
+import '../../../arena402-game.css';
 
 export default async function GameResultPage({
   params,

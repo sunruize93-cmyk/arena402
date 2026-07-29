@@ -1,26 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { loadTypeScriptModule } from './load-typescript.mjs';
 
-function loadTypeScriptModule(path) {
-  const filePath = path instanceof URL ? fileURLToPath(path) : path;
-  const source = readFileSync(filePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: filePath,
-  }).outputText;
-  const module = { exports: {} };
-  Function('require', 'module', 'exports', compiled)(
-    undefined,
-    module,
-    module.exports,
+const publicProjection = loadTypeScriptModule(
+  new URL('../src/lib/public-projection.ts', import.meta.url),
+);
+
+function loadNegotiationTerminal() {
+  return loadTypeScriptModule(
+    new URL('../src/lib/negotiation-terminal.ts', import.meta.url),
+    { '@/lib/public-projection': publicProjection },
   );
-  return module.exports;
 }
 
 const pairing = {
@@ -74,15 +64,13 @@ const events = [
 ];
 
 test('Arena timeline events become a two-party terminal transcript', () => {
-  const { buildNegotiationTerminalLines } = loadTypeScriptModule(
-    new URL('../src/lib/negotiation-terminal.ts', import.meta.url),
-  );
+  const { buildNegotiationTerminalLines } = loadNegotiationTerminal();
 
   const lines = buildNegotiationTerminalLines(events, 'pair-10');
   const transcript = lines.map((line) => line.text).join('\n');
 
-  assert.match(transcript, /BUYER connected — Cassius/);
-  assert.match(transcript, /SELLER connected — Livia/);
+  assert.match(transcript, /BUYER connected — cassius/);
+  assert.match(transcript, /SELLER connected — livia/);
   assert.match(transcript, /BUYER > PROPOSE 2.7 GOLD · QTY 2/);
   assert.match(transcript, /Two sacks before the northern gate closes/);
   assert.match(transcript, /SELLER > ACCEPT 2.7 GOLD/);
@@ -92,9 +80,7 @@ test('Arena timeline events become a two-party terminal transcript', () => {
 });
 
 test('the terminal ignores messages and settlement events from other pairings', () => {
-  const { buildNegotiationTerminalLines } = loadTypeScriptModule(
-    new URL('../src/lib/negotiation-terminal.ts', import.meta.url),
-  );
+  const { buildNegotiationTerminalLines } = loadNegotiationTerminal();
   const noisyEvents = [
     ...events,
     {
@@ -116,9 +102,7 @@ test('the terminal ignores messages and settlement events from other pairings', 
 });
 
 test('the terminal accepts the production public participant and negotiation fields', () => {
-  const { buildNegotiationTerminalLines } = loadTypeScriptModule(
-    new URL('../src/lib/negotiation-terminal.ts', import.meta.url),
-  );
+  const { buildNegotiationTerminalLines } = loadNegotiationTerminal();
   const productionEvents = [
     {
       sequence: 20,
@@ -150,8 +134,8 @@ test('the terminal accepts the production public participant and negotiation fie
     .map((line) => line.text)
     .join('\n');
 
-  assert.match(transcript, /BUYER connected — Participant Cassius/);
-  assert.match(transcript, /SELLER connected — Participant Livia/);
+  assert.match(transcript, /BUYER connected — participant-cassius/);
+  assert.match(transcript, /SELLER connected — participant-livia/);
   assert.match(transcript, /SELLER > PROPOSE 6.1 GOLD/);
   assert.match(transcript, /Crown is already paying/);
 });

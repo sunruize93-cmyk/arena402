@@ -6,16 +6,14 @@ import AgentReputationCard from '@/components/AgentReputationCard';
 import InitialLoadoutEditor from '@/components/InitialLoadoutEditor';
 import { listBindings } from '@/lib/connector-api';
 import {
-  createPaymentMandate,
   CurrentGame,
-  getArenaWallet,
-  getJoinPreflight,
-  getPaymentMandate,
   isJoinPreflightReady,
   JoinPreflight,
-  joinCurrentGame,
-  revokeCurrentGameMandate,
 } from '@/lib/game-api';
+import {
+  prepareCurrentGameEntry,
+  sealCurrentGameEntry,
+} from '@/lib/current-game-entry';
 import { getHostedAgents } from '@/lib/hosted-agent-api';
 import {
   evaluateInitialLoadout,
@@ -211,18 +209,20 @@ export default function GameEntryDesk({
     setError('');
     let requestStage: EntryRequestStage = 'wallet';
     try {
-      await getArenaWallet();
-      requestStage = 'preflight';
       const content = {
         gameId: game.gameId,
         agentId: selectedAgent.agentId,
         portfolio: loadoutResult.portfolio,
       };
-      const nextPreflight = await getJoinPreflight(
-        game.gameId,
-        selectedAgent.agentId,
-        stableValue('preflight', content),
-      );
+      const nextPreflight = await prepareCurrentGameEntry({
+        gameId: game.gameId,
+        agentId: selectedAgent.agentId,
+        preflightKey: stableValue('preflight', content),
+        checkWallet: true,
+        onStage: (stage) => {
+          if (stage === 'wallet' || stage === 'preflight') requestStage = stage;
+        },
+      });
       if (!isJoinPreflightReady(nextPreflight)) {
         setPreflight(null);
         setError(preflightRefusal(nextPreflight.safeErrorCode));
@@ -249,7 +249,6 @@ export default function GameEntryDesk({
     }
     setWorking(true);
     setError('');
-    const requirements = preflight.mandateRequirements;
     const entryContent = {
       gameId: game.gameId,
       agentId: selectedAgent.agentId,
@@ -258,54 +257,22 @@ export default function GameEntryDesk({
     };
     let requestStage: EntryRequestStage = 'mandate_lookup';
     try {
-      const currentMandate = await getPaymentMandate(game.gameId);
-      const reusable =
-        currentMandate.mandate
-        && currentMandate.mandate.joinAuthorizationId
-          === preflight.joinAuthorizationId
-        && !currentMandate.mandate.revokedAt
-        && new Date(currentMandate.mandate.expiresAt).getTime() > Date.now();
-      let mandate = currentMandate.mandate;
-      if (!reusable || !mandate) {
-        if (mandate) {
-          requestStage = 'mandate_revoke';
-          await revokeCurrentGameMandate(mandate.mandateId);
-        }
-        requestStage = 'mandate_create';
-        mandate = (
-          await createPaymentMandate(
-            {
-              mandateId: stableValue('mandate-id', entryContent),
-              gameId: game.gameId,
-              joinAuthorizationId: preflight.joinAuthorizationId,
-              chainId: requirements.chainId,
-              tokenAddress: requirements.tokenAddress,
-              maxPerPaymentAtomic: requirements.maxPerPaymentAtomic,
-              maxCumulativeAtomic: requirements.maxCumulativeAtomic,
-              allowedPayeeRule: requirements.allowedPayeeRule,
-              validFrom: stableTime('mandate-valid-from', entryContent),
-              expiresAt: requirements.expiresAt,
-            },
-            stableValue('mandate', entryContent),
-          )
-        ).mandate;
-      }
-      requestStage = 'join';
-      const response = await joinCurrentGame(
-        game.gameId,
-        {
-          agentId: selectedAgent.agentId,
-          joinAuthorizationId: preflight.joinAuthorizationId,
-          paymentMandateId: mandate.mandateId,
-          portfolio: loadoutResult.portfolio,
+      const result = await sealCurrentGameEntry({
+        gameId: game.gameId,
+        agentId: selectedAgent.agentId,
+        preflight,
+        portfolio: loadoutResult.portfolio,
+        keys: {
+          mandateId: stableValue('mandate-id', entryContent),
+          mandateRequest: stableValue('mandate', entryContent),
+          mandateValidFrom: stableTime('mandate-valid-from', entryContent),
+          join: stableValue('join', entryContent),
         },
-        stableValue('join', {
-          ...entryContent,
-          paymentMandateId: mandate.mandateId,
-        }),
-      );
-      const participantId =
-        response.participant?.participantId || response.participantId;
+        onStage: (stage) => {
+          requestStage = stage;
+        },
+      });
+      const participantId = result.participantId;
       if (!participantId) throw new Error('participant_id_missing');
       window.localStorage.setItem(
         `arena402:participant:${game.gameId}`,
@@ -313,6 +280,13 @@ export default function GameEntryDesk({
       );
       onJoined(participantId);
     } catch (cause) {
+      if (
+        cause instanceof ArenaApiError
+        && cause.code === 'join_authorization_expired'
+      ) {
+        stableValues.current.clear();
+        setPreflight(null);
+      }
       setError(safeEntryError(cause, requestStage));
     } finally {
       setWorking(false);

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { getConnectorAuthSession } from '@/lib/connector-api';
+import { useAuthSession } from '@/components/AuthSessionProvider';
 
 export default function SignedInRedirect({
   returnTo = '/play',
@@ -10,20 +10,11 @@ export default function SignedInRedirect({
   returnTo?: string;
 }) {
   const router = useRouter();
+  const { session, loading } = useAuthSession();
 
   useEffect(() => {
-    let cancelled = false;
-    getConnectorAuthSession()
-      .then((session) => {
-        if (!cancelled && session) router.replace(returnTo);
-      })
-      .catch(() => {
-        // The sign-in page remains usable when the API is temporarily offline.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [returnTo, router]);
+    if (!loading && session) router.replace(returnTo);
+  }, [loading, returnTo, router, session]);
 
   return null;
 }

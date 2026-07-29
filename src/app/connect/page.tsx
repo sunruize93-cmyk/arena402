@@ -1,20 +1,17 @@
 'use client';
 
+import '../arena402-auth.css';
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
-import {
-  approvePairingAuthenticated,
-  ConnectorAuthSession,
-  getConnectorAuthSession,
-} from '@/lib/connector-api';
+import { useAuthSession } from '@/components/AuthSessionProvider';
+import { approvePairing } from '@/lib/connector-api';
 
 function normalizeCode(value: string): string {
   return value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 32);
 }
 
 export default function ConnectPage() {
-  const [session, setSession] = useState<ConnectorAuthSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { session, loading } = useAuthSession();
   const [userCode, setUserCode] = useState('');
   const [working, setWorking] = useState(false);
   const [approved, setApproved] = useState(false);
@@ -23,10 +20,6 @@ export default function ConnectPage() {
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get('code');
     if (code) setUserCode(normalizeCode(code));
-    getConnectorAuthSession()
-      .then(setSession)
-      .catch(() => setError('The Arena session could not be checked.'))
-      .finally(() => setLoading(false));
   }, []);
 
   async function approve(event: FormEvent<HTMLFormElement>) {
@@ -40,7 +33,7 @@ export default function ConnectPage() {
     setWorking(true);
     setError('');
     try {
-      await approvePairingAuthenticated(code, session.csrf_token);
+      await approvePairing(code);
       setApproved(true);
     } catch (cause) {
       setError(

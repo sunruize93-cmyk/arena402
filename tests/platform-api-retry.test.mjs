@@ -1,28 +1,17 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { loadTypeScriptModule } from './load-typescript.mjs';
 
 function loadPlatformApi() {
-  const filePath = fileURLToPath(
+  const arenaHttp = loadTypeScriptModule(
+    new URL('../src/lib/arena-http.ts', import.meta.url),
+  );
+  return loadTypeScriptModule(
     new URL('../src/lib/platform-api.ts', import.meta.url),
-  );
-  const source = readFileSync(filePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
+    {
+      '@/lib/arena-http': arenaHttp,
     },
-    fileName: filePath,
-  }).outputText;
-  const module = { exports: {} };
-  Function('require', 'module', 'exports', compiled)(
-    undefined,
-    module,
-    module.exports,
   );
-  return module.exports;
 }
 
 function jsonResponse(body) {

@@ -1,6 +1,15 @@
-export const CONNECTOR_API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_URL || ''
-).replace(/\/$/, '');
+import {
+  ARENA_API_BASE_URL,
+  ArenaAuthSession,
+  ArenaAuthUser,
+  ArenaHttpError,
+  arenaHttpRequest,
+  getArenaAuthSession,
+  getArenaCsrfToken,
+  setArenaAuthSession,
+} from '@/lib/arena-http';
+
+export const CONNECTOR_API_BASE_URL = ARENA_API_BASE_URL;
 
 export type PairingStatus = 'pending' | 'approved' | 'consumed' | 'expired' | string;
 export type DeviceStatus = 'online' | 'offline' | 'degraded' | string;
@@ -95,11 +104,6 @@ interface ListEnvelope<T> {
   items?: T[];
 }
 
-interface ApiErrorBody {
-  detail?: string;
-  message?: string;
-}
-
 interface ApiRequestOptions {
   csrf?: boolean;
 }
@@ -114,52 +118,24 @@ export class ConnectorApiError extends Error {
   }
 }
 
-let connectorCsrfToken = '';
-
 async function apiRequest<T>(
   path: string,
   init?: RequestInit,
   options?: ApiRequestOptions,
 ): Promise<T> {
   const method = (init?.method || 'GET').toUpperCase();
-  const headers = new Headers(init?.headers);
-  headers.set('Accept', 'application/json');
-  if (init?.body) {
-    headers.set('Content-Type', 'application/json');
-  }
-  if (
-    options?.csrf !== false &&
-    !['GET', 'HEAD', 'OPTIONS'].includes(method) &&
-    !headers.has('X-CSRF-Token')
-  ) {
-    headers.set('X-CSRF-Token', await getConnectorCsrfToken());
-  }
-
-  const response = await fetch(`${CONNECTOR_API_BASE_URL}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
-
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      connectorCsrfToken = '';
+  try {
+    return await arenaHttpRequest<T>(path, init, {
+      csrf:
+        options?.csrf !== false
+        && !['GET', 'HEAD', 'OPTIONS'].includes(method),
+    });
+  } catch (error) {
+    if (error instanceof ArenaHttpError) {
+      throw new ConnectorApiError(error.message, error.status);
     }
-    let body: ApiErrorBody = {};
-    try {
-      body = (await response.json()) as ApiErrorBody;
-    } catch {
-      // The HTTP status still gives the user a useful next step.
-    }
-
-    throw new ConnectorApiError(
-      body.detail || body.message || `Connector API returned ${response.status}.`,
-      response.status,
-    );
+    throw error;
   }
-
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
 }
 
 function unwrapList<T>(value: T[] | ListEnvelope<T>, key: keyof ListEnvelope<T>): T[] {
@@ -193,7 +169,6 @@ function normalizeDevice(device: ConnectorDevice): ConnectorDevice {
 }
 
 export async function createPairing(input?: {
-  owner_id?: string;
   device_name?: string;
 }): Promise<Pairing> {
   return apiRequest<Pairing>(
@@ -206,45 +181,36 @@ export async function createPairing(input?: {
   );
 }
 
-export async function approvePairing(userCode: string, ownerId?: string): Promise<Pairing> {
+export async function approvePairing(userCode: string): Promise<Pairing> {
   return apiRequest<Pairing>(`/api/connectors/pairings/${encodeURIComponent(userCode)}/approve`, {
     method: 'POST',
-    body: JSON.stringify(ownerId ? { owner_id: ownerId } : {}),
+    body: JSON.stringify({}),
   });
 }
 
-export interface ConnectorAuthUser {
-  user_id: string;
-  username: string;
-  temporary: boolean;
-  auth_provider: 'github' | 'password' | string;
-  display_name?: string | null;
-  avatar_url?: string | null;
-}
-
-export interface ConnectorAuthSession {
-  user: ConnectorAuthUser;
-  csrf_token: string;
-}
+export type ConnectorAuthUser = ArenaAuthUser;
+export type ConnectorAuthSession = ArenaAuthSession;
 
 export async function getConnectorCsrfToken(): Promise<string> {
-  if (connectorCsrfToken) return connectorCsrfToken;
-  const session = await getConnectorAuthSession();
-  if (!session?.csrf_token) {
-    throw new ConnectorApiError('Authentication required.', 401);
+  try {
+    return await getArenaCsrfToken();
+  } catch (error) {
+    if (error instanceof ArenaHttpError) {
+      throw new ConnectorApiError(error.message, error.status);
+    }
+    throw error;
   }
-  return session.csrf_token;
 }
 
 export async function getConnectorAuthSession(): Promise<ConnectorAuthSession | null> {
   try {
-    const session = await apiRequest<ConnectorAuthSession>('/api/auth/session');
-    connectorCsrfToken = session.csrf_token;
-    return session;
+    return await getArenaAuthSession();
   } catch (error) {
-    if (error instanceof ConnectorApiError && error.status === 401) {
-      connectorCsrfToken = '';
+    if (error instanceof ArenaHttpError && error.status === 401) {
       return null;
+    }
+    if (error instanceof ArenaHttpError) {
+      throw new ConnectorApiError(error.message, error.status);
     }
     throw error;
   }
@@ -263,7 +229,7 @@ export async function acceptConnectorInvite(input: {
     },
     { csrf: false },
   );
-  connectorCsrfToken = session.csrf_token;
+  setArenaAuthSession(session);
   return session;
 }
 
@@ -280,7 +246,7 @@ export async function registerConnectorUser(input: {
     },
     { csrf: false },
   );
-  connectorCsrfToken = session.csrf_token;
+  setArenaAuthSession(session);
   return session;
 }
 
@@ -296,30 +262,15 @@ export async function loginConnectorUser(input: {
     },
     { csrf: false },
   );
-  connectorCsrfToken = session.csrf_token;
+  setArenaAuthSession(session);
   return session;
 }
 
-export async function approvePairingAuthenticated(
-  userCode: string,
-  csrfToken: string,
-): Promise<Pairing> {
-  return apiRequest<Pairing>(
-    `/api/connectors/pairings/${encodeURIComponent(userCode)}/approve`,
-    {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrfToken },
-      body: JSON.stringify({}),
-    },
-  );
-}
-
-export async function logoutConnectorUser(csrfToken: string): Promise<void> {
+export async function logoutConnectorUser(): Promise<void> {
   await apiRequest<void>('/api/auth/logout', {
     method: 'POST',
-    headers: { 'X-CSRF-Token': csrfToken },
   });
-  connectorCsrfToken = '';
+  setArenaAuthSession(null);
 }
 
 export async function listConnectorDevices(): Promise<ConnectorDevice[]> {
@@ -339,14 +290,13 @@ export async function getConnectorDevice(deviceId: string): Promise<ConnectorDev
 
 export async function revokeConnectorDevice(
   deviceId: string,
-  ownerId = 'demo-user',
 ): Promise<ConnectorDevice> {
   return normalizeDevice(
     await apiRequest<ConnectorDevice>(
       `/api/connectors/devices/${encodeURIComponent(deviceId)}/revoke`,
       {
         method: 'POST',
-        body: JSON.stringify({ owner_id: ownerId }),
+        body: JSON.stringify({}),
       },
     ),
   );
