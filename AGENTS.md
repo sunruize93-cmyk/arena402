@@ -1,137 +1,253 @@
-# arena402
+# Arena 402 frontend agent guide
 
 > AdventureX 2026 · Pawn Track · "Your Agent Is A Chess Piece"
 
-## Project overview
+## Repository role
 
-Agent battle protocol: LLM-powered agents compete head-to-head in ELO-ranked negotiations. Participants deploy their own agent (any model, any style), it negotiates unattended on-chain.
+This repository is the canonical Arena 402 product frontend and the Vercel
+deployment source for [arena402.com](https://arena402.com).
 
-This repository is the Vercel deployment mirror for the Arena 402 frontend. The product repository is `/Users/sunruize/adx_agentic_payment`, and the canonical integrated frontend lives in its `frontend/` directory. Product changes are synchronized into this repository root and verified here before deployment.
+The companion product/backend repository is
+`E:\AI_Project\adx_agentic_payment`. It owns the Arena HTTP API, authentication,
+game orchestration, Runtime control planes, PostgreSQL state, wallets, and
+Injective testnet settlement. It no longer contains a `frontend/` directory.
+Do not copy frontend files from the backend repository or create a second UI
+runtime there.
 
-**Production:** https://arena402.com
+Keep the repository boundary explicit:
 
-## Tech stack
+| Concern | Authority |
+| --- | --- |
+| Pages, React components, browser API clients, i18n, and visual design | this repository |
+| API schemas, authorization, game state, Runtime execution, settlement, and deployment | `E:\AI_Project\adx_agentic_payment` |
+| Public game, price, ranking, reputation, wallet, and settlement truth | Arena-owned backend projections |
+| Vercel production frontend | this repository's `main` branch |
 
-| Layer | Tech |
-|---|---|
-| Frontend | Next.js 15 App Router, React 18, TypeScript |
-| Backend | Arena 402 HTTP API from `adx_agentic_payment` |
-| Hosting | Vercel |
-| Fonts | Instrument Serif (headings) + IBM Plex Mono (body), Google Fonts |
+Backend working-tree changes are not release evidence. In particular, migrations
+or concurrency/service-split changes that exist only as uncommitted files in
+`adx_agentic_payment` must be described as in progress until they are committed,
+validated, and deployed.
 
-## File structure
+## Product and claim boundaries
 
-```
-arena402/
-  src/
-    app/                  ← App Router routes and Arena 402 CSS sheets
-    components/           ← Shared React UI
-    lib/                  ← Arena, game, Connector, Hosted Agent API clients
-  public/
-    assets/               ← Game and auth artwork
-    img/                  ← Engraving artwork
-  next.config.js          ← Same-origin /api proxy in local development
-  vercel.json             ← Vercel framework and immutable asset headers
-  package.json
-```
+Arena 402 is a round-based AI trading game. Each Agent starts with an equal
+20-gold portfolio, decides `buy | sell | pass`, enters database-timestamped FCFS
+matching, negotiates with bounded `propose | accept | reject` actions, and is
+ranked by final net worth.
 
-See `UPSTREAM_DESIGN.md` for the visual migration and API mapping.
+- The current website supports direct Arena accounts and optional GitHub OAuth.
+- `/play` is the shortest guided path for a `READY` Hosted Agent.
+- `/game` provides the full Agent -> 20-gold loadout -> PaymentMandate -> Join
+  flow and the public Current Game.
+- Hosted Agents may continue after the browser closes. Local Codex/Claude
+  Runtimes depend on the outbound Connector remaining online.
+- `accept` and `accepted_pending_settlement` are not completed trades. Only
+  chain confirmation followed by Arena inventory commit supports
+  `inventory_committed` or `settled`.
+- The backend repository contains verified evidence for a fresh
+  self-hosted-Facilitator Injective EVM testnet settlement. Public third-party
+  Facilitator compatibility, a complete real Local Codex/Claude game, and
+  100-Agent production capacity remain separate acceptance items.
+
+Do not promote demo fixtures, seat order, pending settlement, configuration
+capacity, or code presence into claims of official rankings, live prices,
+completed payment, or production-scale acceptance.
 
 ## Architecture
 
-The browser must not access Supabase or another database directly. All business state flows through Arena-owned HTTP APIs.
+The browser must not access Supabase, PostgreSQL, or another database directly.
+All business state flows through Arena-owned HTTP APIs.
+
+```text
+Browser / Next.js
+  -> Arena HTTP API
+  -> Arena game and control-plane services
+  -> PostgreSQL / Runtime workers / settlement workers
+  -> Injective EVM testnet finality
+```
+
+For a Local Runtime, the website never calls the user's `localhost`:
+
+```text
+Arena API / Connector Gateway
+  <- outbound HTTPS/WSS from adx-connector
+  -> locally managed Codex or Claude process
+```
+
+The Connector acknowledgement is transport evidence, not a game-state
+transition. Runtime results still pass through the backend Result Sink and
+Consumer before Arena applies them.
 
 ### API routing
 
-- Local browser requests use same-origin `/api/*` URLs.
-- `next.config.js` proxies local requests to `API_PROXY_TARGET` (default: `https://api.arena402.com`).
-- Set `API_PROXY_TARGET=http://127.0.0.1:8000` only when deliberately testing the local product backend.
-- In Vercel production, set `NEXT_PUBLIC_API_URL=https://api.arena402.com`.
-- The API must allow the exact credentialed browser origin used in production.
+- Browser clients use the shared API helpers in `src/lib/`; components should
+  not create an independent business API layer.
+- Local development normally leaves `NEXT_PUBLIC_API_URL` blank. Browser calls
+  stay same-origin under `/api/*`, and `next.config.js` rewrites them to
+  `API_PROXY_TARGET`.
+- `API_PROXY_TARGET` defaults to `https://api.arena402.com`. Set it to
+  `http://127.0.0.1:8000` only for deliberate local-backend testing.
+- Vercel production sets
+  `NEXT_PUBLIC_API_URL=https://api.arena402.com`, so browser requests may be
+  cross-origin. The API must allow the exact credentialed frontend origin.
+- Never expose OAuth secrets, database credentials, wallet material, model API
+  keys, SecretStore handles, or `service_role` keys through `NEXT_PUBLIC_*`.
 
-Do not expose backend secrets, wallet credentials, Supabase `service_role` keys, or model API keys through `NEXT_PUBLIC_*` variables.
+The backend may split the stateless API and the single-worker Connector/WebSocket
+ingress internally. That deployment topology must not create a second browser
+contract: public frontend paths remain `/api/*`.
 
-### Authentication
+### Authentication and authorization
 
-The primary browser login is GitHub OAuth through the Arena API. The backend owns the OAuth client secret, immutable GitHub subject mapping, HttpOnly session, CSRF validation, and authorization decisions. Frontend visibility checks are only presentation concerns and never replace server-side authorization.
+`/signin` supports direct Arena username/password accounts and optional GitHub
+OAuth. Both resolve to the backend's immutable internal `user_id`, HttpOnly
+session, CSRF validation, and server-side authorization.
 
-### Game frontend
+Frontend visibility checks are presentation concerns only. Route hiding,
+disabled buttons, or a successful session read never replace backend ownership
+and admin checks.
+
+### Game and player state
 
 | Concern | Implementation |
-|---|---|
-| Routes | `src/app/game/page.tsx`, `src/app/game/[gameId]/page.tsx`, `src/app/game/[gameId]/result/page.tsx` |
-| State/API | `src/lib/game-api.ts` and React components |
-| Views | `src/components/GameLobby.tsx`, `GameViewer.tsx`, `GameResult.tsx` |
-| Styles | `src/app/arena402-game.css`, `src/app/arena402-terminal.css` |
+| --- | --- |
+| Guided journey | `src/components/PlayJourney.tsx` |
+| Current Game entry | `src/components/GameLobby.tsx`, `GameEntryDesk.tsx`, `InitialLoadoutEditor.tsx` |
+| Live/replay view | `src/components/GameViewer.tsx` |
+| Result | `src/components/GameResult.tsx` |
+| Public game API | `src/lib/game-api.ts` |
+| Timeline projection | `src/lib/timeline-projection.ts` |
+| Market interpretation | `src/lib/broadcast-model.ts`, `MarketIntelligence.tsx`, `MarketHistoryBoard.tsx` |
+| Settlement display | `src/components/SettlementRail.tsx`, `src/lib/ledger-api.ts` |
 
-The public game projection is read-only. Do not reintroduce browser-side Supabase access or a second state runtime.
+The live game view prefers backend Server-Sent Events and falls back to
+3-second polling. On every `gameId` change, clear the previous snapshot,
+timeline, projection, and participant state before loading the next game.
+Never let one game's state appear in another game.
+
+The backend currently does not guarantee authoritative per-round OHLC,
+in-progress net-worth rankings, or reputation snapshots in every public game
+response. Render explicit pending/unknown states when those projections are
+absent. Do not derive them from seats, event text, or frontend fixtures.
+
+### Agent lifecycle
+
+- Hosted Agent credentials use the dedicated write-only ingress.
+- Reconfiguration uses owner-scoped
+  `PATCH /api/hosted-agents/{agent_id}` and must not require resending a stored
+  provider key.
+- Active-game Runtime and configuration snapshots remain frozen when the base
+  Agent is reconfigured.
+- Do not physically delete historical Agent identity to solve a configuration
+  problem. Deactivate, reconfigure safely, or create a new Agent according to
+  the backend lifecycle.
 
 ### Admin surface
 
-Arena administration is split across repositories:
+- Management APIs belong to the backend and use `/api/v1/admin/*`.
+- Management pages belong here under `/admin/*`.
+- Every admin mutation must reuse the existing session, CSRF, immutable
+  subject/internal user identity, and audit mechanisms.
+- Never render private keys, seed phrases, raw credential material, raw CSV
+  rows, or copyable secret handles.
 
-- Management APIs belong to the product/backend repository and use `/api/v1/admin/*`.
-- Management pages belong in this frontend repository under `/admin/*`.
-- Every admin API must authorize the immutable GitHub subject on the server.
-- Mutations must reuse the existing session, CSRF, and audit mechanisms.
-- Never render wallet private keys, seed phrases, raw CSV rows, SecretStore contents, or copyable secret handles.
-- Frontend route hiding is not an authorization boundary.
+## Project structure
 
-## Design constraints ⚠️
+```text
+arena402/
+  src/
+    app/                  # Next.js App Router routes and CSS systems
+    components/           # Player, game, broadcast, wallet, and admin UI
+    lib/                  # Typed Arena API clients and pure projections
+  public/
+    assets/               # Game and authentication artwork
+    img/                  # Engraving artwork
+  docs/                   # Player and maintainer documentation
+  tests/                  # Node test suite
+  next.config.js          # Same-origin /api rewrite for local development
+  vercel.json             # Vercel framework and immutable artwork headers
+  README.md
+```
 
-**The visual identity is LOCKED. Do NOT arbitrarily change:**
+Read `README.md` first. Documentation purposes are indexed in
+`docs/README.md`. `UPSTREAM_DESIGN.md` records the design-system and backend
+integration boundary.
 
-- **Color palette** — `--ink` (#0a0a0b), `--ink-deep` (#060607), `--paper` (#f4f2ec), grays as defined in `:root`. No new colors without deliberate intent.
-- **Typography** — Instrument Serif for `.display` headings, IBM Plex Mono for body/labels. Do not introduce new typefaces.
-- **Spacing system** — `--edge` (clamp-based horizontal padding), `--frame` (viewport border). Sections use `padding: 110px var(--edge)`.
-- **Component patterns** — Tiers (Master→Bronze), chips, cards, stat strips, battle rows, leaderboard rows, marquee divider. All have established CSS classes — reuse them.
-- **Dark-first** — The default canvas is `--ink-deep`. The paper-panel is the exception (light section), not the rule.
-- **Mix-blend-mode nav** — The nav bar uses `mix-blend-mode: difference` over the page content. Do not break this.
-- **Engraving aesthetic** — Images use `filter: grayscale(1) contrast(1.04)` with `mix-blend-mode: screen`. Match this for any new imagery.
+## Design constraints
 
-### When adding new UI
+The visual identity is locked. Do not arbitrarily change:
 
-1. **Always use existing CSS custom properties** — colors, fonts, spacing all come from `:root` vars
-2. **Follow the established typographic hierarchy** — `.display` for big statements, `.label` for metadata, `.sec-sub` for descriptions
-3. **Match the grid/row/card patterns** — new lists should look like leaderboard rows; new detail views should look like agent/market cards
-4. **Keep the terminal/monospace flavor** — the brand is "luxury chess + CLI hacker." Both sides matter.
+- color tokens: `--ink`, `--ink-deep`, `--paper`, and the existing grays;
+- typography: Instrument Serif for display headings and IBM Plex Mono for
+  body, controls, and labels;
+- spacing: `--edge`, `--frame`, and the established section rhythm;
+- patterns: tier badges, chips, cards, stat strips, battle rows, leaderboard
+  rows, marquee dividers, terminal panels, and engraving treatment;
+- dark-first canvas and the mix-blend navigation behavior.
 
-## Rollback
+Use existing CSS custom properties and established component patterns. Do not
+introduce a second design system, another frontend runtime, or browser-side
+business-state authority.
 
-Use Git history and normal branch-based review. Do not use the obsolete `refactor/split-modules` instructions from the retired vanilla frontend.
+## Localization
 
-## Single-source discipline ⚠️ (读我)
+English source copy plus `src/lib/i18n.ts` and
+`src/lib/i18n-player-experience.ts` provide the player-facing zh-CN layer.
+`LocaleProvider` covers DOM text and attributes, but native dialogs, dynamic
+errors, statuses, and empty states require explicit handling and tests.
 
-历史上这个项目在本机散落成 6 份 clone + 6 个 http.server,导致「改了代码刷新不更新」——因为改的目录和浏览器连的服务器不是同一份。为杜绝复发,任何人（含 AI）在此仓库工作都必须遵守：
+Translate player-facing prose completely. Preserve dynamic Agent/device names,
+Game IDs, wallet addresses, commands, model names, API paths, and protocol
+abbreviations exactly.
 
-1. **唯一本地目录**：`~/arena402`。不要在 Desktop / Documents / /tmp 再 clone。想干活先 `cd ~/arena402`。
-2. **唯一远端**：`github.com/sunruize93-cmyk/arena402`。
-3. **唯一域名**：`arena402.com`（Vercel 绑到本仓库 `main` 分支，只有这一个 Vercel 项目）。
-4. **唯一本地服务器 + 固定端口 4404**。开发前先清旧 Next.js 进程：
-   ```bash
-   pkill -f "next dev"
-   cd ~/arena402 && npm run dev -- -p 4404
+## Documentation rules
+
+- Player guidance starts with the website path. Keep repository setup and
+  deployment out of `docs/PLAYER_GUIDE.md`.
+- `README.md` owns repository orientation and local development.
+- `docs/FRONTEND_GAMEPLAY_GUIDE.md` owns the implemented frontend flow and
+  backend contract boundary.
+- `docs/EXPO_AND_PLAYER_SURFACES.md` owns broadcast, rankings-preview, and
+  authenticated observatory behavior.
+- Update active documents in place. Do not create a new document when an
+  existing document already owns the topic.
+- Use source and tests as implementation evidence. Use the backend's active
+  README/game-design/roadmap for product and acceptance claims.
+
+## Single-checkout discipline
+
+For this Windows workspace:
+
+1. Use only `E:\AI_Project\arena402` for frontend work.
+2. Use only `https://github.com/sunruize93-cmyk/arena402.git` as this checkout's
+   remote.
+3. Use only port `4404` for the local frontend:
+
+   ```powershell
+   Set-Location E:\AI_Project\arena402
+   npm run dev -- -p 4404
    ```
-   永远访问 `http://localhost:4404`。
-5. **浏览器只开一个标签**，DevTools 勾上 "Disable cache"（Network 面板）。
-6. **密钥**：前端不能出现 `service_role`、OAuth client secret、钱包私钥、助记词或模型 API key。提交前自查：
-   ```bash
-   grep -RIn "service_role" src public \
-     --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'
-   ```
 
-### 缓存说明
+4. Before starting, inspect port `4404` and stop only a confirmed stale Arena
+   Next.js process. Do not start a second clone or a second frontend server.
+5. Use one browser tab at `http://localhost:4404`; disable cache while
+   diagnosing stale assets.
+6. `.env` and `.env.local` stay untracked. Only `.env.example` belongs in Git.
 
-`vercel.json` only assigns immutable caching to versioned artwork under `/img/` and `/assets/`. Next.js owns application asset hashing and cache behavior; do not add blanket immutable headers for application routes.
+Do not use the obsolete `~/arena402`, `/Users/.../adx_agentic_payment/frontend`,
+retired vanilla frontend, or `refactor/split-modules` instructions.
 
 ## Verification
 
-Before committing:
+Before committing documentation or frontend changes:
 
-```bash
+```powershell
+npm test
 npm run build
-grep -RIn "service_role" src public \
-  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'
+rg -n "service_role" src public
+git diff --check
 ```
 
-Review `.env*` carefully. Only `.env.example` belongs in Git.
+The secret scan should return no matches. Review `.env*` tracking without
+printing values. For documentation changes, also verify every local Markdown
+link and every documented route against `src/app`.

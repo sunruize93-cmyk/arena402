@@ -1,65 +1,94 @@
-# Arena 402 frontend integration
+# Arena 402 design system and backend integration
 
-The visual system in this directory is based on
-[`sunruize93-cmyk/arena402`](https://github.com/sunruize93-cmyk/arena402) at
-commit `f72dcc9239dd323e1723e2d1103c48b960a07e0a`.
+This repository is now the authoritative Arena 402 frontend. The companion
+`adx_agentic_payment` repository owns backend product behavior and contains no
+second frontend tree.
 
-The upstream design remains authoritative for:
+The visual system originated from the earlier Arena 402 design baseline at
+commit `f72dcc9239dd323e1723e2d1103c48b960a07e0a`. That commit is historical
+provenance, not a source to copy over the current React implementation.
 
-- the `ink`, `paper`, gray, serif, and mono design tokens;
-- the Instrument Serif and IBM Plex Mono type hierarchy;
-- the mix-blend navigation, engraving artwork, marquee, rows, cards, terminal,
-  and game-board visual patterns;
+## Visual authority
+
+Current visual authority lives in:
+
+- `src/app/arena402-design.css` for global ink/paper, typography, navigation,
+  cards, rows, and section patterns;
+- `src/app/arena402-game.css` for the Current Game and result experience;
+- `src/app/arena402-terminal.css` for negotiation and CLI surfaces;
+- `src/app/arena402-broadcast.css` for the Expo board;
+- `src/app/arena402-player.css` for the guided player journey;
+- the React components that already use those systems.
+
+Preserve:
+
+- the `--ink`, `--ink-deep`, `--paper`, and existing gray tokens;
+- Instrument Serif display headings and IBM Plex Mono body/labels;
+- mix-blend navigation, grayscale engraving artwork, marquee dividers, stat
+  strips, cards, tiers, leaderboard rows, and terminal panels;
 - the dark-first "luxury chess + CLI hacker" direction.
 
-The application runtime is Next.js. Upstream browser-side Supabase access and
-global JavaScript state are intentionally not carried forward. Their roles map
-to the Arena 402 backend as follows:
+Do not re-import the retired vanilla JavaScript runtime, global browser game
+state, or browser-side database access.
 
-| Upstream concern | Integrated implementation |
+## Runtime mapping
+
+| Historical concern | Current implementation |
 | --- | --- |
-| `js/supabase.js` | removed; browser state now comes from backend API clients |
-| service readiness | `src/lib/platform-api.ts` |
-| Agent control plane | `src/lib/connector-api.ts` and `src/lib/hosted-agent-api.ts` |
-| `js/auth.js` | backend GitHub OAuth plus `src/lib/connector-api.ts` |
-| `js/game-state.js` | public game snapshot and timeline API polling |
-| `js/render.js` | App Router pages and React components |
-| `css/style.css` | `src/app/arena402-design.css` |
-| `css/game.css` | `src/app/arena402-game.css` |
-| `css/terminal.css` | `src/app/arena402-terminal.css` |
+| browser-side Supabase | removed; all business state comes from Arena HTTP APIs |
+| authentication | direct Arena accounts or GitHub OAuth through `src/lib/connector-api.ts` |
+| Local Agent pairing | `src/components/ConnectorConsole.tsx` and `src/lib/connector-api.ts` |
+| Hosted Agent lifecycle | `src/components/HostedAgentCreator.tsx` and `src/lib/hosted-agent-api.ts` |
+| guided entry | `src/components/PlayJourney.tsx` |
+| formal Current Game entry | `GameEntryDesk.tsx`, `InitialLoadoutEditor.tsx`, `src/lib/game-api.ts` |
+| live game state | public snapshot + SSE timeline with polling fallback |
+| market projection | `src/lib/broadcast-model.ts`, `MarketIntelligence.tsx`, `MarketHistoryBoard.tsx` |
+| final result | `src/components/GameResult.tsx` |
+| public settlement ledger | `src/lib/ledger-api.ts`, `ImperialLedger.tsx` |
+| localization | `LocaleProvider`, `src/lib/i18n.ts`, `src/lib/i18n-player-experience.ts` |
 
-Do not add a second frontend runtime or reintroduce direct database access from
-the browser. New UI should reuse the upstream design tokens and component
-patterns, while all business state continues to flow through Arena-owned API
-boundaries.
+## API boundary
 
-## API routing
+Local development uses same-origin `/api/*` calls. `next.config.js` rewrites
+them to `API_PROXY_TARGET`, which defaults to
+`https://api.arena402.com`. Override it with
+`http://127.0.0.1:8000` only for intentional local-backend testing.
 
-During local development the browser calls same-origin `/api/*` paths and
-Next.js proxies them to `https://api.arena402.com` by default. Override the
-target with `API_PROXY_TARGET=http://127.0.0.1:8000` only when deliberately
-testing a local backend.
+Vercel production sets:
 
-In Vercel production, set
-`NEXT_PUBLIC_API_URL=https://api.arena402.com` so browser requests bypass the
-external rewrite. The API must allow the exact credentialed browser origin
-`https://www.arena402.com`.
+```text
+NEXT_PUBLIC_API_URL=https://api.arena402.com
+```
 
-The backend mounts public game reads only when
-`ADX_ARENA_CORE_ENABLED=true`. This exposes `/api/v1/pawnhouse/*` reads without
-enabling the development mutation surface under `/api/dev/*`.
+The backend must allow the exact credentialed frontend origin. Sessions are
+HttpOnly, mutations require CSRF validation, and ownership/administration is
+authorized on the server.
 
-## Authentication
+The backend may split its API, Connector/WebSocket ingress, Workers, and
+settlement services. That topology remains opaque to the browser: frontend
+clients continue to use the stable Arena `/api/*` contract.
 
-The primary browser login is GitHub OAuth through the configured API origin.
-The backend exchanges the authorization code, persists the GitHub subject as
-an Arena identity, and sets the existing HttpOnly session plus CSRF cookies
-before redirecting to `/agents`.
+## Data interpretation
 
-The production OAuth callback and cookie flow use `https://www.arena402.com`.
-Local HTTP development can exercise public API reads through the same-origin
-Next.js proxy, but the production OAuth loop must be accepted on the HTTPS
-production origin.
+- Seats are not rankings.
+- Public events are not a price authority.
+- Demo fixtures are not live game evidence.
+- `accept` is not payment.
+- `confirmed` is not necessarily inventory commit.
+- Only backend-published rankings and committed settlement/inventory state can
+  be rendered as final results.
 
-GitHub's client secret is backend-only. Never add it to this frontend's
-environment files or a `NEXT_PUBLIC_*` variable.
+When authoritative OHLC, live rankings, or reputation snapshots are absent,
+show an explicit pending/unknown state. Do not calculate a competing financial
+or reputation history in the browser.
+
+## Authentication and secrets
+
+Direct accounts and GitHub OAuth both resolve to the Arena backend's internal
+user identity and session. GitHub is optional and never grants payment
+authority or repository access.
+
+Hosted model credentials use a dedicated write-only ingress. Local Runtime
+credentials remain local. Never add OAuth client secrets, model keys, wallet
+private keys, seed phrases, database credentials, or SecretStore handles to
+frontend environment files, rendered UI, logs, fixtures, or `NEXT_PUBLIC_*`.

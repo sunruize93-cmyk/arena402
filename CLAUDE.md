@@ -1,117 +1,32 @@
-# Arena 402 deployment frontend
+# Arena 402 frontend
 
-> AdventureX 2026 · Pawn Track · "Your Agent Is A Chess Piece"
+Read and follow [`AGENTS.md`](AGENTS.md) before changing this repository.
 
-## Repository role
+This checkout is the canonical Next.js frontend and Vercel deployment source
+for [arena402.com](https://arena402.com). The separate
+`E:\AI_Project\adx_agentic_payment` repository owns the backend and no longer
+contains a `frontend/` directory.
 
-This repository is the Vercel deployment mirror for the Arena 402 frontend.
-The product repository is `/Users/sunruize/adx_agentic_payment`, and the
-canonical integrated frontend lives in its `frontend/` directory.
-The production frontend is served at `https://arena402.com`.
+## Fast orientation
 
-The frontend in this repository is intentionally placed at the repository
-root because the existing Vercel project is connected to this repository.
-When synchronizing product changes, copy from
-`/Users/sunruize/adx_agentic_payment/frontend/` into this root, review the
-result, and verify a production build before committing.
+- Repository and local setup: [`README.md`](README.md)
+- Documentation index: [`docs/README.md`](docs/README.md)
+- Player path: [`docs/PLAYER_GUIDE.md`](docs/PLAYER_GUIDE.md)
+- Frontend/game contract: [`docs/FRONTEND_GAMEPLAY_GUIDE.md`](docs/FRONTEND_GAMEPLAY_GUIDE.md)
+- Broadcast and player observatory: [`docs/EXPO_AND_PLAYER_SURFACES.md`](docs/EXPO_AND_PLAYER_SURFACES.md)
+- Design and backend mapping: [`UPSTREAM_DESIGN.md`](UPSTREAM_DESIGN.md)
 
-## Architecture
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15 App Router, React 18, TypeScript |
-| Backend | Arena 402 API from `adx_agentic_payment` |
-| Hosting | Vercel |
-| Fonts | Instrument Serif and IBM Plex Mono |
-
-The browser must not access Supabase or another database directly. All
-business state flows through Arena-owned HTTP APIs.
-
-### API routing
-
-Local browser requests use same-origin `/api/*` URLs. `next.config.js` proxies
-them to `API_PROXY_TARGET`. Production browser requests go directly to the API
-origin to avoid depending on the Vercel external rewrite.
-
-- Local development: leave `NEXT_PUBLIC_API_URL` blank and set
-  `API_PROXY_TARGET=http://127.0.0.1:8000` when using a local backend.
-- Vercel production: set `NEXT_PUBLIC_API_URL=https://api.arena402.com`.
-- The API must allow the production browser origin
-  `https://www.arena402.com` with credentials.
-
-`https://www.arena402.com` and `https://api.arena402.com` are separate origins,
-so production requires the API's exact CORS allowlist and credential support.
-Do not expose a backend secret, wallet credential, `service_role` key, or
-model API key through a `NEXT_PUBLIC_*` variable.
-
-The public Pawnhouse game read API additionally requires the backend setting:
-
-```text
-ADX_ARENA_CORE_ENABLED=true
-```
-
-## Project structure
-
-```text
-arena402/
-  src/
-    app/                  # App Router pages and the Arena 402 CSS system
-    components/           # Shared React UI
-    lib/                  # Arena, game, Connector, and Hosted Agent API clients
-  public/
-    assets/               # Game artwork
-    img/                  # Engraving artwork
-  next.config.js          # Same-origin API proxy
-  vercel.json             # Vercel framework and cache headers
-  package.json
-```
-
-See `UPSTREAM_DESIGN.md` for the visual migration and API mapping.
-
-## Local development
-
-The single local frontend remains `~/arena402` on port `4404`:
-
-```bash
-cd ~/arena402
-npm ci
-npm run dev -- -p 4404
-```
-
-Use `http://localhost:4404`. Do not start a second clone or a second frontend
-server. The backend runs separately from `adx_agentic_payment`, normally on
-`http://127.0.0.1:8000`.
-
-For an explicit local proxy override, create an untracked `.env.local`:
-
-```text
-NEXT_PUBLIC_API_URL=
-API_PROXY_TARGET=http://127.0.0.1:8000
-```
-
-## Design constraints
-
-The visual identity is locked:
-
-- Use the established `--ink`, `--ink-deep`, `--paper`, and gray tokens.
-- Use Instrument Serif for display headings and IBM Plex Mono for body/labels.
-- Reuse `--edge`, `--frame`, established rows, cards, chips, and stat strips.
-- Keep the dark-first “luxury chess + CLI hacker” direction.
-- Preserve the mix-blend navigation behavior.
-- Match the grayscale engraving treatment for new imagery.
-
-Do not introduce another frontend runtime, a second design system, or direct
-database access. Extend the App Router pages, React components, and API clients
-already present here.
-
-## Verification
+Use `E:\AI_Project\arena402`, run the single local frontend on port `4404`, and
+keep browser business calls on the Arena API boundary. Do not introduce direct
+database access, expose secrets through `NEXT_PUBLIC_*`, infer authoritative
+prices/rankings from fixtures, or describe pending settlement as a completed
+trade.
 
 Before committing:
 
-```bash
+```powershell
+npm test
 npm run build
-grep -RIn "service_role" src public \
-  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'
+rg -n "service_role" src public
+git diff --check
 ```
-
-Review `.env*` carefully. Only `.env.example` belongs in Git.

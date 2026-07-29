@@ -1,176 +1,79 @@
-# Arena 402 前端游玩机制与开发者指南
+# Arena 402 前端游玩机制与 API 契约
 
-> 适用范围：`/Users/sunruize/arena402`。本文定义从用户接入 Agent 到结算离场的唯一前端主流程，以及前后端需要共同遵守的状态与接口契约。
+> 适用范围：`E:\AI_Project\arena402`。
+> 本文描述当前已实现的前端流程、状态归属和与
+> `E:\AI_Project\adx_agentic_payment` 的接口边界。
 
-## 1. 产品边界：玩家配置，Agent 自主交易
+玩家操作指南见 [`PLAYER_GUIDE.md`](PLAYER_GUIDE.md)。本文面向前后端开发者，
+不把待办计划写成已上线能力。
 
-Arena 402 不是由玩家手动下单的交易游戏。用户在开局前负责选择和配置自己的 Agent、初始物资与支付授权；一旦确认入池，Agent 在每回合自主判断、排队、谈判和结算。用户始终可以观看、审计和在开局前退出，但**不能在回合中替 Agent 改单或改价**。
+## 1. 产品边界
 
-这条边界必须在所有按钮和文案中保持一致：
+Arena 402 不是玩家手动下单的交易游戏。
 
-- 用户可操作：连接、创建、配置、分配物资、授权、入池、开局前退出、查看与复盘。
-- Agent 可操作：买/卖/跳过、谈判报价、接受/拒绝、在授权额度内发起结算。
-- Arena 服务端可操作：校验身份与余额、冻结配置、按规则撮合、生成权威价格、确认链上结算、更新库存与信誉。
+- 玩家：登录、准备 Agent、配置开局组合、确认 PaymentMandate、入池、开局前退出、
+  观战和复盘；
+- Agent：`buy | sell | pass`，以及有限轮
+  `propose | accept | reject`；
+- Arena：身份/钱包/授权校验、配置冻结、任务调度、FCFS 配对、权威状态、链上确认、
+  库存提交和排名；
+- Injective EVM testnet：支付最终性。
 
-```mermaid
-flowchart LR
-  A[登录 GitHub] --> B[创建或连接 Agent]
-  B --> C[配置 20 金初始组合]
-  C --> D[确认支付授权]
-  D --> E[进入撮合池]
-  E --> F[等待开局]
-  F --> G[回合：信号、决策、撮合、谈判]
-  G --> H[链上确认与库存提交]
-  H --> I{还有回合？}
-  I -- 是 --> G
-  I -- 否 --> J[最终估值与信誉更新]
-  J --> K[结算报告 / 离场 / 再入下一局]
-```
+浏览器只渲染候选动作和服务端投影，不能直接改变撮合、价格、库存、排名或结算。
 
-## 2. 用户旅程与每一步按钮
+## 2. 当前用户旅程
 
-| 阶段 | 页面 / 主区域 | 用户看到什么 | 用户点击什么 | 成功后去哪 | 失败或取消 |
-| --- | --- | --- | --- | --- | --- |
-| 0. 登录 | `/signin` | GitHub 登录说明与安全边界 | `Continue with GitHub` | `/agents` | 显示安全的登录失败码；不显示 OAuth 细节 |
-| 1. 获得 Agent | `/agents` 的 `AgentDeploymentJourney` | Local Connector 与 Hosted Forge 两种路径 | `Approve pairing code` 或创建 Hosted Agent | Agent 就绪后显示 `Continue to Game` | 保留在当前路径，明确未就绪原因 |
-| 2. 选择入场 Agent | `/game` 的“Enter current lobby”后进入的入场抽屉 | 当前可入场游戏、自己的就绪 Agent、该 Agent 的信誉卡 | `Select this Agent` | 初始物资桌 | 无可用 Agent 时点 `Back to Agents` |
-| 3. 配置初始物资 | 入场抽屉第 2 步“Loadout” | 四种货物、官方开局价、现金、总价值 20 金、每种数量的加减控件 | `Lock 20 Gold Loadout`（只有总额恰为 20 时可点击） | 授权确认 | `Reset loadout` 恢复推荐组合；可点 `Back` 改 Agent |
-| 4. 授权与入池 | 入场抽屉第 3 步“Mandate” | 单局支付额度、到期时间、Agent、物资摘要 | `Approve mandate & join pool` | `/game/[gameId]#pool` | 授权失败不入池；可重试，不产生重复参赛记录 |
-| 5. 撮合池 | `/game/[gameId]#pool`，替代只有 Arena/Market 的分裂入口 | 已锁定座位、候补座位、开局门槛、池中 Agent 的信誉摘要、倒计时/状态 | `Watch the pool`；开局前自己的座位显示 `Leave pool` | 人数到门槛并开局后自动进入回合交易 | `Leave pool` 撤回未使用授权并回到 `/game` |
-| 6. 回合交易 | `/game/[gameId]#market` | 当前世界事件、四种货物的当前价与 K 线、订单队列、撮合动画、当前谈判、结算状态 | `Follow my Agent`、`Open price history`、`Inspect negotiation` | 保持在同页，实时刷新 | 网络延迟仅标为 `Feed delayed`；不把旧数据伪装成实时 |
-| 7. 结算 | 交易区的 `Settlement rail` | 已接受条款、授权、链确认、库存提交四个明确阶段 | `Inspect settlement` | 成功后进入下一回合或最终账本 | 超时/回滚显示原因及“库存未变更”；不得把接受报价显示为成交 |
-| 8. 最终账本 | `/game/[gameId]/result` | 期末净值、排名、最终价格、自己的初始与期末组合、信誉变化 | `View match replay`、`Return to Arena`、`Enter next pool` | 重放、首页或下一局入场 | 已结算局只读；不提供再次修改旧局的按钮 |
+| 阶段 | 路由/组件 | 当前行为 |
+| --- | --- | --- |
+| 登录 | `/signin`, `CredentialAuthForm` | Arena 账号登录/注册，或 GitHub OAuth |
+| 准备 Agent | `/agents`, `AgentDeploymentJourney` | Local Connector 或 Hosted Agent |
+| 快速入场 | `/play`, `PlayJourney` | 选择 `READY` Hosted Agent，自动预检、Mandate、Join |
+| 自定义入场 | `/game`, `GameLobby`, `GameEntryDesk` | Agent -> 20 金 Loadout -> Mandate -> Join |
+| 等待池 | `/game/[gameId]#pool`, `GameViewer` | 席位、开赛阈值、倒计时、退出 |
+| 回合市场 | `/game/[gameId]#market` | 事件、Agent 动作、池、配对、谈判、价格和倒计时 |
+| 结算 | 游戏页 `SettlementRail` | 接受、授权、链确认、库存提交分阶段显示 |
+| 结果 | `/game/[gameId]/result`, `GameResult` | 最终价格、净值榜、回放和下一局入口 |
+| 公共证据 | `/ledger`, `ImperialLedger` | 跨局结算状态、哈希、Explorer 元数据 |
 
-### 推荐的按钮层级
+一屏保留一个主要推进动作。不要同时把 Join、Start、Trade 当成玩家主按钮；玩家没有
+手动 Start，也不能在回合中替 Agent 改价。
 
-一屏只能有一个主要推进按钮。按阶段依次为：
+## 3. 认证、身份和授权
 
-`Continue with GitHub` → `Continue to Game` → `Select this Agent` → `Lock 20 Gold Loadout` → `Approve mandate & join pool` → `Watch the pool` → `Follow my Agent` → `View final ledger`。
+直接 Arena 账号与 GitHub OAuth 最终都由后端建立：
 
-`Leave pool`、`Back`、`Inspect…` 均为次级操作。不要把 `Join`, `Start`, `Trade` 同时放在同一屏的主按钮位置；尤其不要出现让用户在 Agent 已锁定后再“手动下单”的入口。
+- immutable internal `user_id`；
+- HttpOnly session；
+- CSRF token；
+- Agent、钱包、参赛和管理权限。
 
-## 3. 规则定义
+Frontend session/owner checks只控制呈现。所有 mutation 和 admin API 仍需服务端
+授权。GitHub 登录不授予仓库访问或支付权限。
 
-### 3.1 初始物资：精确等值 20 金
+## 4. 正式 Current Game 入场
 
-每个 Agent 入局时的初始资产必须按**开局官方价**精确等于 20 金。可分配为现金和四种物资，数量是非负整数。
-
-| 货物 | `goodId` | 开局价（Gold） | 前端控件 |
-| --- | --- | ---: | --- |
-| 粮草 | `grain` | 2 | `− / +` 数量步进器 |
-| 精铁 | `iron` | 5 | `− / +` 数量步进器 |
-| 战马 | `warhorse` | 8 | `− / +` 数量步进器 |
-| 宝石 | `gems` | 3 | `− / +` 数量步进器 |
-| 现金 | `cash` | 1 | 剩余金额，只读 |
-
-计算规则（客户端仅用于即时提示，服务端必须重复校验）：
+`src/lib/game-api.ts` 是正式入场的浏览器 API 层。流程是：
 
 ```text
-holdingsValue = grain × 2 + iron × 5 + warhorse × 8 + gems × 3
-cash = 20 - holdingsValue
-可提交 <=> cash >= 0
+POST /api/v1/games/{gameId}/join-preflight
+  -> GET/POST/REVOKE /api/v1/me/payment-mandates
+  -> POST /api/v1/games/{gameId}/participants
+  -> GET /api/v1/games/current
 ```
 
-界面要求：
+所有 mutation 复用 HttpOnly session、CSRF header 和 `Idempotency-Key`。
+`PlayJourney` 将稳定幂等键保存在当前浏览器 session 中；`GameEntryDesk` 对同一内容
+复用稳定请求键。网络超时后重试同一请求，不能偷偷创建第二个席位或 Mandate。
 
-- 顶部固定显示 `TOTAL 20.00 / 20.00 GOLD`，当数量超额时红色错误态并禁用主按钮。
-- 每行显示数量、占用金值和“开局价”，不要把当前市场价用于开局校验。
-- `Recommended balanced` 是可选的推荐，不应替代用户选择；可用一件货物加剩余现金的方式保持早期流动性。
-- 提交体中金额使用字符串或原子单位整数，禁止 JavaScript 浮点数。
-- 成功入池后组合立即只读；用户若想调整，必须先 `Leave pool` 成功后重新入池。
-
-### 3.2 撮合、谈判与结算
-
-每个回合的可视化必须明确区分以下五个阶段：
-
-1. **Omen / 公共信号**：所有 Agent 获得同一世界事件与市场信息。
-2. **Orders / 自主决策**：Agent 选择买、卖或跳过。用户只观看决策摘要。
-3. **Pool / 队列撮合**：按货物分栏显示买方和卖方订单；符合品种与数量的订单按 Arena 接收时间 FCFS 配对。队列中的 Agent 仍没有发生资产变化。
-4. **Bargain / 回合制谈判**：一对 Agent 最多三次动作，展示报价、还价、接受或拒绝；对手信誉摘要在此时可见并进入 Agent 的服务器任务上下文。
-5. **Seal / 结算**：`terms frozen → authorization → chain confirmed → inventory committed`。只有最后一步才算交易成功并改变库存、K 线与信誉。
-
-撮合池 UI 不应再让用户在 `Arena` 与 `Market` 两个抽象入口间猜测下一步。统一为一张游戏页的三个锚点：
-
-- `#pool`：开局前的**参赛池**，看谁已锁定座位、距离开局还差几位、可退出。
-- `#market`：开局后的**回合市场**，看价格、订单池和实时配对。
-- `#ledger`：每次已提交结算与最终结果的**审计账本**。
-
-### 3.3 价格与 K 线
-
-用户在 Agent 交易时必须同时看到“现在能依据什么价格行动”和“价格如何形成”：
-
-- 四张货物卡：当前权威价格、相对上一根收盘价涨跌、最新成交量、数据状态。
-- 一张可选中的放大 K 线：OHLC、回合编号、公共事件标记、已提交成交数。
-- 当前回合尚未完成时显示 `LAST COMMITTED`，而不是伪造“实时收盘价”。如服务端提供最新已成交价，可额外标为 `LAST CLEARING`，并与已完成 K 线视觉区分。
-- 只有 `settlement.inventory_committed` 的成交可进入 OHLC；报价、接受、链上待确认或失败结算都不能修改蜡烛图。
-- 无权威 OHLC 时显示 `AWAITING PRICE AUTHORITY`，绝不能用前端推算的曲线冒充 K 线。
-
-仓库已有可复用的权威适配器：`src/lib/broadcast-model.ts` 的 `buildBroadcastGoods`，以及展示实现 `src/components/ExpoBroadcastBoard.tsx`。游戏页应复用这条数据解释规则，不要另写一套价格状态机。
-
-### 3.4 信用（信誉）机制
-
-在 Agent 名片、撮合池行、谈判对手栏和最终复盘中显示同一组服务端权威数据：
-
-| 指标 | 定义 | 显示格式 |
-| --- | --- | --- |
-| `tradeAttempts` | 已关闭的一次撮合谈判数；包括接受、拒绝、超时、结算失败 | `交易 24 次` |
-| `settledTrades` | 最终到达 `settlement.inventory_committed` 的交易数 | `成功 19 次` |
-| `successRateBps` | `settledTrades / tradeAttempts × 10,000`；分母为 0 时为 `—` | `成功率 79.17%` |
-| `failedNegotiations` | 已关闭但未进入已提交库存的谈判数；保留以兼容现有 Agent task | 可放入详情或对手上下文 |
-
-信誉不是客户端计算的个人档案：前端只渲染快照。服务端需要在结算/关闭谈判时原子更新，并把如下最小上下文传给谈判 Agent：
+正式 Join body：
 
 ```json
 {
-  "counterparty": {
-    "agentId": "agent_…",
-    "displayName": "…",
-    "tradeAttempts": 24,
-    "settledTrades": 19,
-    "successRateBps": 7917,
-    "failedNegotiations": 5
-  }
-}
-```
-
-不要把模型 prompt、私有运行日志、钱包信息或可复制的支付凭证塞入信用名片。
-
-## 4. 当前仓库：已有能力与缺口
-
-| 能力 | 当前前端位置 | 当前后端状态 | 本次目标的处理 |
-| --- | --- | --- | --- |
-| 登录与 Agent 接入 | `src/components/AgentDeploymentJourney.tsx`、`ConnectorConsole.tsx`、`HostedAgentCreator.tsx` | 已有 | 保留为步骤 0–1 |
-| 当前游戏与公开座位 | `src/components/GameLobby.tsx`、`src/lib/game-api.ts` | 已有 `GET /api/v1/games/current` | 从“旁观入口”提升为入场总控 |
-| 正式支付授权入场 | 未接入 UI | 已有 `POST /api/v1/games/{gameId}/join-preflight` 与正式 join 路由 | 在入场抽屉实现，不再使用旧的 `POST /api/games/{id}/participants` |
-| 自由 20 金组合 | 无 | 正式 join 目前强制 20 金现金、0 物资；开发态已有 `Portfolio.initial` 校验 | **先扩展正式后端契约，再接 UI** |
-| 撮合与谈判时间线 | `GameViewer.tsx`、`NegotiationTerminal.tsx` | 已有公开 timeline | 改造成 `#pool / #market / #ledger` 三段式展示 |
-| K 线与权威数据状态 | `broadcast-model.ts`、`ExpoBroadcastBoard.tsx` | `game_state` 尚未稳定公开 `priceSnapshots` | 复用现有模型；补足状态 API 输出 |
-| 信誉三指标 | 无 | Agent task 仅有 `failed_negotiations`，当前为常量 0 | 新建服务端权威 reputation snapshot 并扩展 task context |
-| 开局前退出 | 无 | 已有 `DELETE /api/v1/games/{gameId}/participants/{participantId}` | 在池中自己的座位加 `Leave pool` 并二次确认 |
-| 结果页 | `GameResult.tsx` | 已有排名与最终价格 | 添加初始/期末组合、信誉变化、下一局 CTA |
-
-### 不能混用的两个参赛接口
-
-`src/lib/game-api.ts` 中的旧 `joinPawnhouseGame()` 指向 `/api/games/{gameId}/participants`。它只传 `agentId`，不满足正式的支付授权和当前局生命周期要求。新入场体验必须改接：
-
-1. `POST /api/v1/games/{gameId}/join-preflight`（带 CSRF 与幂等键）；
-2. 让用户完成一次游戏范围的 payment mandate；
-3. `POST /api/v1/games/{gameId}/participants`（带 `agentId`、`joinAuthorizationId`、`paymentMandateId`，以及下节定义的 `portfolio`）；
-4. 失败时用同一个幂等键重试同一请求，内容改变才生成新键。
-
-## 5. 前后端契约
-
-### 5.1 必须先落地的正式入场扩展
-
-正式路由 `POST /api/v1/games/{gameId}/participants` 需要接受以下请求体。字段使用 camelCase；金额用十进制字符串，不使用 float。
-
-```json
-{
-  "agentId": "agent_…",
-  "joinAuthorizationId": "ja:…",
-  "paymentMandateId": "pm:…",
+  "agentId": "agent_...",
+  "joinAuthorizationId": "ja:...",
+  "paymentMandateId": "pm:...",
   "portfolio": {
-    "cash": "2",
+    "cashAtomic": "2000000",
     "holdings": {
       "grain": 2,
       "iron": 1,
@@ -181,134 +84,220 @@ cash = 20 - holdingsValue
 }
 ```
 
-服务端验收条件：
+金额使用原子单位十进制字符串，不使用 JavaScript 浮点数。
 
-- 货物键必须严格为 `grain`、`iron`、`warhorse`、`gems`，数量为非负整数。
-- 按开局官方价计算，`cash + holdingsValue === 20`；不匹配返回安全错误码 `invalid_initial_portfolio`。
-- 用户、Agent、预授权、支付 mandate、当前局和幂等键必须绑定，不能跨局复用。
-- 成功后一次性冻结初始组合、创建座位、写入 `participant.joined`；响应返回 `participantId`、`readiness`、`portfolioLockedAt` 和 `schemaVersion`。
-- `DELETE` 仅在 `registration` 或 `portfolio_setup` 阶段可用，并撤销未使用 mandate；已开局后拒绝退出。
-
-### 5.2 游戏快照需要新增的公开字段
-
-`GET /api/v1/pawnhouse/games/{gameId}` 必须可公开渲染以下**经过服务端脱敏**的数据：
-
-```ts
-type PublicParticipant = {
-  participantId: string;
-  agentId: string;
-  displayName: string;
-  runtimeKind: string;
-  status: 'waiting' | 'active' | 'completed' | 'cancelled';
-  readiness: 'PENDING' | 'READY' | 'WITHDRAWN';
-  reputation: {
-    tradeAttempts: number;
-    settledTrades: number;
-    successRateBps: number | null;
-    failedNegotiations: number;
-  };
-};
-
-type PublicMarketSnapshot = {
-  goodId: 'grain' | 'iron' | 'warhorse' | 'gems';
-  round: number;
-  openAtomic: string;
-  highAtomic: string;
-  lowAtomic: string;
-  closeAtomic: string;
-  lastClearingAtomic?: string;
-  committedTradeCount: number;
-  carriedForward: boolean;
-};
-```
-
-公开时间线还需要稳定提供：`order.queued`、`pairing.created`、`pairing.closed`、`negotiation.message`、`settlement.*`。订单事件只发布安全的聚合或允许公开的字段，绝不泄漏完整策略、私有 prompt、密钥、钱包地址或原始 runtime telemetry。
-
-### 5.3 前端 API 层的结构
-
-在 `src/lib/game-api.ts` 中按资源拆分，而不是让组件直接 `fetch`：
+### 20 金组合
 
 ```text
-getCurrentGame()
-getJoinPreflight(gameId, agentId, idempotencyKey)
-joinCurrentGame(gameId, payload, idempotencyKey)
-withdrawCurrentGameParticipant(gameId, participantId)
-getPawnhouseGame(gameId)
-getPawnhouseTimeline(gameId, after)
+cash + grain × 2 + iron × 5 + warhorse × 8 + gems × 3 = 20 gold
 ```
 
-所有 mutation 均使用现有 HttpOnly session、CSRF token 和 `Idempotency-Key`。前端身份判断仅为展示；服务端仍以 immutable GitHub subject 进行授权。
+`src/lib/initial-loadout.ts` 负责纯计算与客户端即时校验；后端
+`Portfolio.initial` 必须再次验证：
 
-## 6. 前端信息架构与组件边界
+- 货物键仅为 `grain`, `iron`, `warhorse`, `gems`；
+- 数量为非负整数；
+- 总价值精确等于 20 金；
+- Agent、Game、用户、JoinAuthorization、PaymentMandate 和幂等请求绑定；
+- 入池后初始组合冻结。
 
-推荐的文件拆分如下。新组件只消费 API snapshot/timeline，不拥有第二套业务真相。
+`DELETE /api/v1/games/{gameId}/participants/{participantId}` 只用于开局前退出。
+前端退出前二次确认；成功后撤销未使用的本局 Mandate 并刷新 Current Game。
+
+## 5. Game 状态和传输
+
+### 权威来源
+
+| 数据 | 前端来源 |
+| --- | --- |
+| Current Game 和席位 | `GET /api/v1/games/current` |
+| Game 快照 | `GET /api/v1/pawnhouse/games/{gameId}` |
+| 增量时间线 | `GET /api/v1/pawnhouse/games/{gameId}/events` (SSE) |
+| SSE 回退 | `GET /api/v1/pawnhouse/games/{gameId}/timeline?after=...` |
+| 个人参赛 | `GET /api/game-participations?scope=mine` |
+| Ledger | `/api/v1/ledger/trades`, `/api/v1/ledger/stats` |
+
+`GameViewer`：
+
+1. 加载快照和历史 timeline；
+2. 建立 EventSource；
+3. 按 sequence 合并/去重公开事件；
+4. SSE 不可用或 stale 时退回 3 秒轮询；
+5. 延迟时保留最后安全快照并显示 `Feed delayed`；
+6. `gameId` 改变时先清空旧 snapshot、events、projection 和 participant state。
+
+不得把一个 Game 的缓存带到另一个 Game，也不得从组件本地状态创建第二套业务真相。
+
+### 状态归属
+
+- **服务端快照**：Game phase、round、seat、readiness、pairing、negotiation、价格、
+  排名、结算、钱包和信誉；
+- **服务端事件**：按 sequence 追加且去重，刷新后仍以 API 为准；
+- **本地暂存**：未提交的 Loadout、打开的面板、当前选择、回放位置；
+- **禁止缓存为权威**：支付授权、库存、排名、价格、信誉和结算完成状态。
+
+## 6. 市场、排名和信誉
+
+### 已实现
+
+- `MarketIntelligence` 渲染四种货物当前状态；
+- `MarketHistoryBoard` 提供历史视图和明确的数据质量文案；
+- `buildBroadcastGoods` 接受后端可选的 `priceSnapshots` / `priceHistory`；
+- `GameResult` 渲染后端最终价格和最终排名；
+- `AgentReputationCard` 可以渲染后端提供的信誉快照；
+- 缺少权威字段时显示 pending/unknown，而不是填造数值。
+
+### 仍依赖后端投影
+
+当前 Pawnhouse game-state v1 稳定提供 participant identity、round、pairing、
+negotiation、final prices 和 final rankings，但不保证：
+
+- 每回合权威 OHLC / committed trade count；
+- 进行中的 mark-to-market net-worth ladder；
+- 完整的 `tradeAttempts`, `settledTrades`, `successRateBps` 信誉快照/增量。
+
+因此：
+
+- seat 顺序不能显示为排名；
+- event 文本不能计算价格；
+- 前端不能根据接受报价生成 K 线；
+- 缺失信誉显示 `—`，不能把 `failedNegotiations=0` 当作真实历史；
+- `/rankings` 和 `/broadcast/demo` 的 fixture 必须保持 Preview/Demo 标签。
+
+只有 `settlement.inventory_committed` 的交易可以进入正式价格、持仓和成功交易统计。
+
+## 7. 谈判与结算语义
+
+谈判是有限轮交互，不要求为了“看起来有过程”而强制用完全部轮次。服务端的
+proposal ID、turn order、价格/限价和冻结条款是权威。
+
+| 状态 | 前端解释 |
+| --- | --- |
+| `proposed` | 已提出价格，尚未接受 |
+| `accepted_pending_settlement` | 双方接受，尚未完成支付 |
+| `authorization_requested` | 正在校验/准备授权 |
+| `submitted` / `submitted_unknown` | 已提交或等待链上恢复 |
+| `confirmed` | 链上确认，库存可能尚未提交 |
+| `inventory_committed` / `settled` | 支付和库存均完成 |
+| `settlement_failed` | 未完成支付，库存不变 |
+
+UI 不得把 `accept`、Connector ACK、Provider success、交易哈希存在或
+`confirmed` 单独描述成库存已完成转移。
+
+## 8. Agent Runtime 和生命周期
+
+### Hosted
+
+- API Key 只进入 write-only credential ingress；
+- 列表/detail/PATCH 响应不返回原始 Key；
+- `PATCH /api/hosted-agents/{agentId}` 可修改支持的模型/策略；
+- Reconfigure 不需要重新发送已存储的 Provider Key；
+- 活跃 Game 继续使用 Join 时冻结的 Runtime/config snapshot。
+
+### Local Connector
+
+```text
+Arena Gateway
+  <- outbound WSS from adx-connector
+  -> local Codex or Claude CLI
+```
+
+网站不访问本机端口。Pairing、Device、Binding 和 Runtime readiness 由 Connector
+Gateway 投影。Installed/online 不自动等于 Arena-ready；后端还要校验认证、任务支持、
+兼容性、隔离和冻结 Binding。
+
+Connector 断线不会自动切换 Hosted Runtime。Deadline Finalizer 负责把逾期 decide
+收敛为 `pass`、谈判收敛为 timeout。
+
+## 9. 国际化
+
+英语源文案加：
+
+- `src/lib/i18n.ts`；
+- `src/lib/i18n-player-experience.ts`；
+- `src/components/LocaleProvider.tsx`。
+
+DOM 文本/属性、原生 `window.confirm`、动态错误、状态、空态和倒计时都需要覆盖。
+动态 Agent/device 名称、Game ID、钱包地址、命令、模型名、API 路径和协议缩写保持
+原样。
+
+## 10. 当前实现状态
+
+| 能力 | 状态 |
+| --- | --- |
+| Arena 账号 + GitHub OAuth | 已接入 |
+| Local/Hosted Agent workshop | 已接入 |
+| Hosted Agent owner-scoped reconfiguration | 已接入 |
+| Current Game + v1 preflight/Mandate/Join/Withdraw | 已接入 |
+| 自定义 20 金开局组合 | 已接入前后端正式 Join |
+| Game SSE + 3 秒 fallback | 已接入 |
+| 跨 Game 状态隔离 | 已修复并有回归测试 |
+| 英文 + zh-CN 玩家流程 | 已接入并有回归测试 |
+| 最终价格/排名 | 后端完成时由权威投影提供 |
+| 实时 OHLC/live ladder/完整信誉 | 前端有安全适配和空态，后端权威投影仍不完整 |
+| `/rankings`, `/broadcast/demo` | 明确的展示 fixture，不是正式赛季数据 |
+| 公共 Facilitator / 100-Agent / 真实 Local 全局 E2E | 后端独立验收项，不由前端代码证明 |
+
+主仓库本地的 batch finalizer、Provider 公平 claim、Runtime lease fencing、服务拆分、
+指标和 load probe 等改动若尚未提交/部署，只能描述为进行中的并发加固，不能写成
+线上容量结论。
+
+## 11. 组件边界
 
 ```text
 src/
   app/
-    game/page.tsx                         # 当前局入口与入场抽屉
-    game/[gameId]/page.tsx                # #pool、#market、#ledger 三段页
-    game/[gameId]/result/page.tsx         # 最终账本与离场
+    signin/page.tsx
+    play/page.tsx
+    agents/page.tsx
+    game/page.tsx
+    game/[gameId]/page.tsx
+    game/[gameId]/result/page.tsx
+    broadcast/[gameId]/page.tsx
+    rankings/page.tsx
+    ledger/page.tsx
   components/
-    GameLobby.tsx                         # 当前局状态与主 CTA
-    GameEntryDesk.tsx                     # Agent 选择、loadout、授权、入池
-    InitialLoadoutEditor.tsx              # 20 金精确组合；无网络副作用
-    MatchmakingPool.tsx                   # 等待席、订单池、撮合可视化
-    MarketIntelligence.tsx                # 当前价、K 线、数据质量状态
-    AgentReputationCard.tsx               # 三指标，只读公共名片
-    SettlementRail.tsx                    # 结算四阶段
-    GameViewer.tsx                        # 编排上述只读模块与 timeline polling
-    GameResult.tsx                        # 最终估值、信誉变化、下一局 CTA
+    PlayJourney.tsx
+    AgentDeploymentJourney.tsx
+    ConnectorConsole.tsx
+    HostedAgentCreator.tsx
+    GameLobby.tsx
+    GameEntryDesk.tsx
+    InitialLoadoutEditor.tsx
+    GameViewer.tsx
+    MarketIntelligence.tsx
+    MarketHistoryBoard.tsx
+    NegotiationTerminal.tsx
+    SettlementRail.tsx
+    GameResult.tsx
   lib/
-    game-api.ts                           # 唯一游戏 HTTP 客户端
-    broadcast-model.ts                    # 唯一 OHLC 解释与数据质量逻辑
-    initial-loadout.ts                    # 纯计算、金额原子单位与 UI 校验
+    connector-api.ts
+    hosted-agent-api.ts
+    game-api.ts
+    timeline-projection.ts
+    broadcast-model.ts
+    ledger-api.ts
+    initial-loadout.ts
 ```
 
-状态归属：
+组件消费 typed API client 和纯 projection helper。不要在组件内复制认证、金额、
+结算或业务状态机。
 
-- **服务端快照**：游戏阶段、座位、价格、信誉、结算、排名。轮询/刷新后整体替换。
-- **时间线**：按 sequence 追加并去重；页面刷新后以 API 为准。
-- **本地暂存**：尚未点击 `Lock 20 Gold Loadout` 的步进器值、当前展开的图表/详情、入场抽屉步骤。它们不是游戏状态。
-- **不可缓存为真相**：价格、信誉、付款授权、参赛资格、库存和结算状态。
+## 12. 验收
 
-视觉实现继续使用 `--ink`、`--paper`、`--edge`、Instrument Serif 和 IBM Plex Mono；复用现有 leaderboard row、tier、terminal、stat strip、marquee divider。不要新增颜色、字体、浏览器直连数据库或全局状态运行时。
+```powershell
+npm test
+npm run build
+rg -n "service_role" src public
+git diff --check
+```
 
-## 7. 实施顺序与验收
+还需人工核对：
 
-### 第一阶段：先让正式数据可用（后端）
-
-1. 扩展当前局 join body，按 `Portfolio.initial` 校验并保存用户组合。
-2. 在游戏 state 中输出权威 OHLC/当前已成交价、公开座位和信誉快照。
-3. 在谈判与结算收口处原子维护信誉三指标，并扩展 Agent task 的对手上下文。
-4. 对正式路由补充入池、重复提交、退出、结算失败和信誉计算测试。
-
-### 第二阶段：接入体验（本仓库）
-
-1. 在 `game-api.ts` 接入正式 v1 的 preflight/join/withdraw；弃用旧 join helper。
-2. 实现 `InitialLoadoutEditor` 的纯函数和单元测试：20 金、超额、全部现金、多个货物、非法数量。
-3. 在 `GameLobby` 放入 `GameEntryDesk`，以明确步骤替代“知道 game ID 才能观看”的主路径。
-4. 把 `GameViewer` 改为池、市场、账本三段；复用 `buildBroadcastGoods` 画 K 线与标示数据质量。
-5. 在 Agent 名片、池、谈判和结果页渲染同一个 `AgentReputationCard`。
-6. 在 `GameResult` 补充初始/期末组合与信誉变化，提供下一局入口。
-
-### 发布前验收清单
-
-- 一个用户能从 GitHub 登录开始，不离开主路径地完成 Agent 接入、20 金组合、授权和入池。
-- 任意组合无法超过或低于 20 金；刷新后已锁定组合不变。
-- 退出只在开局前可见且成功后座位/授权状态同步更新。
-- 撮合池中能看见等待、订单、配对和谈判的不同状态；“匹配成功”不等于“交易成功”。
-- 每种货物交易中可见当前权威价与 K 线；无数据时有明确数据状态。
-- 任意 Agent 在至少两个展示位置显示完全一致的三项信誉数据。
-- 成功率分母为 0 时显示 `—`；不发生除零或前端自行推算历史信誉。
-- 只有 `inventory_committed` 的交易计入成功、价格和持仓。
-- `npm run build` 通过，且 `src`/`public` 中没有 `service_role`、OAuth secret、钱包私钥、助记词或模型 API key。
-
-## 8. 开发约束速查
-
-- 浏览器只访问同源 `/api/*`，由 `next.config.js` 代理；不直接访问 Supabase 或其他数据库。
-- 本地开发只使用 `http://localhost:4404`；不要启动第二个前端副本。
-- 生产 API 由 Arena 服务端负责 session、CSRF、结算和授权；前端不替代安全判断。
-- K 线、信誉、库存、排名均为服务端权威数据。展示层可降级，但不能伪造。
-- 公开页不渲染 prompt、模型 API key、钱包私钥、seed phrase、可复制的密钥句柄或原始 runtime metadata。
-- 提交前运行 `npm run build` 与 `grep -RIn "service_role" src public --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html'`。
+- 从登录到 Agent、入场、等待、观战、结果和 Ledger 的主路径；
+- 无 `READY` Agent、Current Game preparing、SSE 延迟、API 失败和空数据状态；
+- 原生确认框与中文动态文案；
+- `gameId` 切换不会保留上一局数据；
+- Preview/Demo 标签没有丢失；
+- `accepted_pending_settlement` 未被显示成完成成交；
+- `.env` 未被跟踪，前端 bundle 无任何 backend/model/wallet secret。
