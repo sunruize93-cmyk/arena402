@@ -1,12 +1,7 @@
 import {
   ARENA_API_BASE_URL,
-  ArenaAuthSession,
-  ArenaAuthUser,
   ArenaHttpError,
   arenaHttpRequest,
-  getArenaAuthSession,
-  getArenaCsrfToken,
-  setArenaAuthSession,
 } from '@/lib/arena-http';
 
 export const CONNECTOR_API_BASE_URL = ARENA_API_BASE_URL;
@@ -186,91 +181,6 @@ export async function approvePairing(userCode: string): Promise<Pairing> {
     method: 'POST',
     body: JSON.stringify({}),
   });
-}
-
-export type ConnectorAuthUser = ArenaAuthUser;
-export type ConnectorAuthSession = ArenaAuthSession;
-
-export async function getConnectorCsrfToken(): Promise<string> {
-  try {
-    return await getArenaCsrfToken();
-  } catch (error) {
-    if (error instanceof ArenaHttpError) {
-      throw new ConnectorApiError(error.message, error.status);
-    }
-    throw error;
-  }
-}
-
-export async function getConnectorAuthSession(): Promise<ConnectorAuthSession | null> {
-  try {
-    return await getArenaAuthSession();
-  } catch (error) {
-    if (error instanceof ArenaHttpError && error.status === 401) {
-      return null;
-    }
-    if (error instanceof ArenaHttpError) {
-      throw new ConnectorApiError(error.message, error.status);
-    }
-    throw error;
-  }
-}
-
-export async function acceptConnectorInvite(input: {
-  invite_code: string;
-  username: string;
-  password: string;
-}): Promise<ConnectorAuthSession> {
-  const session = await apiRequest<ConnectorAuthSession>(
-    '/api/auth/invite',
-    {
-      method: 'POST',
-      body: JSON.stringify(input),
-    },
-    { csrf: false },
-  );
-  setArenaAuthSession(session);
-  return session;
-}
-
-export async function registerConnectorUser(input: {
-  invite_code?: string;
-  username: string;
-  password: string;
-}): Promise<ConnectorAuthSession> {
-  const session = await apiRequest<ConnectorAuthSession>(
-    '/api/auth/register',
-    {
-      method: 'POST',
-      body: JSON.stringify(input),
-    },
-    { csrf: false },
-  );
-  setArenaAuthSession(session);
-  return session;
-}
-
-export async function loginConnectorUser(input: {
-  username: string;
-  password: string;
-}): Promise<ConnectorAuthSession> {
-  const session = await apiRequest<ConnectorAuthSession>(
-    '/api/auth/login',
-    {
-      method: 'POST',
-      body: JSON.stringify(input),
-    },
-    { csrf: false },
-  );
-  setArenaAuthSession(session);
-  return session;
-}
-
-export async function logoutConnectorUser(): Promise<void> {
-  await apiRequest<void>('/api/auth/logout', {
-    method: 'POST',
-  });
-  setArenaAuthSession(null);
 }
 
 export async function listConnectorDevices(): Promise<ConnectorDevice[]> {

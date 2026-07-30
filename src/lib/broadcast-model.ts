@@ -158,8 +158,9 @@ function authoritativeCandles(
 
 export function buildBroadcastGoods(
   rawState: RecordValue,
-  _rawEvents: RecordValue[],
+  rawEvents: RecordValue[],
 ): BroadcastGood[] {
+  void rawEvents;
   const state = rawState || {};
   return BROADCAST_GOODS.map((definition) => {
     const authorityCandles = authoritativeCandles(

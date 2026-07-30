@@ -5,6 +5,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import LocaleProvider from '@/components/LocaleProvider';
 import AuthSessionProvider from '@/components/AuthSessionProvider';
+import WebVitalsReporter from '@/components/WebVitalsReporter';
 
 export const metadata: Metadata = {
   title: {
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
+        <WebVitalsReporter />
         <LocaleProvider>
           <AuthSessionProvider>
             <SiteHeader />

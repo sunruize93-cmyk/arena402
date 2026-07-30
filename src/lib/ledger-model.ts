@@ -282,10 +282,13 @@ export function buildLedgerTrades(
 
   return [...drafts.values()]
     .filter((draft) => draft.hasSettlement)
-    .map(({ hasSettlement: _settled, ...trade }) => ({
-      ...trade,
-      verifiable: isVerifiableTxHash(trade.txHash),
-    }))
+    .map(({ hasSettlement, ...trade }) => {
+      void hasSettlement;
+      return {
+        ...trade,
+        verifiable: isVerifiableTxHash(trade.txHash),
+      };
+    })
     .sort((a, b) => b.sequence - a.sequence);
 }
 

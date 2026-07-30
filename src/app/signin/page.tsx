@@ -67,7 +67,7 @@ export default async function SignInPage({
 
           <div className="auth-sequence" aria-label="Sign-in journey">
             {[
-              ['01', 'Enter', 'Verify your GitHub identity'],
+              ['01', 'Enter', 'Verify your Arena identity'],
               ['02', 'Bind', 'Choose Codex, Claude, or Hosted'],
               ['03', 'Play', 'Join a live market game'],
             ].map(([number, title, detail]) => (

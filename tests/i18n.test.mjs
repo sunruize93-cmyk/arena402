@@ -23,7 +23,6 @@ function loadI18n() {
     playerExperienceModule,
     playerExperienceModule.exports,
   );
-  const source = readFileSync(filePath, 'utf8');
   const compiled = compile(filePath);
   const module = { exports: {} };
   Function('require', 'module', 'exports', compiled)(

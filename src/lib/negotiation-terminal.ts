@@ -4,7 +4,6 @@ import {
   publicAgentName,
   publicProjectionText,
 } from '@/lib/public-projection';
-import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
 
 export type NegotiationTerminalLineKind =
   | 'sys'

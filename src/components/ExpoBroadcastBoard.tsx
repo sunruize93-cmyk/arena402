@@ -9,22 +9,16 @@ import {
   DEMO_ROUNDS,
 } from '@/lib/game-demo';
 import type { DemoPlaybackPosition } from '@/lib/game-demo';
+import { PawnhouseTimelineEvent } from '@/lib/game-api';
 import {
-  getPawnhouseGame,
-  getPawnhouseTimeline,
-  PawnhouseGameState,
-  PawnhouseTimelineEvent,
-} from '@/lib/game-api';
-import {
-  BroadcastCandle,
   BroadcastGood,
   buildBroadcastGoods,
   buildBroadcastRankings,
 } from '@/lib/broadcast-model';
 import {
-  mergeTimelineEvents,
-  timelineCursor,
+  startLiveGameFeed,
 } from '@/lib/live-game-feed';
+import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 import {
   projectionValue as pick,
   publicAgentName,
@@ -43,6 +37,8 @@ const WORLD_EVENT_NAMES: Record<string, string> = {
   'royal-wedding': 'A royal wedding',
   'stable-plague': 'Plague in the stables',
 };
+
+const EMPTY_TIMELINE_EVENTS: PawnhouseTimelineEvent[] = [];
 
 function agentName(value: unknown, fallback = 'An Agent'): string {
   return publicAgentName(value, fallback, 120);
@@ -217,21 +213,17 @@ function CandleChart({
 
 export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
   const demo = gameId === 'demo';
-  const [liveState, setLiveState] = useState<PawnhouseGameState | null>(null);
-  const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
-  const [lastUpdated, setLastUpdated] = useState(Date.now());
+  const [liveFeed, setLiveFeed] = useState<LiveGameFeedSnapshot | null>(null);
+  const [demoUpdatedAt, setDemoUpdatedAt] = useState(Date.now());
   const [clock, setClock] = useState(Date.now());
-  const [error, setError] = useState('');
   const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
     roundIndex: 0,
     eventCount: DEMO_INITIAL_EVENT_COUNT,
   });
 
   useEffect(() => {
-    setLiveState(null);
-    setLiveEvents([]);
-    setError('');
-    setLastUpdated(Date.now());
+    setLiveFeed(null);
+    setDemoUpdatedAt(Date.now());
   }, [gameId]);
 
   useEffect(() => {
@@ -248,59 +240,30 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
     if (!demo) return;
     const timer = window.setInterval(() => {
       setDemoPlayback((current) => advanceDemoPlayback(current));
-      setLastUpdated(Date.now());
+      setDemoUpdatedAt(Date.now());
     }, 2_200);
     return () => window.clearInterval(timer);
   }, [demo]);
 
   useEffect(() => {
     if (demo) return;
-    let after = 0;
-    let stopped = false;
-    let requestRunning = false;
-
-    async function refresh(signal?: AbortSignal) {
-      if (requestRunning) return;
-      requestRunning = true;
-      try {
-        const [nextState, timeline] = await Promise.all([
-          getPawnhouseGame(gameId, signal),
-          getPawnhouseTimeline(gameId, after, signal),
-        ]);
-        if (stopped) return;
-        setLiveState(nextState);
-        after = timelineCursor(after, timeline.events, timeline.nextAfter);
-        if (timeline.events.length > 0) {
-          setLiveEvents((current) =>
-            mergeTimelineEvents(current, timeline.events, 600),
-          );
-        }
-        setLastUpdated(Date.now());
-        setError('');
-      } catch (cause) {
-        if (
-          !stopped &&
-          !(cause instanceof DOMException && cause.name === 'AbortError')
-        ) {
-          setError('FEED DELAYED');
-        }
-      } finally {
-        requestRunning = false;
-      }
-    }
-
-    const controller = new AbortController();
-    void refresh(controller.signal);
-    const timer = window.setInterval(() => void refresh(), 3_000);
-    return () => {
-      stopped = true;
-      controller.abort();
-      window.clearInterval(timer);
-    };
+    return startLiveGameFeed({
+      gameId,
+      eventLimit: 600,
+      onSnapshot: setLiveFeed,
+    });
   }, [demo, gameId]);
 
   const demoRound = DEMO_ROUNDS[demoPlayback.roundIndex] || DEMO_ROUNDS[0];
   const demoEvents = demoRound.events.slice(0, demoPlayback.eventCount);
+  const activeLiveFeed = liveFeed?.gameId === gameId ? liveFeed : null;
+  const liveState = activeLiveFeed?.state || null;
+  const liveEvents = activeLiveFeed?.events || EMPTY_TIMELINE_EVENTS;
+  const lastUpdated = demo
+    ? demoUpdatedAt
+    : activeLiveFeed?.lastUpdatedAt || clock;
+  const error =
+    activeLiveFeed?.error || activeLiveFeed?.delayed ? 'FEED DELAYED' : '';
   const state = demo
     ? buildDemoGameState(demoRound, demoEvents)
     : liveState;

@@ -81,7 +81,7 @@ function browserWallet(): EthereumProvider | null {
   return (window as Window & { ethereum?: EthereumProvider }).ethereum || null;
 }
 
-async function useInjectiveTestnet(provider: EthereumProvider): Promise<void> {
+async function switchToInjectiveTestnet(provider: EthereumProvider): Promise<void> {
   const current = await provider.request({ method: 'eth_chainId' });
   if (current === INJECTIVE_TESTNET_CHAIN_HEX) return;
 
@@ -219,7 +219,7 @@ export default function WalletSurface() {
       if (!provider) {
         throw new Error('Open an Injective EVM-compatible browser wallet and retry.');
       }
-      await useInjectiveTestnet(provider);
+      await switchToInjectiveTestnet(provider);
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
       const address = Array.isArray(accounts) && typeof accounts[0] === 'string'
         ? accounts[0]

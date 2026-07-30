@@ -29,6 +29,9 @@ function loadStack() {
     new URL('../src/lib/platform-api.ts', import.meta.url),
     { '@/lib/arena-http': arenaHttp },
   );
+  const publicProjection = loadTypeScriptModule(
+    new URL('../src/lib/public-projection.ts', import.meta.url),
+  );
   return {
     arenaHttp,
     platformApi,
@@ -42,7 +45,10 @@ function loadStack() {
     ),
     gameApi: loadTypeScriptModule(
       new URL('../src/lib/game-api.ts', import.meta.url),
-      { '@/lib/platform-api': platformApi },
+      {
+        '@/lib/platform-api': platformApi,
+        '@/lib/public-projection': publicProjection,
+      },
     ),
   };
 }

@@ -3,10 +3,11 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ConnectorApiError,
-  loginConnectorUser,
-  registerConnectorUser,
-} from '@/lib/connector-api';
+  loginArenaUser,
+  registerArenaUser,
+} from '@/lib/identity-api';
+import { ArenaHttpError } from '@/lib/arena-http';
+import { useLocale } from '@/components/LocaleProvider';
 
 type AuthMode = 'login' | 'register';
 
@@ -36,6 +37,7 @@ export default function CredentialAuthForm({
   onAuthenticated?: () => void | Promise<void>;
 }) {
   const router = useRouter();
+  const { message } = useLocale();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -61,7 +63,7 @@ export default function CredentialAuthForm({
     const normalizedInviteCode = inviteCode.trim();
 
     if (normalizedUsername.length < 3) {
-      setError('Username must be at least 3 characters.');
+      setError(message('auth.error.username_min'));
       return;
     }
     if (
@@ -69,22 +71,22 @@ export default function CredentialAuthForm({
       normalizedInviteCode.length > 0 &&
       normalizedInviteCode.length < 20
     ) {
-      setError('Invite codes must contain at least 20 characters.');
+      setError(message('auth.error.invite_min'));
       return;
     }
     if (isRegistering && password.length < 12) {
-      setError('Registration passwords must be at least 12 characters.');
+      setError(message('auth.error.password_min'));
       return;
     }
     if (isRegistering && password !== passwordConfirmation) {
-      setError('The password confirmation does not match.');
+      setError(message('auth.error.password_mismatch'));
       return;
     }
 
     setPending(true);
     try {
       if (isRegistering) {
-        await registerConnectorUser({
+        await registerArenaUser({
           ...(normalizedInviteCode
             ? { invite_code: normalizedInviteCode }
             : {}),
@@ -92,7 +94,7 @@ export default function CredentialAuthForm({
           password,
         });
       } else {
-        await loginConnectorUser({
+        await loginArenaUser({
           username: normalizedUsername,
           password,
         });
@@ -105,7 +107,7 @@ export default function CredentialAuthForm({
       }
     } catch (authError) {
       setError(
-        authError instanceof ConnectorApiError
+        authError instanceof ArenaHttpError
           ? firstError(authError.message)
           : 'The Arena could not complete that request. Try again shortly.',
       );
@@ -156,7 +158,11 @@ export default function CredentialAuthForm({
           id="arena-password"
           minLength={isRegistering ? 12 : 1}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder={isRegistering ? '12 characters minimum' : 'Your password'}
+              placeholder={
+                isRegistering
+                  ? message('auth.placeholder.password_min')
+                  : 'Your password'
+              }
           required
           type="password"
           value={password}

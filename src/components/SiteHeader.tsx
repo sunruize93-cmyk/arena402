@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { logoutConnectorUser } from '@/lib/connector-api';
+import { logoutArenaUser } from '@/lib/identity-api';
 import { useLocale } from '@/components/LocaleProvider';
 import { useAuthSession } from '@/components/AuthSessionProvider';
 import { localeLabel, localeToggleLabel } from '@/lib/i18n';
@@ -46,7 +46,7 @@ export default function SiteHeader() {
   async function signOut() {
     if (!session) return;
     try {
-      await logoutConnectorUser();
+      await logoutArenaUser();
     } finally {
       setMenuOpen(false);
     }
@@ -106,6 +106,9 @@ export default function SiteHeader() {
               onClick={() => setMenuOpen((value) => !value)}
             >
               {session.user.avatar_url ? (
+                // Auth-provider avatars can come from owner-controlled hosts;
+                // preserving referrer isolation is safer than a fixed optimizer allowlist.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   className="nav-avatar"
                   src={session.user.avatar_url}

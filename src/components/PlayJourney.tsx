@@ -11,8 +11,7 @@ import {
   getGameParticipations,
 } from '@/lib/game-api';
 import {
-  prepareCurrentGameEntry,
-  sealCurrentGameEntry,
+  runCurrentGameEntry,
 } from '@/lib/current-game-entry';
 import {
   HostedAgentSummary,
@@ -29,34 +28,6 @@ const HostedAgentCreator = dynamic(
 type LoadState = 'loading' | 'ready' | 'error';
 type JoinStage = 'idle' | 'preflight' | 'mandate' | 'joining' | 'joined';
 type ResourceName = 'wallet' | 'agents' | 'game' | 'participation';
-
-function randomId(prefix: string): string {
-  const suffix =
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `${prefix}-${suffix}`;
-}
-
-function stableSessionId(key: string, prefix: string): string {
-  if (typeof window === 'undefined') return randomId(prefix);
-  const current = window.sessionStorage.getItem(key);
-  if (current) return current;
-  const created = randomId(prefix);
-  window.sessionStorage.setItem(key, created);
-  return created;
-}
-
-function stableSessionTimestamp(key: string): string {
-  if (typeof window === 'undefined') {
-    return new Date(Date.now() - 5_000).toISOString();
-  }
-  const current = window.sessionStorage.getItem(key);
-  if (current) return current;
-  const created = new Date(Date.now() - 5_000).toISOString();
-  window.sessionStorage.setItem(key, created);
-  return created;
-}
 
 function joinError(error: unknown, stage: JoinStage = 'idle'): string {
   if (error instanceof ArenaApiError) {
@@ -244,7 +215,7 @@ export default function PlayJourney() {
   useEffect(() => {
     if (!joined || !game || game.status !== 'RUNNING') return;
     router.replace(`/game/${encodeURIComponent(game.gameId)}`);
-  }, [game?.gameId, game?.status, joined, router]);
+  }, [game, joined, router]);
 
   const fillRemaining = useMemo(() => {
     const fillAt = game?.matchmaking?.fillAt;
@@ -255,73 +226,34 @@ export default function PlayJourney() {
   async function enterGame() {
     if (!game || !selectedAgentId || joinStage !== 'idle') return;
     setError('');
-    const storageKey = `arena402:join:${game.gameId}:${selectedAgentId}`;
-    const preflightKey = `${storageKey}:preflight`;
-    const mandateKey = `${storageKey}:mandate`;
-    const joinKey = `${storageKey}:join`;
-    const resetEntryKeys = () => {
-      [
-        preflightKey,
-        mandateKey,
-        `${mandateKey}:request`,
-        `${mandateKey}:valid-from`,
-        joinKey,
-      ].forEach((key) => window.sessionStorage.removeItem(key));
-    };
     let failedStage: JoinStage = 'preflight';
     try {
       setJoinStage('preflight');
-      let preflight;
-      try {
-        preflight = await prepareCurrentGameEntry({
-          gameId: game.gameId,
-          agentId: selectedAgentId,
-          preflightKey: stableSessionId(preflightKey, 'join-preflight'),
-        });
-      } catch (cause) {
-        if (
-          !(cause instanceof ArenaApiError)
-          || cause.code !== 'join_authorization_expired'
-        ) {
-          throw cause;
-        }
-        resetEntryKeys();
-        preflight = await prepareCurrentGameEntry({
-          gameId: game.gameId,
-          agentId: selectedAgentId,
-          preflightKey: stableSessionId(preflightKey, 'join-preflight'),
-        });
-      }
-
-      failedStage = 'mandate';
-      setJoinStage('mandate');
-      await sealCurrentGameEntry({
+      const result = await runCurrentGameEntry({
         gameId: game.gameId,
         agentId: selectedAgentId,
-        preflight,
-        keys: {
-          mandateId: stableSessionId(mandateKey, 'mandate'),
-          mandateRequest: stableSessionId(`${mandateKey}:request`, 'mandate-request'),
-          mandateValidFrom: stableSessionTimestamp(`${mandateKey}:valid-from`),
-          join: stableSessionId(joinKey, 'join'),
-        },
+        scope: 'guided-entry',
+        storage: window.sessionStorage,
         onStage: (stage) => {
           if (stage === 'join') {
             failedStage = 'joining';
             setJoinStage('joining');
+          } else if (stage !== 'preflight' && stage !== 'wallet') {
+            failedStage = 'mandate';
+            setJoinStage('mandate');
           }
         },
       });
+      if (result.participantId) {
+        window.localStorage.setItem(
+          `arena402:participant:${game.gameId}`,
+          result.participantId,
+        );
+      }
       setJoinedAgentId(selectedAgentId);
       setJoinStage('joined');
       await refresh();
     } catch (cause) {
-      if (
-        cause instanceof ArenaApiError
-        && cause.code === 'join_authorization_expired'
-      ) {
-        resetEntryKeys();
-      }
       setJoinStage('idle');
       setError(joinError(cause, failedStage));
     }
@@ -337,11 +269,12 @@ export default function PlayJourney() {
         <p className="label">Step 01 / Identity</p>
         <h2 className="display">Claim your piece.</h2>
         <p>
-          GitHub establishes the immutable player identity used for the wallet,
-          Agent, game seat, and personal ledger.
+          Sign in with an Arena account or optional GitHub OAuth. Both resolve
+          to the immutable player identity used for the wallet, Agent, game
+          seat, and personal ledger.
         </p>
         <Link className="btn" href="/signin?return_to=%2Fplay">
-          Continue with GitHub
+          Continue to sign in
         </Link>
       </section>
     );
@@ -375,7 +308,7 @@ export default function PlayJourney() {
         <div>
           <p className="label">Player seal</p>
           <h2>{session.user.display_name || session.user.username}</h2>
-          <p>GitHub identity verified · HttpOnly Arena session active</p>
+          <p>Arena identity verified · HttpOnly session active</p>
         </div>
         <div>
           <p className="label">Treasury wallet</p>

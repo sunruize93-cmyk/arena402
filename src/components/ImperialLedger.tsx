@@ -4,11 +4,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Check, Copy } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEMO_ROUNDS } from '@/lib/game-demo';
-import {
-  getCurrentGame,
-  getPawnhouseTimeline,
-  PawnhouseTimelineEvent,
-} from '@/lib/game-api';
+import { getCurrentGame } from '@/lib/game-api';
 import {
   getLedgerStats,
   getLedgerTrades,
@@ -29,10 +25,8 @@ import {
   mergeLedgerHead,
   shortHash,
 } from '@/lib/ledger-model';
-import {
-  mergeTimelineEvents,
-  timelineCursor,
-} from '@/lib/live-game-feed';
+import { startLiveGameFeed } from '@/lib/live-game-feed';
+import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 
 const GOODS: Record<string, { label: string; nature: string }> = {
   grain: { label: 'Grain', nature: 'The staple' },
@@ -283,7 +277,7 @@ export default function ImperialLedger({
   const pagedRef = useRef(false);
 
   // Timeline fallback mode: per-game public event replay.
-  const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
+  const [liveFeed, setLiveFeed] = useState<LiveGameFeedSnapshot | null>(null);
   const [feedError, setFeedError] = useState(false);
 
   // The table is resolved on the client only, so the server frame stays free
@@ -418,46 +412,22 @@ export default function ImperialLedger({
 
   useEffect(() => {
     if (source !== 'timeline' || !gameId) return;
-    let after = 0;
-    let stopped = false;
-    let requestRunning = false;
     // A fresh table starts from a clean slate; sequences from another game
-    // would collide with the de-duplication below.
-    setLiveEvents([]);
+    // must never remain visible while the next feed is connecting.
+    setLiveFeed(null);
     setFeedError(false);
-
-    async function refresh(signal?: AbortSignal) {
-      if (requestRunning) return;
-      requestRunning = true;
-      try {
-        const timeline = await getPawnhouseTimeline(gameId, after, signal);
-        if (stopped) return;
-        after = timelineCursor(after, timeline.events, timeline.nextAfter);
-        if (timeline.events.length > 0) {
-          setLiveEvents((current) =>
-            mergeTimelineEvents(current, timeline.events),
-          );
-        }
-        setFeedError(false);
-      } catch (cause) {
-        if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
-          setFeedError(true);
-        }
-      } finally {
-        requestRunning = false;
-      }
-    }
-
-    const controller = new AbortController();
-    void refresh(controller.signal);
-    const timer = window.setInterval(() => void refresh(), 3_000);
-    return () => {
-      stopped = true;
-      controller.abort();
-      window.clearInterval(timer);
-    };
+    return startLiveGameFeed({
+      gameId,
+      includeState: false,
+      onSnapshot(snapshot) {
+        setLiveFeed(snapshot);
+        setFeedError(Boolean(snapshot.error || snapshot.delayed));
+      },
+    });
   }, [source, gameId]);
 
+  const liveEvents =
+    liveFeed?.gameId === gameId ? liveFeed.events : [];
   const events = simulated ? DEMO_LEDGER_EVENTS : liveEvents;
   const replayTrades = useMemo(() => buildLedgerTrades(events), [events]);
   const trades = ledgerMode ? apiTrades : replayTrades;

@@ -16,11 +16,19 @@ import {
   LOCALE_STORAGE_KEY,
   translateText,
 } from '@/lib/i18n';
+import {
+  playerMessage,
+} from '@/lib/player-messages';
+import type {
+  PlayerMessageKey,
+  PlayerMessageParams,
+} from '@/lib/player-messages';
 
 interface LocaleContextValue {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   toggleLocale: () => void;
+  message: (key: PlayerMessageKey, params?: PlayerMessageParams) => string;
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
@@ -136,10 +144,15 @@ export default function LocaleProvider({
   const toggleLocale = useCallback(() => {
     setLocale(locale === 'en' ? 'zh-CN' : 'en');
   }, [locale, setLocale]);
+  const message = useCallback(
+    (key: PlayerMessageKey, params?: PlayerMessageParams) =>
+      playerMessage(locale, key, params),
+    [locale],
+  );
 
   useLayoutEffect(() => {
     const nextLocale = preferredLocale();
-    if (nextLocale !== locale) updateLocale(nextLocale);
+    if (nextLocale !== DEFAULT_LOCALE) updateLocale(nextLocale);
     // The first pass below uses nextLocale so Chinese browsers do not wait for
     // a second render before receiving translated copy.
     document.documentElement.lang = nextLocale;
@@ -196,8 +209,8 @@ export default function LocaleProvider({
   }, [locale]);
 
   const value = useMemo(
-    () => ({ locale, setLocale, toggleLocale }),
-    [locale, setLocale, toggleLocale],
+    () => ({ locale, setLocale, toggleLocale, message }),
+    [locale, message, setLocale, toggleLocale],
   );
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

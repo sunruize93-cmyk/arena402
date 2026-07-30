@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadTypeScriptModule } from './load-typescript.mjs';
 
+const publicProjection = loadTypeScriptModule(
+  new URL('../src/lib/public-projection.ts', import.meta.url),
+);
+
 function loadGameApi(handler = async () => ({})) {
   const calls = [];
   const gameApi = loadTypeScriptModule(
@@ -9,11 +13,13 @@ function loadGameApi(handler = async () => ({})) {
     {
       '@/lib/platform-api': {
         API_BASE_URL: 'https://api.arena402.test',
+        ArenaApiError: class ArenaApiError extends Error {},
         arenaApiRequest: async (path, init, options) => {
           calls.push({ path, init, options });
           return handler(path, init, options);
         },
       },
+      '@/lib/public-projection': publicProjection,
     },
   );
   return { calls, gameApi };

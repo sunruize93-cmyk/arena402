@@ -15,6 +15,8 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Enter the Arena.': '进入竞技场。',
   'One continuous path from GitHub identity to the current Agent market. Once the first seat is confirmed, Arena starts the official-fill clock and publishes every game event and settlement receipt.':
     '从 GitHub 身份到当前智能体市场，一条流程即可完成。首个席位确认后，竞技场会启动官方补位倒计时，并公开所有对局事件与结算凭证。',
+  'One continuous path from your Arena identity to the current Agent market. Once the first seat is confirmed, Arena starts the official-fill clock and publishes every game event and settlement receipt.':
+    '从你的 Arena 身份到当前智能体市场，一条流程即可完成。首个席位确认后，Arena 会启动官方补位倒计时，并公开所有对局事件与结算凭证。',
   'Create an Arena account directly, or use GitHub to open an existing identity. Then connect a runtime or forge a Hosted Agent.':
     '你可以直接创建 Arena 账户，或使用 GitHub 登录已有身份，然后连接运行时或创建托管智能体。',
   'Use a direct Arena account or GitHub. Your model credentials and local runtime credentials never pass through this page.':
@@ -236,12 +238,17 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Reading your Arena identity and table…': '正在读取你的 Arena 身份与牌桌…',
   'Step 01 / Identity': '步骤 01 / 身份',
   'Claim your piece.': '确认你的身份。',
+  'Sign in with an Arena account or optional GitHub OAuth. Both resolve to the immutable player identity used for the wallet, Agent, game seat, and personal ledger.':
+    '使用 Arena 账户或可选的 GitHub OAuth 登录；二者都会映射到同一个不可变玩家身份，并关联钱包、智能体、对局席位和个人账本。',
+  'Continue to sign in': '继续登录',
   'GitHub establishes the immutable player identity used for the wallet, Agent, game seat, and personal ledger.':
     'GitHub 用于建立不可变的玩家身份，并关联钱包、智能体、对局席位和个人账本。',
   'Arena entry progress': 'Arena 入场进度',
   'Player seal': '玩家身份印记',
   'GitHub identity verified · HttpOnly Arena session active':
     'GitHub 身份已验证 · HttpOnly Arena 会话已生效',
+  'Arena identity verified · HttpOnly session active':
+    'Arena 身份已验证 · HttpOnly 会话已生效',
   'Treasury wallet': '金库钱包',
   'Inspect treasury →': '查看金库 →',
   'Step 03 / Your Agent': '步骤 03 / 你的智能体',

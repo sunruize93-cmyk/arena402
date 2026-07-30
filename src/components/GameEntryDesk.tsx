@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AgentReputationCard from '@/components/AgentReputationCard';
 import InitialLoadoutEditor from '@/components/InitialLoadoutEditor';
 import { listBindings } from '@/lib/connector-api';
@@ -11,6 +11,8 @@ import {
   JoinPreflight,
 } from '@/lib/game-api';
 import {
+  clearStoredCurrentGameEntryKeys,
+  getStoredCurrentGameEntryKeys,
   prepareCurrentGameEntry,
   sealCurrentGameEntry,
 } from '@/lib/current-game-entry';
@@ -35,14 +37,6 @@ interface ReadyAgent {
   agentId: string;
   displayName: string;
   runtimeKind: string;
-}
-
-function opaqueId(prefix: string): string {
-  const suffix =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `${prefix}:${suffix}`.slice(0, 128);
 }
 
 function safeEntryError(
@@ -129,7 +123,6 @@ export default function GameEntryDesk({
   const [preflight, setPreflight] = useState<JoinPreflight | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
-  const stableValues = useRef(new Map<string, string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -184,24 +177,6 @@ export default function GameEntryDesk({
     (participant) => participant.agentId === selectedAgentId,
   )?.reputation;
 
-  function stableValue(kind: string, content: unknown): string {
-    const identity = `${kind}:${JSON.stringify(content)}`;
-    const current = stableValues.current.get(identity);
-    if (current) return current;
-    const next = opaqueId(`web-${kind}`);
-    stableValues.current.set(identity, next);
-    return next;
-  }
-
-  function stableTime(kind: string, content: unknown): string {
-    const identity = `time:${kind}:${JSON.stringify(content)}`;
-    const current = stableValues.current.get(identity);
-    if (current) return current;
-    const next = new Date().toISOString();
-    stableValues.current.set(identity, next);
-    return next;
-  }
-
   async function prepareMandate() {
     if (!selectedAgent || !loadoutResult.portfolio || working) return;
     setStep('mandate');
@@ -214,10 +189,18 @@ export default function GameEntryDesk({
         agentId: selectedAgent.agentId,
         portfolio: loadoutResult.portfolio,
       };
+      const keys = getStoredCurrentGameEntryKeys(
+        {
+          gameId: game.gameId,
+          agentId: selectedAgent.agentId,
+          scope: JSON.stringify(content.portfolio),
+        },
+        window.sessionStorage,
+      );
       const nextPreflight = await prepareCurrentGameEntry({
         gameId: game.gameId,
         agentId: selectedAgent.agentId,
-        preflightKey: stableValue('preflight', content),
+        preflightKey: keys.preflight,
         checkWallet: true,
         onStage: (stage) => {
           if (stage === 'wallet' || stage === 'preflight') requestStage = stage;
@@ -252,26 +235,61 @@ export default function GameEntryDesk({
     const entryContent = {
       gameId: game.gameId,
       agentId: selectedAgent.agentId,
-      joinAuthorizationId: preflight.joinAuthorizationId,
       portfolio: loadoutResult.portfolio,
+    };
+    const entryIdentity = {
+      gameId: game.gameId,
+      agentId: selectedAgent.agentId,
+      scope: JSON.stringify(entryContent.portfolio),
     };
     let requestStage: EntryRequestStage = 'mandate_lookup';
     try {
-      const result = await sealCurrentGameEntry({
-        gameId: game.gameId,
-        agentId: selectedAgent.agentId,
-        preflight,
-        portfolio: loadoutResult.portfolio,
-        keys: {
-          mandateId: stableValue('mandate-id', entryContent),
-          mandateRequest: stableValue('mandate', entryContent),
-          mandateValidFrom: stableTime('mandate-valid-from', entryContent),
-          join: stableValue('join', entryContent),
-        },
-        onStage: (stage) => {
-          requestStage = stage;
-        },
-      });
+      let activePreflight = preflight;
+      let result;
+      let authorizationRenewed = false;
+      while (true) {
+        const keys = getStoredCurrentGameEntryKeys(
+          entryIdentity,
+          window.sessionStorage,
+        );
+        try {
+          result = await sealCurrentGameEntry({
+            gameId: game.gameId,
+            agentId: selectedAgent.agentId,
+            preflight: activePreflight,
+            portfolio: loadoutResult.portfolio,
+            keys,
+            onStage: (stage) => {
+              requestStage = stage;
+            },
+          });
+          break;
+        } catch (cause) {
+          if (
+            authorizationRenewed
+            || !(cause instanceof ArenaApiError)
+            || cause.code !== 'join_authorization_expired'
+          ) {
+            throw cause;
+          }
+          authorizationRenewed = true;
+          clearStoredCurrentGameEntryKeys(
+            entryIdentity,
+            window.sessionStorage,
+          );
+          const renewedKeys = getStoredCurrentGameEntryKeys(
+            entryIdentity,
+            window.sessionStorage,
+          );
+          requestStage = 'preflight';
+          activePreflight = await prepareCurrentGameEntry({
+            gameId: game.gameId,
+            agentId: selectedAgent.agentId,
+            preflightKey: renewedKeys.preflight,
+          });
+          setPreflight(activePreflight);
+        }
+      }
       const participantId = result.participantId;
       if (!participantId) throw new Error('participant_id_missing');
       window.localStorage.setItem(
@@ -284,7 +302,10 @@ export default function GameEntryDesk({
         cause instanceof ArenaApiError
         && cause.code === 'join_authorization_expired'
       ) {
-        stableValues.current.clear();
+        clearStoredCurrentGameEntryKeys(
+          entryIdentity,
+          window.sessionStorage,
+        );
         setPreflight(null);
       }
       setError(safeEntryError(cause, requestStage));

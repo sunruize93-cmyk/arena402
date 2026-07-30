@@ -61,7 +61,7 @@ export default function NegotiationTerminal({
     if (!nextLine) return;
 
     if (reduceMotion) {
-      setVisibleChars((current) =>
+      setVisibleChars(
         Object.fromEntries(lines.map((line) => [line.key, line.text.length])),
       );
       return;
@@ -89,11 +89,6 @@ export default function NegotiationTerminal({
     (event) =>
       event.type === 'negotiation.message' && matchesPairing(event),
   );
-  const lastAction = String(
-    negotiationEvents.at(-1)?.data.action ||
-      negotiationEvents.at(-1)?.data.type ||
-      '',
-  ).toLowerCase();
   const pairingEvent = events.find(
     (event) =>
       event.type === 'pairing.created' &&

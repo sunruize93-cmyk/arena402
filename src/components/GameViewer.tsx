@@ -10,7 +10,6 @@ import MatchmakingPool from '@/components/MatchmakingPool';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
 import SettlementRail from '@/components/SettlementRail';
 import { useLocale } from '@/components/LocaleProvider';
-import { translateText } from '@/lib/i18n';
 import {
   advanceDemoPlayback,
   buildDemoGameState,
@@ -19,11 +18,6 @@ import {
 } from '@/lib/game-demo';
 import type { DemoPlaybackPosition } from '@/lib/game-demo';
 import {
-  getPawnhouseEventsUrl,
-  getPawnhouseGame,
-  getPawnhouseTimeline,
-  getCurrentGame,
-  CurrentGame,
   PawnhouseGameState,
   PawnhouseTimelineEvent,
   withdrawCurrentGameParticipant,
@@ -31,9 +25,9 @@ import {
 import { rankingAgentIdentity } from '@/lib/game-display';
 import { buildLedgerTrades, formatGold } from '@/lib/ledger-model';
 import {
-  mergeTimelineEvents,
-  timelineCursor,
+  startLiveGameFeed,
 } from '@/lib/live-game-feed';
+import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 import { readAgentReputation } from '@/lib/reputation';
 import {
   activePairingIds,
@@ -54,6 +48,8 @@ const PHASES: Array<{ id: MarketPhase; roman: string; label: string }> = [
   { id: 'bargain', roman: 'IV', label: 'Bargain' },
   { id: 'seal', roman: 'V', label: 'Seal' },
 ];
+
+const EMPTY_TIMELINE_EVENTS: PawnhouseTimelineEvent[] = [];
 
 const WORLD_EVENTS: Record<string, { title: string; narrative: string }> = {
   'palace-requisition': {
@@ -456,15 +452,11 @@ function agentRows(state: PawnhouseGameState | null, events: PawnhouseTimelineEv
 export default function GameViewer({ gameId }: { gameId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { locale } = useLocale();
+  const { locale, message } = useLocale();
   const demo = gameId === 'demo';
   const replayRequested = searchParams.get('replay') === '1';
-  const [liveState, setLiveState] = useState<PawnhouseGameState | null>(null);
-  const [currentGame, setCurrentGame] = useState<CurrentGame | null>(null);
-  const [liveEvents, setLiveEvents] = useState<PawnhouseTimelineEvent[]>([]);
-  const [currentProjection, setCurrentProjection] = useState<CurrentGame | null>(null);
-  const [error, setError] = useState('');
-  const [feedDelayed, setFeedDelayed] = useState(false);
+  const [liveFeed, setLiveFeed] = useState<LiveGameFeedSnapshot | null>(null);
+  const [actionError, setActionError] = useState('');
   const [auditOpen, setAuditOpen] = useState(false);
   const [marketPanel, setMarketPanel] = useState<'prices' | 'orders'>('prices');
   const [inspectorPanel, setInspectorPanel] = useState<'agents' | 'events' | 'ledger'>(
@@ -479,13 +471,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   });
 
   useEffect(() => {
-    setLiveState(null);
-    setCurrentGame(null);
-    setLiveEvents([]);
-    setCurrentProjection(null);
+    setLiveFeed(null);
     setMyParticipantId('');
-    setError('');
-    setFeedDelayed(false);
+    setActionError('');
     setReplayEventCount(null);
   }, [gameId]);
 
@@ -499,142 +487,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
 
   useEffect(() => {
     if (demo) return;
-    let after = 0;
-    let stopped = false;
-    let hasSnapshot = false;
-    let fallbackTimer: number | undefined;
-    let stateRefreshTimer: number | undefined;
-    let eventSource: EventSource | undefined;
-    let fallbackRequestRunning = false;
-    const controller = new AbortController();
-
-    function mergeEvents(events: PawnhouseTimelineEvent[], nextAfter?: number) {
-      if (stopped) return;
-      after = timelineCursor(after, events, nextAfter);
-      if (events.length === 0) return;
-      setLiveEvents((current) => mergeTimelineEvents(current, events));
-    }
-
-    async function refreshState(signal?: AbortSignal) {
-      try {
-        const [nextState, current] = await Promise.all([
-          getPawnhouseGame(gameId, signal),
-          getCurrentGame(signal).catch(() => null),
-        ]);
-        if (stopped) return;
-        hasSnapshot = true;
-        setLiveState(nextState);
-        setCurrentGame(
-          current?.game.gameId === gameId ? current.game : null,
-        );
-        if (current?.game.gameId === gameId) {
-          setCurrentProjection(current.game);
-        } else {
-          setCurrentProjection(null);
-        }
-        setError('');
-        setFeedDelayed(false);
-      } catch (cause) {
-        if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
-          setFeedDelayed(hasSnapshot);
-          setError(hasSnapshot ? '' : 'This table is not available from the public Arena API.');
-        }
-      }
-    }
-
-    async function refreshAll(signal?: AbortSignal) {
-      if (fallbackRequestRunning) return;
-      fallbackRequestRunning = true;
-      try {
-        const [nextState, timeline, current] = await Promise.all([
-          getPawnhouseGame(gameId, signal),
-          getPawnhouseTimeline(gameId, after, signal),
-          getCurrentGame(signal).catch(() => null),
-        ]);
-        if (stopped) return;
-        setLiveState(nextState);
-        hasSnapshot = true;
-        setCurrentGame(
-          current?.game.gameId === gameId ? current.game : null,
-        );
-        if (current?.game.gameId === gameId) {
-          setCurrentProjection(current.game);
-        } else {
-          setCurrentProjection(null);
-        }
-        mergeEvents(timeline.events, timeline.nextAfter);
-        setError('');
-        setFeedDelayed(false);
-      } catch (cause) {
-        if (!stopped && !(cause instanceof DOMException && cause.name === 'AbortError')) {
-          setError('This table is not available from the public Arena API.');
-        }
-      } finally {
-        fallbackRequestRunning = false;
-      }
-    }
-
-    function startFallback() {
-      if (fallbackTimer !== undefined || stopped) return;
-      fallbackTimer = window.setInterval(() => void refreshAll(), 3_000);
-    }
-
-    function stopFallback() {
-      if (fallbackTimer === undefined) return;
-      window.clearInterval(fallbackTimer);
-      fallbackTimer = undefined;
-    }
-
-    void refreshAll(controller.signal).then(() => {
-      if (stopped) return;
-      if (typeof EventSource === 'undefined') {
-        startFallback();
-        return;
-      }
-
-      eventSource = new EventSource(getPawnhouseEventsUrl(gameId, after));
-      eventSource.onopen = () => {
-        setFeedDelayed(false);
-        stopFallback();
-      };
-      eventSource.onerror = () => {
-        setFeedDelayed(true);
-        startFallback();
-      };
-      eventSource.addEventListener('arena', (message) => {
-        try {
-          const event = JSON.parse(message.data) as PawnhouseTimelineEvent;
-          if (
-            !event ||
-            !Number.isFinite(Number(event.sequence)) ||
-            typeof event.type !== 'string' ||
-            typeof event.data !== 'object'
-          ) {
-            return;
-          }
-          mergeEvents([event]);
-          if (stateRefreshTimer !== undefined) {
-            window.clearTimeout(stateRefreshTimer);
-          }
-          stateRefreshTimer = window.setTimeout(
-            () => void refreshState(),
-            250,
-          );
-        } catch {
-          // Ignore malformed public projection records and keep the stream alive.
-        }
-      });
+    return startLiveGameFeed({
+      gameId,
+      includeCurrentGame: true,
+      onSnapshot: setLiveFeed,
     });
-
-    return () => {
-      stopped = true;
-      controller.abort();
-      eventSource?.close();
-      stopFallback();
-      if (stateRefreshTimer !== undefined) {
-        window.clearTimeout(stateRefreshTimer);
-      }
-    };
   }, [demo, gameId]);
 
   useEffect(() => {
@@ -646,6 +503,17 @@ export default function GameViewer({ gameId }: { gameId: string }) {
 
   const demoRound = DEMO_ROUNDS[demoPlayback.roundIndex] || DEMO_ROUNDS[0];
   const demoEvents = demoRound.events.slice(0, demoPlayback.eventCount);
+  const activeLiveFeed = liveFeed?.gameId === gameId ? liveFeed : null;
+  const liveState = activeLiveFeed?.state || null;
+  const currentGame = activeLiveFeed?.currentGame || null;
+  const currentProjection = currentGame;
+  const liveEvents = activeLiveFeed?.events || EMPTY_TIMELINE_EVENTS;
+  const feedDelayed = Boolean(activeLiveFeed?.delayed);
+  const feedError =
+    activeLiveFeed?.error === 'unavailable'
+      ? 'This table is not available from the public Arena API.'
+      : '';
+  const error = actionError || feedError;
   const state = demo ? buildDemoGameState(demoRound, demoEvents) : liveState;
   const sourceEvents = demo && replayRequested
     ? DEMO_ROUNDS.flatMap((round) => round.events)
@@ -757,16 +625,13 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     if (!myParticipantId || !registrationOpen || leavingPool) return;
     if (
       !window.confirm(
-        translateText(
-          'Leave this pool and revoke the unused game mandate?',
-          locale,
-        ),
+        message('confirm.game_withdraw'),
       )
     ) {
       return;
     }
     setLeavingPool(true);
-    setError('');
+    setActionError('');
     try {
       await withdrawCurrentGameParticipant(
         gameId,
@@ -776,7 +641,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       window.localStorage.removeItem(`arena402:participant:${gameId}`);
       router.push('/game');
     } catch {
-      setError('Arena could not withdraw this seat. The pool remains unchanged.');
+      setActionError('Arena could not withdraw this seat. The pool remains unchanged.');
       setLeavingPool(false);
     }
   }
@@ -812,10 +677,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     : readyCount === 0
       ? 'After first seat'
       : 'Preparing';
-  const settlementState = [...events]
-    .reverse()
-    .find((event) => event.type.startsWith('settlement.'));
-
   return (
     <section className={`gm gm-live ${isRegistration ? 'is-registration' : 'is-battle'}`}>
       <div className="gm-utility-row">

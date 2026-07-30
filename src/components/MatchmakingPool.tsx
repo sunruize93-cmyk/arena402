@@ -6,7 +6,6 @@ import {
   projectionValue as pick,
   publicAgentName,
 } from '@/lib/public-projection';
-import type { ProjectionRecord as RecordValue } from '@/lib/public-projection';
 
 const GOODS = ['grain', 'iron', 'warhorse', 'gems'] as const;
 

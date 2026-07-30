@@ -3172,7 +3172,10 @@
   .gm-lobby-facts div:last-child { border-bottom: 0; }
   .gm-price-ticker-set { gap: 28px; padding-right: 28px; }
   .gm-price-ticker-track { animation-duration: 26s; }
-  .gm-live-head h1 { font-size: 58px; }
+  .gm-live-head h1 {
+    font-size: clamp(42px, 13vw, 54px);
+    white-space: nowrap;
+  }
   .gm-live.is-battle .gm-live-head h1 { font-size: 44px; }
   .gm-live.is-battle .gm-head-status {
     min-width: 0;

@@ -1,8 +1,14 @@
 import {
   API_BASE_URL,
   arenaApiRequest,
+  ArenaApiError,
 } from '@/lib/platform-api';
 import type { InitialPortfolio } from '@/lib/initial-loadout';
+import {
+  normalizeProjectionArray,
+  normalizeProjectionRecord,
+  projectionValue,
+} from '@/lib/public-projection';
 
 export interface PawnhouseGameState {
   gameId: string;
@@ -15,6 +21,12 @@ export interface PawnhouseGameState {
   negotiations?: Array<Record<string, unknown>>;
   settlements?: Array<Record<string, unknown>>;
   rankings?: Array<Record<string, unknown>>;
+  rounds?: Array<Record<string, unknown>>;
+  priceSnapshots?: Array<Record<string, unknown>>;
+  liveRankings?: Array<Record<string, unknown>>;
+  finalPrices?: Record<string, unknown>;
+  roundCount?: number;
+  eventScheduleCommitment?: string;
   schemaVersion: string;
   [key: string]: unknown;
 }
@@ -241,6 +253,110 @@ async function gameGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   return arenaApiRequest<T>(path, { signal });
 }
 
+function invalidProjection(code: string): never {
+  throw new ArenaApiError(502, code);
+}
+
+export function decodePawnhouseGameState(value: unknown): PawnhouseGameState {
+  const record = normalizeProjectionRecord(value);
+  if (!record) return invalidProjection('invalid_game_projection');
+  const gameId = String(projectionValue(record, 'gameId') || '').trim();
+  const phase = String(projectionValue(record, 'phase') || '').trim();
+  const schemaVersion = String(
+    projectionValue(record, 'schemaVersion', 'schema_version') || '',
+  ).trim();
+  if (!gameId || !phase || !schemaVersion) {
+    return invalidProjection('invalid_game_projection');
+  }
+
+  const normalized: PawnhouseGameState = {
+    ...record,
+    gameId,
+    phase,
+    schemaVersion,
+    participants: normalizeProjectionArray(record.participants),
+    pools: normalizeProjectionArray(record.pools),
+    pairings: normalizeProjectionArray(record.pairings),
+    negotiations: normalizeProjectionArray(record.negotiations),
+    settlements: normalizeProjectionArray(record.settlements),
+    rankings: normalizeProjectionArray(record.rankings),
+    rounds: normalizeProjectionArray(record.rounds),
+    priceSnapshots: normalizeProjectionArray(
+      projectionValue(
+        record,
+        'priceSnapshots',
+        'price_snapshots',
+        'priceHistory',
+        'price_history',
+        'marketPriceHistory',
+        'market_price_history',
+        'roundPrices',
+        'round_prices',
+      ),
+    ),
+    liveRankings: normalizeProjectionArray(
+      projectionValue(record, 'liveRankings', 'live_rankings'),
+    ),
+  };
+  return normalized;
+}
+
+export function decodePawnhouseTimelineEvent(
+  value: unknown,
+): PawnhouseTimelineEvent {
+  const record = normalizeProjectionRecord(value);
+  if (!record) return invalidProjection('invalid_timeline_projection');
+  const sequence = Number(record.sequence);
+  const type = typeof record.type === 'string' ? record.type.trim() : '';
+  const data = normalizeProjectionRecord(record.data);
+  if (!Number.isFinite(sequence) || sequence < 0 || !type || !data) {
+    return invalidProjection('invalid_timeline_projection');
+  }
+  return {
+    sequence,
+    type,
+    data,
+    roundId:
+      typeof projectionValue(record, 'roundId', 'round_id') === 'string'
+        ? String(projectionValue(record, 'roundId', 'round_id'))
+        : null,
+    occurredAt:
+      typeof projectionValue(record, 'occurredAt', 'occurred_at') === 'string'
+        ? String(projectionValue(record, 'occurredAt', 'occurred_at'))
+        : undefined,
+    createdAt:
+      typeof projectionValue(record, 'createdAt', 'created_at') === 'string'
+        ? String(projectionValue(record, 'createdAt', 'created_at'))
+        : undefined,
+  };
+}
+
+export function decodePawnhouseTimeline(value: unknown): PawnhouseTimeline {
+  const record = normalizeProjectionRecord(value);
+  if (!record) return invalidProjection('invalid_timeline_projection');
+  const gameId = String(projectionValue(record, 'gameId') || '').trim();
+  const schemaVersion = String(
+    projectionValue(record, 'schemaVersion', 'schema_version') || '',
+  ).trim();
+  const nextAfter = Number(
+    projectionValue(record, 'nextAfter', 'next_after') || 0,
+  );
+  if (
+    !gameId
+    || !schemaVersion
+    || !Array.isArray(record.events)
+    || !Number.isFinite(nextAfter)
+  ) {
+    return invalidProjection('invalid_timeline_projection');
+  }
+  return {
+    gameId,
+    schemaVersion,
+    nextAfter,
+    events: record.events.map(decodePawnhouseTimelineEvent),
+  };
+}
+
 export function getCurrentGame(
   signal?: AbortSignal,
 ): Promise<CurrentGameResponse> {
@@ -251,10 +367,10 @@ export function getPawnhouseGame(
   gameId: string,
   signal?: AbortSignal,
 ): Promise<PawnhouseGameState> {
-  return gameGet<PawnhouseGameState>(
+  return gameGet<unknown>(
     `/api/v1/pawnhouse/games/${encodeURIComponent(gameId)}`,
     signal,
-  );
+  ).then(decodePawnhouseGameState);
 }
 
 export function getPawnhouseTimeline(
@@ -263,10 +379,10 @@ export function getPawnhouseTimeline(
   signal?: AbortSignal,
 ): Promise<PawnhouseTimeline> {
   const query = new URLSearchParams({ after: String(after) });
-  return gameGet<PawnhouseTimeline>(
+  return gameGet<unknown>(
     `/api/v1/pawnhouse/games/${encodeURIComponent(gameId)}/timeline?${query}`,
     signal,
-  );
+  ).then(decodePawnhouseTimeline);
 }
 
 export function getPawnhouseEventsUrl(gameId: string, after = 0): string {

@@ -23,6 +23,13 @@ const PREFLIGHT = {
 
 function loadEntry(overrides = {}) {
   const calls = [];
+  class ArenaApiError extends Error {
+    constructor(status, code) {
+      super(code);
+      this.status = status;
+      this.code = code;
+    }
+  }
   const gameApi = {
     createPaymentMandate: async (payload, key) => {
       calls.push(['create', payload, key]);
@@ -51,13 +58,6 @@ function loadEntry(overrides = {}) {
     },
     ...overrides,
   };
-  class ArenaApiError extends Error {
-    constructor(status, code) {
-      super(code);
-      this.status = status;
-      this.code = code;
-    }
-  }
   const entry = loadTypeScriptModule(
     new URL('../src/lib/current-game-entry.ts', import.meta.url),
     {
@@ -65,7 +65,16 @@ function loadEntry(overrides = {}) {
       '@/lib/platform-api': { ArenaApiError },
     },
   );
-  return { calls, entry };
+  return { ArenaApiError, calls, entry, gameApi };
+}
+
+function memoryStorage() {
+  const values = new Map();
+  return {
+    getItem: (key) => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
 }
 
 test('mandates are reusable only for the same live authorization', () => {
@@ -166,4 +175,87 @@ test('sealing reuses a valid mandate without mutating it', async () => {
 
   assert.deepEqual(calls.map((call) => call[0]), ['join']);
   assert.equal(calls[0][2].paymentMandateId, 'pm:current');
+});
+
+test('stored entry keys are stable per intent scope and reset as one unit', () => {
+  const { entry } = loadEntry();
+  const storage = memoryStorage();
+  let nextId = 0;
+  const createId = (prefix) => `${prefix}:${++nextId}`;
+  const identity = {
+    gameId: 'game:test',
+    agentId: 'agent:test',
+    scope: '{"cashAtomic":"20000000"}',
+  };
+
+  const first = entry.getStoredCurrentGameEntryKeys(
+    identity,
+    storage,
+    createId,
+    Date.parse('2029-01-01T00:00:05.000Z'),
+  );
+  const retry = entry.getStoredCurrentGameEntryKeys(
+    identity,
+    storage,
+    createId,
+  );
+  const anotherIntent = entry.getStoredCurrentGameEntryKeys(
+    { ...identity, scope: '{"cashAtomic":"10000000"}' },
+    storage,
+    createId,
+  );
+  assert.deepEqual(retry, first);
+  assert.notEqual(anotherIntent.join, first.join);
+  assert.equal(first.mandateValidFrom, '2029-01-01T00:00:00.000Z');
+
+  entry.clearStoredCurrentGameEntryKeys(identity, storage);
+  const renewed = entry.getStoredCurrentGameEntryKeys(
+    identity,
+    storage,
+    createId,
+  );
+  assert.notEqual(renewed.preflight, first.preflight);
+  assert.notEqual(renewed.join, first.join);
+});
+
+test('complete entry renews an expired authorization exactly once', async () => {
+  const { ArenaApiError, calls, entry, gameApi } = loadEntry();
+  const storage = memoryStorage();
+  let joins = 0;
+  let preflights = 0;
+  gameApi.getJoinPreflight = async (...args) => {
+    calls.push(['preflight', ...args]);
+    preflights += 1;
+    return {
+      ...PREFLIGHT,
+      joinAuthorizationId: `ja:${preflights}`,
+    };
+  };
+  gameApi.joinCurrentGame = async (...args) => {
+    calls.push(['join', ...args]);
+    joins += 1;
+    if (joins === 1) {
+      throw new ArenaApiError(409, 'join_authorization_expired');
+    }
+    return { participantId: 'participant:renewed' };
+  };
+
+  const result = await entry.runCurrentGameEntry({
+    gameId: 'game:test',
+    agentId: 'agent:test',
+    scope: 'guided-entry',
+    storage,
+  });
+
+  assert.equal(result.participantId, 'participant:renewed');
+  assert.equal(preflights, 2);
+  assert.equal(joins, 2);
+  const preflightKeys = calls
+    .filter((call) => call[0] === 'preflight')
+    .map((call) => call[3]);
+  const joinKeys = calls
+    .filter((call) => call[0] === 'join')
+    .map((call) => call[3]);
+  assert.equal(new Set(preflightKeys).size, 2);
+  assert.equal(new Set(joinKeys).size, 2);
 });

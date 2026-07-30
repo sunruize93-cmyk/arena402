@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, animate } from 'framer-motion';
 
 export default function LiveCounter({
   value,
@@ -12,7 +12,6 @@ export default function LiveCounter({
 }) {
   const [displayValue, setDisplayValue] = useState(0);
   const count = useMotionValue(0);
-  const rounded = useTransform(count, (latest) => Math.round(latest));
 
   useEffect(() => {
     const target = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.]/g, '')) : value;
