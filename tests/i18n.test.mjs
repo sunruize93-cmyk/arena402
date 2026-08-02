@@ -131,6 +131,11 @@ test('Chinese translation covers the complete player journey surfaces', () => {
   const { translateText } = loadI18n();
 
   assert.equal(translateText('Enter the Arena.', 'zh-CN'), '进入竞技场。');
+  assert.equal(translateText('Player Guide', 'zh-CN'), '玩家指南');
+  assert.equal(
+    translateText('Accepted Is Not Settled.', 'zh-CN'),
+    '接受不等于结算完成。',
+  );
   assert.equal(
     translateText('Username must be at least 3 characters.', 'zh-CN'),
     '用户名至少需要 3 个字符。',

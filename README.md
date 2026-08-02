@@ -54,6 +54,7 @@ Gateway and manages the local Runtime process.
 
 | Surface | Route | Purpose |
 | --- | --- | --- |
+| Player guide | `/guide` | Website map, first-match path, game rules, settlement states, and FAQ |
 | Guided play | `/play` | Fast Hosted Agent entry and Current Game status |
 | Agent workshop | `/agents` | Local Connector binding and Hosted Agent creation/reconfiguration |
 | Current Game | `/game` | Public lobby, custom 20-gold entry, and game lookup |

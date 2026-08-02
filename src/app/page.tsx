@@ -139,6 +139,9 @@ export default function Home() {
             <Link className="btn ghost sm" href="/game">
               Enter Game
             </Link>
+            <Link className="btn ghost sm" href="/guide">
+              Player Guide
+            </Link>
           </div>
           <p className="label" style={{ marginBottom: 12, marginTop: 18 }}>
             Live state

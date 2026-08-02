@@ -7,6 +7,181 @@
 export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Open Source · AdventureX 2026 · 402 AD': '开源项目 · AdventureX 2026 · 公元 402 年',
   'Season Preview': '赛季预览',
+  'Player Guide': '玩家指南',
+  'Player field manual · Website and game': '玩家手册 · 网站与游戏',
+  'From First Sign-In To Final Settlement.': '从首次登录到最终结算。',
+  'Prepare one Agent, take a 20-gold seat, then follow every decision from the opening event to the final public receipt.':
+    '准备一个智能体，以等值 20 金币入场，并从开局事件一路查看每次决策，直到最终公开凭证。',
+  'Start with Play': '从 Play 开始',
+  'Prepare an Agent': '准备智能体',
+  'Guide essentials': '指南要点',
+  'Before you enter': '入场之前',
+  'Starting value': '开局资产',
+  '20 gold': '20 金币',
+  'Player action': '玩家操作',
+  'Prepare and watch': '准备与观战',
+  'Agent actions': '智能体操作',
+  'Buy · Sell · Pass': '买入 · 卖出 · 观望',
+  Network: '网络',
+  'Injective EVM testnet': 'Injective EVM 测试网',
+  'Testnet play only. Never paste a private key, seed phrase, or model key into strategy text, chat, or a normal form.':
+    '仅限测试网游玩。绝不要把私钥、助记词或模型密钥粘贴到策略文本、聊天或普通表单中。',
+  'Player guide sequence': '玩家指南流程',
+  'Ready Agent': '就绪智能体',
+  '20 Gold': '20 金币',
+  Verify: '核验',
+  '01 · First match': '01 · 第一场对局',
+  'The 30-Second Path.': '30 秒上手。',
+  'If this is your first visit, use Play. It is the shortest route and keeps every required step in order.':
+    '如果这是你第一次访问，请使用 Play。它是最短路径，并会按顺序呈现每个必要步骤。',
+  'Open Play': '打开 Play',
+  'Use the guided route that keeps identity, Agent, game entry, and results in one place.':
+    '使用连续引导，在同一页面完成身份、智能体、对局入场与结果查看。',
+  'Use an Arena account, or use GitHub if your Arena identity is already connected to it.':
+    '使用 Arena 账户登录；如果 Arena 身份已关联 GitHub，也可以使用 GitHub。',
+  'Choose a READY Agent': '选择 READY 智能体',
+  'A Hosted Agent is the easiest first match. Provisioning or degraded Agents cannot enter.':
+    '第一次参赛最适合使用托管智能体。正在部署或状态异常的智能体不能入场。',
+  'Arena checks the Agent, wallet, game capacity, and a game-scoped PaymentMandate before taking a seat.':
+    'Arena 会先检查智能体、钱包、对局容量和仅限本局的 PaymentMandate，然后才确认席位。',
+  'Wait for automatic start': '等待自动开赛',
+  'Your confirmed seat counts when it is READY. Arena starts the table when the displayed threshold is met.':
+    '席位变为 READY 后才计入人数。达到页面显示的开赛阈值时，Arena 会自动开赛。',
+  'Watch the match': '观看对局',
+  'Your Agent handles buy, sell, pass, and negotiation actions. You can keep the Game page open as the live board.':
+    '你的智能体负责买入、卖出、观望和谈判。你可以保持 Game 页面打开，将其作为实时对局面板。',
+  'Read the result': '查看结果',
+  'Use Result for final net worth and Ledger for public settlement evidence.':
+    '在 Result 查看最终净资产，在 Ledger 查看公开结算证据。',
+  Remember: '请记住',
+  'Hosted Agents can keep playing after the browser closes. A Local Runtime depends on its outbound Connector remaining online.':
+    '关闭浏览器后，托管智能体仍可继续比赛；本地运行时则依赖出站 Connector 保持在线。',
+  'Website map': '网站地图',
+  'Know Each Door.': '了解每个入口。',
+  'Each page has one job. Start with Play, then use the other surfaces when you need more control or more evidence.':
+    '每个页面各司其职。先从 Play 开始，需要更多控制或证据时再使用其他页面。',
+  'The shortest guided path from sign-in to a confirmed seat.':
+    '从登录到确认席位的最短引导路径。',
+  'Create or reconfigure a Hosted Agent, or pair a Local Runtime.':
+    '创建或重新配置托管智能体，或配对本地运行时。',
+  'View the Current Game, build a 20-gold loadout, join, or spectate.':
+    '查看 Current Game、配置等值 20 金币的开局资产、参赛或观战。',
+  'Learn the four goods and read Arena-published market information.':
+    '了解四种货物，并查看 Arena 发布的市场信息。',
+  'Open the clearly labelled preseason presentation and completed-game entries.':
+    '查看明确标注的季前展示和已完成对局入口。',
+  'Check settlement stages, transaction hashes, and Explorer evidence.':
+    '核对结算阶段、交易哈希和区块浏览器证据。',
+  'Inspect the testnet wallet and its player-facing safety state.':
+    '查看测试网钱包及面向玩家的安全状态。',
+  '02 · Choose your piece': '02 · 选择你的棋子',
+  'Hosted Or Local.': '托管或本地。',
+  'Recommended first match': '首次参赛推荐',
+  Hosted: '托管',
+  'Use a READY Hosted Agent.': '使用 READY 托管智能体。',
+  'Create an Agent with a recognizable name, a supported Provider and Model, a dedicated model key, and a short trading strategy. Wait until its status becomes READY before entering.':
+    '创建智能体时，填写易辨认的名称、受支持的 Provider 与 Model、独立模型密钥和简短交易策略。等待状态变为 READY 后再入场。',
+  'A Hosted Agent can continue when your browser is closed. Its active-game configuration is frozen when it joins.':
+    '关闭浏览器后，托管智能体仍可继续比赛；入场时会冻结本局使用的配置。',
+  'Open Agents →': '打开 Agents →',
+  Advanced: '进阶',
+  Local: '本地',
+  'Keep your Connector online.': '保持 Connector 在线。',
+  'A Local Runtime uses the outbound adx-connector to reach Arena. The website never calls your localhost, and your local model credentials stay on your computer.':
+    '本地运行时通过出站 adx-connector 连接 Arena。网站不会访问你的 localhost，本地模型凭据始终保留在你的电脑上。',
+  'If the Connector disconnects, trading tasks safely converge to pass and negotiation tasks time out. Arena does not silently replace it with a Hosted Agent.':
+    '如果 Connector 断线，交易任务会安全收敛为观望，谈判任务会超时；Arena 不会暗中切换为托管智能体。',
+  'Pair a computer →': '配对电脑 →',
+  '03 · Take a seat': '03 · 确认席位',
+  'Two Ways In.': '两种入场方式。',
+  'Path A · Fastest': '路径 A · 最快捷',
+  'Play quick entry': 'Play 快速入场',
+  'Select a READY Hosted Agent and choose Enter Current Game. Arena runs the preflight, creates the game-scoped PaymentMandate, and confirms the seat with a compatible default loadout.':
+    '选择 READY 托管智能体并点击 Enter Current Game。Arena 会完成预检、创建仅限本局的 PaymentMandate，并以兼容的默认开局资产确认席位。',
+  'Use quick entry': '使用快速入场',
+  'Path B · More control': '路径 B · 更多控制',
+  'Game custom entry': 'Game 自定义入场',
+  'Choose Join matchmaking, select a READY Agent, compose the opening portfolio, review the Mandate, then approve it and join the pool.':
+    '点击 Join matchmaking，选择 READY 智能体，配置开局资产，核对 Mandate，然后批准并加入匹配池。',
+  'Build a loadout': '配置开局资产',
+  'Every Agent starts equal.': '每个智能体平等开局。',
+  'Goods plus remaining cash must equal 20 gold. You may also enter with all cash.':
+    '货物与剩余现金之和必须等于 20 金币。你也可以全现金入场。',
+  'Recommended: 2 Grain + 1 Iron + 0 Warhorse + 3 Gems + 2 Cash':
+    '推荐：2 粮食 + 1 铁料 + 0 战马 + 3 宝石 + 2 现金',
+  'Opening good prices': '货物开局价格',
+  'PaymentMandate': 'PaymentMandate',
+  'The Mandate limits authorization to one Game, Agent, testnet Token, payee rule, amount, and validity window. Creating it is not an immediate payment.':
+    'Mandate 将授权限制在单个 Game、Agent、测试网 Token、收款方规则、金额和有效期内；创建授权并不代表立即付款。',
+  '04 · Inside the match': '04 · 对局之中',
+  'How A Round Moves.': '一回合如何推进。',
+  'You do not place orders by hand. Your Agent acts within the strategy and constraints you prepared.':
+    '你不需要手动下单。智能体会在你设定的策略与约束内行动。',
+  'Read the event': '读取事件',
+  'Every Agent sees the same public world event and Arena market projection.':
+    '所有智能体都会看到相同的公开世界事件和 Arena 市场投影。',
+  'Choose an action': '选择行动',
+  'The Agent submits buy, sell, or pass with its price and quantity constraints.':
+    '智能体提交买入、卖出或观望，并附带价格和数量约束。',
+  'Enter FCFS matching': '进入 FCFS 匹配',
+  'Compatible orders for the same good are matched by the time Arena receives them.':
+    '同种货物且条件兼容的订单，会按 Arena 接收时间先到先得进行匹配。',
+  Negotiate: '谈判',
+  'Matched Agents use a bounded sequence of propose, accept, and reject actions.':
+    '匹配成功的智能体会在有限轮次内执行 propose、accept 和 reject。',
+  Settle: '结算',
+  'Accepted terms move to Injective EVM testnet settlement. Acceptance alone does not move inventory.':
+    '双方接受的条款会进入 Injective EVM 测试网结算；仅仅接受条款不会改变库存。',
+  'Rank final net worth': '计算最终净资产排名',
+  'After the last round, final cash plus goods valued at final prices decides the ranking.':
+    '最后一轮结束后，以最终现金加上按终场价格计算的货物价值决定排名。',
+  'Winning measure': '胜负标准',
+  'Final net worth = cash + the sum of each holding multiplied by its final Arena price.':
+    '最终净资产 = 现金 + 各项持仓数量乘以对应 Arena 终场价格后的总和。',
+  '05 · Read the evidence': '05 · 查看证据',
+  'Accepted Is Not Settled.': '接受不等于结算完成。',
+  'Negotiation, payment, and inventory commit are separate stages. Use Ledger when you need the public transaction and block evidence.':
+    '谈判、支付和库存提交是不同阶段。如需核对公开交易与区块证据，请查看 Ledger。',
+  'Both Agents accepted the terms. Payment and inventory transfer are still pending.':
+    '双方智能体已接受条款，支付与库存转移仍在等待。',
+  'A chain submission was attempted. Arena is waiting for, or recovering, its outcome.':
+    '已尝试提交链上交易，Arena 正在等待或恢复交易结果。',
+  'The chain payment is confirmed. Arena may still be committing inventory.':
+    '链上支付已确认，Arena 可能仍在提交库存变更。',
+  'Chain confirmation and Arena inventory commit are both complete.':
+    '链上确认与 Arena 库存提交均已完成。',
+  'Payment did not complete, so inventory must not move.':
+    '支付未完成，因此库存不得转移。',
+  'Completed trade': '完成成交',
+  'Only inventory_committed or settled means both chain confirmation and Arena inventory commit are complete.':
+    '只有 inventory_committed 或 settled 才表示链上确认与 Arena 库存提交均已完成。',
+  Troubleshooting: '问题排查',
+  'Before You Ask The House.': '询问典当行之前。',
+  'I cannot select an Agent.': '我无法选择智能体。',
+  "Open Agents and wait for a Hosted Agent to become READY. Provisioning, degraded, revoked, or another player's Agent cannot take your seat.":
+    '打开 Agents，等待托管智能体变为 READY。正在部署、状态异常、已撤销或属于其他玩家的智能体不能占用你的席位。',
+  'Enter Current Game is unavailable.': 'Enter Current Game 不可用。',
+  'Check that a READY Agent is selected and the Current Game is still waiting. Identity, wallet, and capacity checks may also still be loading.':
+    '确认已选择 READY 智能体，且 Current Game 仍处于等待阶段；身份、钱包和容量检查也可能仍在加载。',
+  'The next table is being prepared.': '下一张牌桌正在准备中。',
+  'Arena is creating or recovering the next Current Game. The page retries automatically and does not reserve a seat yet.':
+    'Arena 正在创建或恢复下一场 Current Game。页面会自动重试，此时尚未预留席位。',
+  'I joined, but the match has not started.': '我已加入，但对局仍未开始。',
+  'Confirm that your seat says READY and compare the ready count with the displayed start threshold. Players do not need a Start button.':
+    '确认席位显示 READY，并比较就绪人数与页面显示的开赛阈值。玩家不需要点击 Start。',
+  'The Agents accepted, but holdings did not change.':
+    '智能体已接受条款，但持仓没有变化。',
+  'Acceptance only freezes the agreed terms. Wait for chain confirmation and Arena inventory commit in Ledger.':
+    '接受条款只会冻结双方共识。请在 Ledger 等待链上确认和 Arena 库存提交。',
+  'Are Rankings and demo boards official results?':
+    'Rankings 与演示大屏是官方结果吗？',
+  'No. The preseason Rankings presentation and demo broadcast are labelled previews. A real game result comes from its final backend ranking projection.':
+    '不是。季前 Rankings 展示与演示广播都明确标注为预览；真实对局结果来自后端发布的最终排名投影。',
+  'Your piece is ready': '你的棋子已就绪',
+  'Enter The Pawnhouse.': '进入王家典当行。',
+  'Start with the guided path, or open Game when you are ready to compose the full 20-gold entry.':
+    '从引导路径开始；当你准备好配置完整的等值 20 金币入场资产时，也可以直接打开 Game。',
+  'Open Current Game': '打开 Current Game',
   "THE KING'S PAWNHOUSE · 402 AD · AURELIA FALLS · EVERY RUMOR REWRITES THE PRICE":
     '王家典当行 · 公元 402 年 · 奥雷利亚陷落 · 每则传闻都在改写价格',
   'Watch Live Prices →': '查看实时价格 →',

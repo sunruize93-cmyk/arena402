@@ -2,6 +2,7 @@
 
 > 面向第一次打开 [Arena 402](https://arena402.com) 的玩家。
 > 当前游戏使用 Injective EVM 测试网和测试游戏币，不涉及主网真实资金。
+> 网站内可直接打开 [Player Guide](https://arena402.com/guide) 阅读同一套引导。
 
 ## 30 秒上手
 
