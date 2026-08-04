@@ -425,12 +425,23 @@ function InteractiveMemorialCoin() {
         4,
         renderer.capabilities.getMaxAnisotropy(),
       );
+      const faceCropScale = 176 / 256;
+      const faceCropOffset = 40 / 256;
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.repeat.set(faceCropScale, faceCropScale);
+      texture.offset.set(faceCropOffset, faceCropOffset);
+      texture.needsUpdate = true;
 
       const backTexture = texture.clone();
       backTexture.colorSpace = THREE.SRGBColorSpace;
-      backTexture.wrapS = THREE.RepeatWrapping;
-      backTexture.repeat.x = -1;
-      backTexture.offset.x = 1;
+      backTexture.wrapS = THREE.ClampToEdgeWrapping;
+      backTexture.wrapT = THREE.ClampToEdgeWrapping;
+      backTexture.repeat.set(-faceCropScale, faceCropScale);
+      backTexture.offset.set(
+        faceCropOffset + faceCropScale,
+        faceCropOffset,
+      );
       backTexture.needsUpdate = true;
 
       const edgeMaterial = new THREE.MeshPhysicalMaterial({
@@ -440,13 +451,24 @@ function InteractiveMemorialCoin() {
         metalness: 0.96,
         roughness: 0.3,
       });
+      const faceBaseMaterial = new THREE.MeshPhysicalMaterial({
+        clearcoat: 0.48,
+        clearcoatRoughness: 0.24,
+        color: 0xb77a24,
+        metalness: 0.9,
+        roughness: 0.34,
+      });
       const frontMaterial = new THREE.MeshStandardMaterial({
+        alphaTest: 0.025,
+        depthWrite: false,
         map: texture,
         metalness: 0.58,
         roughness: 0.42,
         transparent: true,
       });
       const backMaterial = new THREE.MeshStandardMaterial({
+        alphaTest: 0.025,
+        depthWrite: false,
         map: backTexture,
         metalness: 0.58,
         roughness: 0.42,
@@ -469,14 +491,21 @@ function InteractiveMemorialCoin() {
       ]);
       body.rotation.z = Math.PI / 2;
 
-      const rimGeometry = new THREE.TorusGeometry(0.91, 0.018, 10, 96);
+      const faceBaseGeometry = new THREE.CircleGeometry(0.988, 96);
+      const frontBase = new THREE.Mesh(faceBaseGeometry, faceBaseMaterial);
+      frontBase.position.z = 0.087;
+      const backBase = new THREE.Mesh(faceBaseGeometry, faceBaseMaterial);
+      backBase.position.z = -0.087;
+      backBase.rotation.y = Math.PI;
+
+      const rimGeometry = new THREE.TorusGeometry(0.945, 0.018, 10, 96);
       const frontRim = new THREE.Mesh(rimGeometry, edgeMaterial);
-      frontRim.position.z = 0.096;
+      frontRim.position.z = 0.098;
       const backRim = new THREE.Mesh(rimGeometry, edgeMaterial);
-      backRim.position.z = -0.096;
+      backRim.position.z = -0.098;
 
       const group = new THREE.Group();
-      group.add(body, frontRim, backRim);
+      group.add(frontBase, backBase, body, frontRim, backRim);
       scene.add(group);
 
       const ambient = new THREE.HemisphereLight(0xf4f2ec, 0x1a1007, 1.45);
@@ -515,8 +544,10 @@ function InteractiveMemorialCoin() {
         canvas.removeEventListener('webglcontextlost', handleContextLost);
         threeSceneRef.current = null;
         bodyGeometry.dispose();
+        faceBaseGeometry.dispose();
         rimGeometry.dispose();
         edgeMaterial.dispose();
+        faceBaseMaterial.dispose();
         frontMaterial.dispose();
         backMaterial.dispose();
         texture.dispose();
