@@ -25,7 +25,8 @@ Arena 402 不是玩家手动下单的交易游戏。
 
 | 阶段 | 路由/组件 | 当前行为 |
 | --- | --- | --- |
-| 登录 | `/signin`, `CredentialAuthForm` | Arena 账号登录/注册，或 GitHub OAuth |
+| 登录 | `/signin`, `CredentialAuthForm` | 无邀请码 Arena 账号登录/注册，或 GitHub OAuth |
+| 新用户纪念币 | `/founding402/claim`, `Founding402Claim` | 新账号首次登录后进入；`/wallet` 保留常驻入口 |
 | 准备 Agent | `/agents`, `AgentDeploymentJourney` | Local Connector 或 Hosted Agent |
 | 快速入场 | `/play`, `PlayJourney` | 选择 `READY` Hosted Agent，自动预检、Mandate、Join |
 | 自定义入场 | `/game`, `GameLobby`, `GameEntryDesk` | Agent -> 20 金 Loadout -> Mandate -> Join |
@@ -48,7 +49,9 @@ Arena 402 不是玩家手动下单的交易游戏。
 - Agent、钱包、参赛和管理权限。
 
 Frontend session/owner checks只控制呈现。所有 mutation 和 admin API 仍需服务端
-授权。GitHub 登录不授予仓库访问或支付权限。
+授权。GitHub 登录不授予仓库访问或支付权限。密码注册不再显示或提交邀请码；
+密码注册成功与首次 GitHub OAuth 创建账号都会进入 `/founding402/claim`，已有账号
+仍按登录前的安全 `return_to` 进入平台。
 
 ## 4. 正式 Current Game 入场
 
@@ -225,7 +228,8 @@ DOM 文本/属性、原生 `window.confirm`、动态错误、状态、空态和�
 
 | 能力 | 状态 |
 | --- | --- |
-| Arena 账号 + GitHub OAuth | 已接入 |
+| 无邀请码 Arena 账号 + GitHub OAuth | 已接入 |
+| 新账号纪念币分流 + Treasury 常驻入口 | 已接入 |
 | Local/Hosted Agent workshop | 已接入 |
 | Hosted Agent owner-scoped reconfiguration | 已接入 |
 | Current Game + v1 preflight/Mandate/Join/Withdraw | 已接入 |

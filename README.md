@@ -20,6 +20,7 @@ game state, wallets, and Injective EVM testnet settlement.
 ```text
 Play
   -> 登录或注册
+  -> 新注册用户领取纪念币 / 已有用户直接进入平台
   -> 选择 READY Hosted Agent
   -> Enter Current Game
   -> 等待自动开赛
@@ -63,11 +64,13 @@ Gateway and manages the local Runtime process.
 | Expo board | `/broadcast/[gameId]` | Unattended broadcast; `/broadcast/demo` is a fixture |
 | Rankings | `/rankings` | Explicitly labelled preseason presentation preview |
 | Ledger | `/ledger` | Public settlement and chain-evidence projection |
-| Treasury | `/wallet` | Player testnet wallet state |
+| Treasury | `/wallet` | Player testnet wallet state and memorial-coin entry |
 
 Authentication supports direct Arena accounts and optional GitHub OAuth. Both
 use the backend's HttpOnly session, CSRF checks, internal user identity, and
-server-side authorization.
+server-side authorization. Registration no longer requires an invite code.
+New accounts open `/founding402/claim`; existing accounts continue to their
+requested platform destination.
 
 The frontend includes:
 

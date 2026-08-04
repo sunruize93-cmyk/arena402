@@ -18,24 +18,7 @@ export function getIdentityCsrfToken(force = false): Promise<string> {
   return getArenaCsrfToken(force);
 }
 
-export async function acceptArenaInvite(input: {
-  invite_code: string;
-  username: string;
-  password: string;
-}): Promise<ArenaIdentitySession> {
-  const session = await arenaHttpRequest<ArenaIdentitySession>(
-    '/api/auth/invite',
-    {
-      method: 'POST',
-      body: JSON.stringify(input),
-    },
-  );
-  setArenaAuthSession(session);
-  return session;
-}
-
 export async function registerArenaUser(input: {
-  invite_code?: string;
   username: string;
   password: string;
 }): Promise<ArenaIdentitySession> {

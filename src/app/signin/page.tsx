@@ -40,11 +40,7 @@ export default async function SignInPage({
   const params = await searchParams;
   const errorCode = firstParam(params.error);
   const mode = firstParam(params.mode) === 'register' ? 'register' : 'login';
-  const inviteCode = firstParam(params.invite) || firstParam(params.invite_code) || '';
-  const returnTo = safeReturnTo(
-    params.return_to,
-    inviteCode ? '/founding402/claim' : '/play',
-  );
+  const returnTo = safeReturnTo(params.return_to, '/play');
   const oauthHref = `${API_BASE_URL}/api/auth/github/start?${new URLSearchParams({
     return_to: returnTo,
   })}`;
@@ -107,7 +103,6 @@ export default async function SignInPage({
           )}
 
           <CredentialAuthForm
-            initialInviteCode={inviteCode}
             initialMode={mode}
             returnTo={returnTo}
           />

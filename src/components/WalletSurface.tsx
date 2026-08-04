@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, Check, Copy, ExternalLink, ShieldCheck, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -389,6 +390,52 @@ export default function WalletSurface() {
             )}
           </div>
         </aside>
+      </section>
+
+      <section className="wallet-section wallet-memorial" aria-labelledby="wallet-memorial-title">
+        <div className="wallet-section-heading">
+          <div>
+            <p className="label">Memorial coin</p>
+            <h2 className="display" id="wallet-memorial-title">Your founding mark.</h2>
+          </div>
+          <p className="wallet-section-note">
+            The first 402 Arena registrations receive a numbered, non-transferable
+            memorial NFT on Injective EVM Testnet.
+          </p>
+        </div>
+        <div className="wallet-external-card wallet-memorial-card">
+          <div className="wallet-external-copy">
+            <span className="wallet-memorial-coin" aria-hidden="true">
+              <Image
+                alt=""
+                height={64}
+                src="/assets/arena402-memorial-coin.png"
+                width={64}
+              />
+            </span>
+            <div>
+              <p className="label">Founding 402</p>
+              <h3>Claim or inspect your memorial coin.</h3>
+              <p>
+                Open the dedicated record to see your registration rank, NFT
+                status, wallet address, and public chain receipt.
+              </p>
+            </div>
+          </div>
+          <div className="wallet-external-actions">
+            <Link
+              className="btn"
+              href={
+                session
+                  ? '/founding402/claim'
+                  : '/signin?return_to=%2Ffounding402%2Fclaim'
+              }
+            >
+              {session ? 'Open memorial record' : 'Sign in to claim'}
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
       </section>
 
       <section className="wallet-section wallet-external" aria-labelledby="external-wallet-title">

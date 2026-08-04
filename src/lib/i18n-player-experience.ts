@@ -211,7 +211,6 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'No inbound port': '无需开放入站端口',
   '· Last seen': '· 最后在线',
   'Username must be at least 3 characters.': '用户名至少需要 3 个字符。',
-  'Invite codes must contain at least 20 characters.': '邀请码至少需要 20 个字符。',
   'Registration passwords must be at least 12 characters.': '注册密码至少需要 12 个字符。',
   'The password confirmation does not match.': '两次输入的密码不一致。',
   'Account access mode': '账户访问方式',
@@ -221,10 +220,6 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   Password: '密码',
   'Confirm password': '确认密码',
   'Repeat your password': '再次输入密码',
-  'Invite code': '邀请码',
-  'Paste the code from your invite': '粘贴邀请中的邀请码',
-  'Optional. Use this field when your Arena registration link includes an invite code.':
-    '选填。若 Arena 注册链接包含邀请码，请在此填写。',
   'Back to the previous Arena view': '返回上一个 Arena 页面',
   '← BACK': '← 返回',
   "THE KING'S PAWNHOUSE · LIVE MARKET": '王家典当行 · 实时市场',
@@ -232,16 +227,16 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   AGENTS: '智能体',
   'Genesis registry · Injective testnet': '创世名册 · Injective 测试网',
   First: '首批',
-  'Link GitHub or create an invite-enabled Arena account. The first 402 registrations receive a numbered, non-transferable memorial NFT and a dedicated testnet wallet—no MetaMask required.':
-    '关联 GitHub 或创建带邀请码的 Arena 账户。前 402 位注册者将获得带编号、不可转让的纪念 NFT 和专属测试网钱包，无需 MetaMask。',
-  'GitHub or invite identity': 'GitHub 或邀请码身份',
+  'Continue with GitHub or create an Arena account. The first 402 registrations receive a numbered, non-transferable memorial NFT and a dedicated testnet wallet—no MetaMask required.':
+    '使用 GitHub 继续或直接创建 Arena 账户。前 402 位注册者将获得带编号、不可转让的纪念 NFT 和专属测试网钱包，无需 MetaMask。',
+  'GitHub or Arena identity': 'GitHub 或 Arena 身份',
   'Wallet credentials stay offline': '钱包凭据始终离线',
   'Your founding record': '你的创始记录',
   'Claim the mark.': '领取创始印记。',
   'Claim rules': '领取规则',
   'One Arena account': '一个 Arena 账户',
-  'Use GitHub or a valid invite. Repository access is never requested.':
-    '使用 GitHub 或有效邀请码。我们绝不会请求代码仓库访问权限。',
+  'Use GitHub or register directly. Repository access is never requested.':
+    '使用 GitHub 或直接注册。我们绝不会请求代码仓库访问权限。',
   Edition: '发行批次',
   'Rank 001—402': '编号 001—402',
   'Registration rank permanently determines the NFT token ID.':
@@ -257,10 +252,17 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'NFT confirmed': 'NFT 已确认',
   'Open places': '剩余名额',
   'Reading the registry…': '正在读取名册…',
+  'The Founding registry is being prepared. Return shortly.':
+    '创始名册正在准备中，请稍后再来。',
+  'All 402 Founding places have been assigned.': '402 个创始名额已全部分配。',
+  'Your Arena registration is waiting to be recorded.':
+    '你的 Arena 注册正在等待写入名册。',
+  'Sign in with GitHub or an Arena account to claim.':
+    '使用 GitHub 或 Arena 账户登录后领取。',
   'No identity linked': '尚未关联身份',
   'Enter the registry.': '进入创世名册。',
-  'Choose GitHub, or use an invite code to register and sign in directly with your Arena account.':
-    '选择 GitHub，或使用邀请码注册并登录 Arena 账户。',
+  'Choose GitHub, or register and sign in directly with your Arena account.':
+    '选择 GitHub，或直接注册并登录 Arena 账户。',
   'Registry response': '名册响应',
   'Not assigned yet.': '尚未分配。',
   'Registry unavailable': '名册暂不可用',
@@ -274,10 +276,10 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'NFT status': 'NFT 状态',
   'View on Blockscout': '在 Blockscout 查看',
   'Authorize the identity you already use in Arena.': '授权你已在 Arena 使用的身份。',
-  '02 · Invite code': '02 · 邀请码',
+  '02 · Arena account': '02 · Arena 账户',
   'Use an Arena account': '使用 Arena 账户',
-  'Register with your one-time invite code, or sign in below.':
-    '使用一次性邀请码注册，或在下方登录。',
+  'Create an account directly, or sign in below.':
+    '直接创建账户，或在下方登录。',
   'Close Founding record': '关闭创始记录',
   'Arena 402 · Genesis registry': 'Arena 402 · 创世名册',
   'Arena 402 gold pawn memorial coin': 'Arena 402 金色兵卒纪念币',
@@ -498,6 +500,16 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
     '钱包承载你的对局资金、参与凭证，以及议价结束后保留的结算记录。',
   'Wallet seal': '钱包印记',
   'Sign in to continue': '登录后继续',
+  'Memorial coin': '纪念币',
+  'Your founding mark.': '你的创始印记。',
+  'The first 402 Arena registrations receive a numbered, non-transferable memorial NFT on Injective EVM Testnet.':
+    'Arena 前 402 位注册者将在 Injective EVM 测试网上获得带编号、不可转让的纪念 NFT。',
+  'Founding 402': '创始 402',
+  'Claim or inspect your memorial coin.': '领取或查看你的纪念币。',
+  'Open the dedicated record to see your registration rank, NFT status, wallet address, and public chain receipt.':
+    '打开专属记录，查看注册编号、NFT 状态、钱包地址和公开链上凭证。',
+  'Open memorial record': '打开纪念币记录',
+  'Sign in to claim': '登录后领取',
   'Your wallet': '你的钱包',
   'Prove the key is yours.': '证明该密钥由你持有。',
   'Connect an Injective EVM wallet and sign one ownership message. The signature does not authorize a transaction, payment, or Agent action.':

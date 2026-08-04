@@ -2,7 +2,6 @@ import type { Locale } from '@/lib/i18n';
 
 const EN_MESSAGES = {
   'auth.error.generic': 'The Arena could not complete that request.',
-  'auth.error.invite_min': 'Invite codes must contain at least 20 characters.',
   'auth.error.password_min':
     'Registration passwords must be at least 12 characters.',
   'auth.error.password_mismatch':
@@ -20,7 +19,6 @@ export type PlayerMessageParams = Record<string, string | number>;
 
 const ZH_CN_MESSAGES: Record<PlayerMessageKey, string> = {
   'auth.error.generic': 'Arena 无法完成该请求。',
-  'auth.error.invite_min': '邀请码至少需要 20 个字符。',
   'auth.error.password_min': '注册密码至少需要 12 个字符。',
   'auth.error.password_mismatch': '两次输入的密码不一致。',
   'auth.error.username_min': '用户名至少需要 3 个字符。',

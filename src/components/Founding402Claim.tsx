@@ -31,8 +31,8 @@ const REASON_COPY: Record<string, string> = {
   campaign_preparing: 'The Founding registry is being prepared. Return shortly.',
   founding_edition_full: 'All 402 Founding places have been assigned.',
   registration_pending: 'Your Arena registration is waiting to be recorded.',
-  account_required: 'Sign in with GitHub or an invite-enabled Arena account to claim.',
-  github_identity_required: 'Sign in with GitHub or an invite-enabled Arena account to claim.',
+  account_required: 'Sign in with GitHub or an Arena account to claim.',
+  github_identity_required: 'Sign in with GitHub or an Arena account to claim.',
 };
 
 type ClaimState =
@@ -125,14 +125,14 @@ export default function Founding402Claim() {
             First <em>402</em>
           </h1>
           <p className="founding-lede">
-            Link GitHub or create an invite-enabled Arena account. The first 402
+            Continue with GitHub or create an Arena account. The first 402
             registrations receive a numbered, non-transferable memorial NFT and
             a dedicated testnet wallet—no MetaMask required.
           </p>
           <div className="founding-trust">
             <span>
               <ShieldCheck aria-hidden="true" />
-              GitHub or invite identity
+              GitHub or Arena identity
             </span>
             <span>Wallet credentials stay offline</span>
           </div>
@@ -162,7 +162,7 @@ export default function Founding402Claim() {
         <div>
           <span>Identity</span>
           <strong>One Arena account</strong>
-          <p>Use GitHub or a valid invite. Repository access is never requested.</p>
+          <p>Use GitHub or register directly. Repository access is never requested.</p>
         </div>
         <div>
           <span>Edition</span>
@@ -720,8 +720,8 @@ function ClaimPanel({
         <p className="founding-panel-kicker">No identity linked</p>
         <h3>Enter the registry.</h3>
         <p>
-          Choose GitHub, or use an invite code to register and sign in directly
-          with your Arena account.
+          Choose GitHub, or register and sign in directly with your Arena
+          account.
         </p>
         <IdentityAuthOptions
           oauthHref={oauthHref}
@@ -822,9 +822,9 @@ function IdentityAuthOptions({
         </a>
       </div>
       <div className="founding-auth-option">
-        <p className="founding-auth-option-label">02 · Invite code</p>
+        <p className="founding-auth-option-label">02 · Arena account</p>
         <h4>Use an Arena account</h4>
-        <p>Register with your one-time invite code, or sign in below.</p>
+        <p>Create an account directly, or sign in below.</p>
         <CredentialAuthForm
           initialMode="register"
           onAuthenticated={onAuthenticated}

@@ -16,8 +16,6 @@ const ERROR_COPY: Record<string, string> = {
     'That username and password combination was not accepted.',
   'Username is already registered':
     'That username is already registered. Try signing in instead.',
-  'Invalid or already used invite':
-    'This invite code is invalid or has already been used.',
   'Authentication required': 'Your session expired. Please try again.',
 };
 
@@ -28,12 +26,12 @@ function firstError(value: string): string {
 export default function CredentialAuthForm({
   returnTo,
   initialMode = 'login',
-  initialInviteCode = '',
+  registerReturnTo = '/founding402/claim',
   onAuthenticated,
 }: {
   returnTo: string;
   initialMode?: AuthMode;
-  initialInviteCode?: string;
+  registerReturnTo?: string;
   onAuthenticated?: () => void | Promise<void>;
 }) {
   const router = useRouter();
@@ -42,7 +40,6 @@ export default function CredentialAuthForm({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [inviteCode, setInviteCode] = useState(initialInviteCode);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
@@ -60,18 +57,9 @@ export default function CredentialAuthForm({
     setError('');
 
     const normalizedUsername = username.trim().toLowerCase();
-    const normalizedInviteCode = inviteCode.trim();
 
     if (normalizedUsername.length < 3) {
       setError(message('auth.error.username_min'));
-      return;
-    }
-    if (
-      isRegistering &&
-      normalizedInviteCode.length > 0 &&
-      normalizedInviteCode.length < 20
-    ) {
-      setError(message('auth.error.invite_min'));
       return;
     }
     if (isRegistering && password.length < 12) {
@@ -87,9 +75,6 @@ export default function CredentialAuthForm({
     try {
       if (isRegistering) {
         await registerArenaUser({
-          ...(normalizedInviteCode
-            ? { invite_code: normalizedInviteCode }
-            : {}),
           username: normalizedUsername,
           password,
         });
@@ -102,7 +87,7 @@ export default function CredentialAuthForm({
       if (onAuthenticated) {
         await onAuthenticated();
       } else {
-        router.replace(returnTo);
+        router.replace(isRegistering ? registerReturnTo : returnTo);
         router.refresh();
       }
     } catch (authError) {
@@ -181,22 +166,6 @@ export default function CredentialAuthForm({
               type="password"
               value={passwordConfirmation}
             />
-
-            <label htmlFor="arena-invite-code">Invite code</label>
-            <input
-              autoCapitalize="none"
-              autoComplete="off"
-              id="arena-invite-code"
-              minLength={inviteCode ? 20 : undefined}
-              onChange={(event) => setInviteCode(event.target.value)}
-              placeholder="Paste the code from your invite"
-              spellCheck={false}
-              value={inviteCode}
-            />
-            <p className="auth-form-hint">
-              Optional. Use this field when your Arena registration link
-              includes an invite code.
-            </p>
           </>
         )}
 

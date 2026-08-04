@@ -144,6 +144,23 @@
 .wallet-external-copy p:last-child { margin-top: 10px; color: var(--grey); font-size: 10px; line-height: 1.7; }
 .wallet-external-actions { flex: 0 0 auto; }
 .wallet-external-actions .btn { display: inline-flex; align-items: center; gap: 10px; }
+.wallet-memorial-card { background: linear-gradient(120deg, rgba(244,242,236,0.055), transparent 56%), var(--ink); }
+.wallet-memorial-coin {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--ink-deep);
+}
+.wallet-memorial-coin img {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  filter: grayscale(0.12) contrast(1.06);
+}
 .wallet-asset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 34px; background: var(--line); }
 .wallet-asset-card { min-height: 240px; padding: 24px; background: var(--ink); }
 .wallet-asset-mark { color: var(--paper-dim); font-size: 10px; letter-spacing: 0.2em; }
