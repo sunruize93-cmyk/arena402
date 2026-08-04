@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import '../../arena402-auth.css';
 import '../../arena402-founding.css';
 import Founding402Claim from '@/components/Founding402Claim';
 
