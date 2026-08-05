@@ -25,6 +25,8 @@ Arena 402 不是玩家手动下单的交易游戏。
 
 | 阶段 | 路由/组件 | 当前行为 |
 | --- | --- | --- |
+| 网站引导 | `/guide`, `PlayerGuidePage` | 网站地图、首次比赛步骤、规则和 FAQ |
+| 一页手册 | `/guide/manual`, `TextManualContent` | 中英文完整对局流程、纯文字图、结算和安全说明 |
 | 登录 | `/signin`, `CredentialAuthForm` | 无邀请码 Arena 账号登录/注册，或 GitHub OAuth |
 | 新用户纪念币 | `/founding402/claim`, `Founding402Claim` | 新账号首次登录后进入；`/wallet` 保留常驻入口 |
 | 准备 Agent | `/agents`, `AgentDeploymentJourney` | Local Connector 或 Hosted Agent |
@@ -218,11 +220,15 @@ Connector 断线不会自动切换 Hosted Runtime。Deadline Finalizer 负责把
 
 - `src/lib/i18n.ts`；
 - `src/lib/i18n-player-experience.ts`；
-- `src/components/LocaleProvider.tsx`。
+- `src/components/LocaleProvider.tsx`；
+- `src/components/TextManualContent.tsx` 为 `/guide/manual` 显式维护完整
+  English/zh-CN 文案、纯文字图和页面 metadata。
 
 DOM 文本/属性、原生 `window.confirm`、动态错误、状态、空态和倒计时都需要覆盖。
 动态 Agent/device 名称、Game ID、钱包地址、命令、模型名、API 路径和协议缩写保持
-原样。
+原样。带严格空白布局的多行纯文字图不能依赖 DOM 文本替换推断翻译，否则会破坏
+对齐；当前文字手册直接按 locale 选择完整副本，并同步 `document.title` 和页面
+description。
 
 ## 10. 当前实现状态
 
@@ -237,6 +243,8 @@ DOM 文本/属性、原生 `window.confirm`、动态错误、状态、空态和�
 | Game SSE + 3 秒 fallback | 已接入 |
 | 跨 Game 状态隔离 | 已修复并有回归测试 |
 | 英文 + zh-CN 玩家流程 | 已接入并有回归测试 |
+| `/guide/manual` 一页式双语文字手册 | 已接入；纯文字图、页面 metadata、凭据与费用边界有回归测试 |
+| 新注册用户纪念币分流 | 组件级 session/router 回归覆盖注册后的重定向竞争 |
 | 最终价格/排名 | 后端完成时由权威投影提供 |
 | 实时 OHLC/live ladder/完整信誉 | 前端有安全适配和空态，后端权威投影仍不完整 |
 | `/rankings`, `/broadcast/demo` | 明确的展示 fixture，不是正式赛季数据 |
@@ -251,6 +259,9 @@ DOM 文本/属性、原生 `window.confirm`、动态错误、状态、空态和�
 ```text
 src/
   app/
+    guide/page.tsx                  # PlayerGuidePage
+    guide/manual/page.tsx
+    founding402/claim/page.tsx
     signin/page.tsx
     play/page.tsx
     agents/page.tsx
@@ -261,6 +272,9 @@ src/
     rankings/page.tsx
     ledger/page.tsx
   components/
+    TextManualContent.tsx
+    Founding402Claim.tsx
+    SignedInRedirect.tsx
     PlayJourney.tsx
     AgentDeploymentJourney.tsx
     ConnectorConsole.tsx
@@ -299,6 +313,11 @@ git diff --check
 还需人工核对：
 
 - 从登录到 Agent、入场、等待、观战、结果和 Ledger 的主路径；
+- `/guide/manual` 的 English/zh-CN 完整文案、纯文字图对齐以及切换语言后的
+  title/description；
+- 新注册 session 建立后仍进入 `/founding402/claim`，已有 session 仍按安全
+  `return_to` 跳转；
+- `prefers-reduced-motion: reduce` 下纪念币页不加载 Three.js，也不初始化 WebGL；
 - 无 `READY` Agent、Current Game preparing、SSE 延迟、API 失败和空数据状态；
 - 原生确认框与中文动态文案；
 - `gameId` 切换不会保留上一局数据；

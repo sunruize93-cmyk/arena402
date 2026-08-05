@@ -15,7 +15,8 @@ game state, wallets, and Injective EVM testnet settlement.
 ## Play
 
 第一次打开网站，请从
-[`docs/PLAYER_GUIDE.md`](docs/PLAYER_GUIDE.md) 开始。最短路径是：
+[`docs/PLAYER_GUIDE.md`](docs/PLAYER_GUIDE.md) 开始。网站内的 `/guide`
+提供分步引导，`/guide/manual` 提供可切换中英文的一页式完整文字规则。最短路径是：
 
 ```text
 Play
@@ -56,8 +57,11 @@ Gateway and manages the local Runtime process.
 | Surface | Route | Purpose |
 | --- | --- | --- |
 | Player guide | `/guide` | Website map, first-match path, game rules, settlement states, and FAQ |
+| Text manual | `/guide/manual` | Complete bilingual one-page match loop, rules, settlement, and safety guide |
+| Founding record | `/founding402/claim` | New-account memorial record and claim flow |
 | Guided play | `/play` | Fast Hosted Agent entry and Current Game status |
 | Agent workshop | `/agents` | Local Connector binding and Hosted Agent creation/reconfiguration |
+| Connector approval | `/connect` | Authenticated Local Connector approval handoff |
 | Current Game | `/game` | Public lobby, custom 20-gold entry, and game lookup |
 | Live/replay | `/game/[gameId]` | Pool, market, negotiation, settlement, and timeline |
 | Result | `/game/[gameId]/result` | Final prices and net-worth ranking |
@@ -79,7 +83,8 @@ The frontend includes:
 - Server-Sent Events for live game updates with a 3-second polling fallback;
 - Hosted Agent reconfiguration without resending the stored provider key;
 - game-ID isolation to prevent stale state from leaking across matches;
-- English and zh-CN player-facing localization;
+- English and zh-CN player-facing localization, including the one-page text
+  manual and its plain-text diagrams;
 - explicit pending states when authoritative price, ranking, reputation, or
   settlement projections are not available.
 
@@ -95,6 +100,8 @@ The frontend includes:
   capacity evidence. The backend's active roadmap owns that acceptance status.
 - A complete real Local Codex/Claude game remains a separate deployment/E2E
   acceptance item.
+- Testnet game assets do not create mainnet game-fund exposure, but a third-party
+  model provider may still bill API usage.
 
 ## Local development
 
@@ -131,8 +138,11 @@ keys, or `service_role` values in `NEXT_PUBLIC_*`.
 ## Commands
 
 ```powershell
+npm run lint
+npm run typecheck
 npm test
 npm run build
+npm run check
 npm run dev -- -p 4404
 npm start
 ```

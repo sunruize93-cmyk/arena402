@@ -5,7 +5,7 @@ presentation-surface contracts.
 
 | Document | Audience | Authority |
 | --- | --- | --- |
-| [`PLAYER_GUIDE.md`](PLAYER_GUIDE.md) | Players opening the website | Login, Agent selection, joining, spectating, results, and FAQ |
+| [`PLAYER_GUIDE.md`](PLAYER_GUIDE.md) | Players opening the website | `/guide` and `/guide/manual`, login, Agent selection, joining, spectating, results, safety, and FAQ |
 | [`FRONTEND_GAMEPLAY_GUIDE.md`](FRONTEND_GAMEPLAY_GUIDE.md) | Frontend and backend contributors | Implemented player flow, API contract, state ownership, and known projection gaps |
 | [`EXPO_AND_PLAYER_SURFACES.md`](EXPO_AND_PLAYER_SURFACES.md) | Broadcast/player-surface contributors | Expo board, presentation rankings, observatory, and safe public data |
 | [`../UPSTREAM_DESIGN.md`](../UPSTREAM_DESIGN.md) | Design/frontend contributors | Visual-system and backend-integration boundary |
@@ -26,3 +26,9 @@ working-tree changes are not deployment evidence.
 Demo fixtures, presentation XP, participant order, or pending settlement must
 never be described as official ranking, live price authority, or completed
 payment.
+
+The website's one-page bilingual manual is implemented in
+`src/components/TextManualContent.tsx`. Keep its rules and safety wording
+consistent with `PLAYER_GUIDE.md`; multiline diagrams and locale-specific page
+metadata are intentionally handled by that component rather than inferred from
+DOM text replacement.

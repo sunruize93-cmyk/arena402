@@ -18,6 +18,8 @@ Current visual authority lives in:
 - `src/app/arena402-terminal.css` for negotiation and CLI surfaces;
 - `src/app/arena402-broadcast.css` for the Expo board;
 - `src/app/arena402-player.css` for the guided player journey;
+- `src/app/arena402-manual.css` for the one-page text manual;
+- `src/app/arena402-founding.css` for the memorial-coin claim;
 - the React components that already use those systems.
 
 Preserve:
@@ -45,7 +47,7 @@ state, or browser-side database access.
 | market projection | `src/lib/broadcast-model.ts`, `MarketIntelligence.tsx`, `MarketHistoryBoard.tsx` |
 | final result | `src/components/GameResult.tsx` |
 | public settlement ledger | `src/lib/ledger-api.ts`, `ImperialLedger.tsx` |
-| localization | `LocaleProvider`, `src/lib/i18n.ts`, `src/lib/i18n-player-experience.ts` |
+| localization | `LocaleProvider`, `src/lib/i18n.ts`, `src/lib/i18n-player-experience.ts`; `TextManualContent.tsx` owns locale-complete manual diagrams and page metadata |
 
 ## API boundary
 

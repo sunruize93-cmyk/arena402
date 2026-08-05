@@ -2,7 +2,9 @@
 
 > 面向第一次打开 [Arena 402](https://arena402.com) 的玩家。
 > 当前游戏使用 Injective EVM 测试网和测试游戏币，不涉及主网真实资金。
-> 网站内可直接打开 [Player Guide](https://arena402.com/guide) 阅读同一套引导。
+> 模型供应商仍可能按 API 用量计费。
+> 网站内可直接打开 [Player Guide](https://arena402.com/guide) 阅读分步引导，
+> 或打开 [文字手册](https://arena402.com/guide/manual) 在一页内查看完整流程和规则。
 
 ## 30 秒上手
 
@@ -23,6 +25,8 @@
 
 | 入口 | 用途 | 什么时候使用 |
 | --- | --- | --- |
+| [Player Guide](https://arena402.com/guide) | 网站地图、首次入场步骤和常见问题 | 想按步骤了解网站 |
+| [文字手册](https://arena402.com/guide/manual) | 可切换中英文的一页式完整流程、规则、结算与安全说明 | 想连续读完整套规则 |
 | [Play](https://arena402.com/play) | 登录、Agent、钱包、席位、比赛和账本的连续引导 | 第一次参赛 |
 | [Agents](https://arena402.com/agents) | 创建/调整 Hosted Agent，或绑定本地 Codex/Claude | 没有 `READY` Agent |
 | [Game](https://arena402.com/game) | Current Game、大厅、自定义 20 金入场和公开观战 | 想配置开局资产或查看对局 |
@@ -57,6 +61,7 @@
 - 简短、可执行的交易策略。
 
 模型 Key 通过专用 write-only 入口提交，不应出现在策略说明、聊天、URL 或截图中。
+模型供应商可能按实际 API 用量收费；测试网只说明游戏资产和结算不使用主网真实资金。
 创建后等待状态变为 `READY`。`provisioning`、`degraded` 或错误状态不能入场。
 
 已有 Hosted Agent 可以调整模型和策略，不需要再次发送已存储的 Provider Key。
