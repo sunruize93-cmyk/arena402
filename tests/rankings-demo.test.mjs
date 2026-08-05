@@ -62,7 +62,7 @@ test('the primary navigation exposes the rankings page', async () => {
   assert.match(source, /\{ href: '\/rankings', label: 'Rankings' \}/);
 });
 
-test('the account dropdown uses the global navigation menu styles', async () => {
+test('the account dropdown survives mixed navigation bundle versions', async () => {
   const [headerSource, designCss, integrationCss] = await Promise.all([
     readFile(
       new URL('../src/components/SiteHeader.tsx', import.meta.url),
@@ -78,14 +78,23 @@ test('the account dropdown uses the global navigation menu styles', async () => 
     ),
   ]);
 
-  assert.match(headerSource, /className="nav-user"/);
-  assert.match(headerSource, /className="nav-user-menu"/);
-  assert.match(headerSource, /className="nav-user-meta"/);
+  assert.match(headerSource, /className="nav-user nav-session"/);
+  assert.match(
+    headerSource,
+    /className="nav-user-menu nav-session-menu"/,
+  );
+  assert.match(
+    headerSource,
+    /className="nav-user-meta nav-user-meta-name"/,
+  );
   assert.match(headerSource, /className="nav-user-item"/);
   assert.match(headerSource, /className="nav-user-item danger"/);
-  assert.doesNotMatch(headerSource, /className="nav-session-menu"/);
 
-  assert.match(designCss, /\.nav-user-menu\s*\{/);
-  assert.match(designCss, /\.nav-user-item\s*\{/);
+  assert.match(designCss, /\.nav-user-menu\s*,\s*\.nav-session-menu\s*\{/);
+  assert.match(designCss, /\.nav-session-menu > p\s*\{/);
+  assert.match(
+    designCss,
+    /\.nav-user-item\s*,\s*\.nav-session-menu > a\s*,\s*\.nav-session-menu > button\s*\{/,
+  );
   assert.doesNotMatch(integrationCss, /\.nav-session-menu\s*\{/);
 });

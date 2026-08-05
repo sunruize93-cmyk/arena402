@@ -160,14 +160,17 @@ button { font-family: inherit; }
 }
 .nav-deploy:hover { opacity: 1; border-bottom-color: var(--paper); }
 
-/* User menu — solid panel (avoids mix-blend washout) */
+/* User menu — solid panel (avoids mix-blend washout).
+   Keep the nav-session aliases while long-lived tabs can still be running
+   the pre-nav-user client bundle during a rolling frontend deployment. */
 .nav-session-loading {
   width: 78px;
   height: 31px;
   border: 1px solid var(--line);
   background: rgba(244, 242, 236, 0.04);
 }
-.nav-user { position: relative; isolation: isolate; }
+.nav-user,
+.nav-session { position: relative; isolation: isolate; }
 .nav-user-trigger {
   display: inline-flex; align-items: center; gap: 10px;
   background: rgba(10,10,11,0.55);
@@ -205,7 +208,8 @@ button { font-family: inherit; }
 }
 .nav-user-caret { opacity: 0.55; font-size: 9px; letter-spacing: 0; }
 
-.nav-user-menu {
+.nav-user-menu,
+.nav-session-menu {
   position: absolute;
   top: calc(100% + 12px); right: 0;
   width: 220px;
@@ -217,7 +221,8 @@ button { font-family: inherit; }
   box-shadow: 0 24px 60px rgba(0,0,0,0.55);
   animation: menuIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.nav-user-menu[hidden] { display: none !important; }
+.nav-user-menu[hidden],
+.nav-session-menu[hidden] { display: none !important; }
 @keyframes menuIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -235,7 +240,19 @@ button { font-family: inherit; }
   line-height: 1.05;
   margin-bottom: 6px;
 }
-.nav-user-item {
+.nav-session-menu > p {
+  padding: 10px 12px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+  font-family: var(--serif);
+  font-size: 22px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.05;
+}
+.nav-user-item,
+.nav-session-menu > a,
+.nav-session-menu > button {
   display: block; width: 100%;
   background: none; border: none; cursor: pointer;
   text-align: left;
@@ -246,9 +263,15 @@ button { font-family: inherit; }
   padding: 12px;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.nav-user-item:hover { background: rgba(244,242,236,0.06); }
-.nav-user-item.danger { color: var(--grey); }
-.nav-user-item.danger:hover { color: var(--paper); background: rgba(244,242,236,0.04); }
+.nav-user-item:hover,
+.nav-session-menu > a:hover { background: rgba(244,242,236,0.06); }
+.nav-user-item.danger,
+.nav-session-menu > button { color: var(--grey); }
+.nav-user-item.danger:hover,
+.nav-session-menu > button:hover {
+  color: var(--paper);
+  background: rgba(244,242,236,0.04);
+}
 
 .nav-brand {
   background: none; border: none; cursor: pointer;
@@ -728,7 +751,8 @@ button { font-family: inherit; }
   .auth-provider,
   .auth-provider-arrow,
   .auth-veil,
-  .nav-user-menu { transition: none !important; animation: none !important; }
+  .nav-user-menu,
+  .nav-session-menu { transition: none !important; animation: none !important; }
 }
 
 /* === Responsive — tablet === */

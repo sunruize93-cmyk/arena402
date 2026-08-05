@@ -97,7 +97,7 @@ export default function SiteHeader() {
         {loading ? (
           <span className="nav-session-loading" aria-label="Checking session" />
         ) : session ? (
-          <div className="nav-user" ref={menuRef}>
+          <div className="nav-user nav-session" ref={menuRef}>
             <button
               type="button"
               className="nav-user-trigger"
@@ -126,10 +126,10 @@ export default function SiteHeader() {
               </span>
             </button>
             {menuOpen && (
-              <div className="nav-user-menu" role="menu">
-                <div className="nav-user-meta">
-                  <p className="nav-user-meta-name">{session.user.username}</p>
-                </div>
+              <div className="nav-user-menu nav-session-menu" role="menu">
+                <p className="nav-user-meta nav-user-meta-name">
+                  {session.user.username}
+                </p>
                 <Link className="nav-user-item" href="/agents" role="menuitem">
                   Manage agents
                 </Link>
