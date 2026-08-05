@@ -372,7 +372,10 @@ function InteractiveMemorialCoin() {
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const updatePreference = () => setReducedMotion(media.matches);
+    const updatePreference = () => {
+      setReducedMotion(media.matches);
+      if (media.matches) stopAnimation();
+    };
     updatePreference();
     media.addEventListener('change', updatePreference);
     renderCoin();
@@ -383,6 +386,13 @@ function InteractiveMemorialCoin() {
   }, [renderCoin, stopAnimation]);
 
   useEffect(() => {
+    if (
+      reducedMotion
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setWebglReady(false);
+      return;
+    }
     const canvasElement = canvasRef.current;
     if (!canvasElement) return;
     const canvas: HTMLCanvasElement = canvasElement;
@@ -567,7 +577,7 @@ function InteractiveMemorialCoin() {
       cancelled = true;
       disposeScene?.();
     };
-  }, [renderCoin]);
+  }, [reducedMotion, renderCoin]);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     if (reducedMotion) return;
