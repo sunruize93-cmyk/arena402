@@ -149,6 +149,9 @@ export default function PlayerGuidePage() {
             <Link className="btn ghost" href="/agents">
               Prepare an Agent
             </Link>
+            <Link className="btn ghost" href="/guide/manual">
+              Text Manual
+            </Link>
           </div>
         </div>
 

@@ -11,6 +11,10 @@ const guideSource = readFileSync(
   fileURLToPath(new URL('../src/app/guide/page.tsx', import.meta.url)),
   'utf8',
 );
+const manualSource = readFileSync(
+  fileURLToPath(new URL('../src/app/guide/manual/page.tsx', import.meta.url)),
+  'utf8',
+);
 
 test('home hero exposes the Player Guide route beside the game entry', () => {
   assert.match(
@@ -44,4 +48,21 @@ test('Player Guide keeps acceptance separate from completed settlement', () => {
     guideSource,
     /Acceptance alone does not move inventory/,
   );
+});
+
+test('Player Guide links to the plain-text manual beside the entry actions', () => {
+  assert.match(
+    guideSource,
+    /<Link className="btn ghost" href="\/guide\/manual">\s*Text Manual\s*<\/Link>/,
+  );
+});
+
+test('Text Manual carries the top-down match loop and core rules', () => {
+  assert.match(manualSource, /READY AGENT/);
+  assert.match(manualSource, /DECIDE.*buy \/ sell \/ pass/);
+  assert.match(manualSource, /FCFS/);
+  assert.match(manualSource, /NEGOTIATE/);
+  assert.match(manualSource, /INJECTIVE TESTNET/);
+  assert.match(manualSource, /RANKING/);
+  assert.match(manualSource, /net worth = cash \+ Σ holdings × final prices/);
 });
