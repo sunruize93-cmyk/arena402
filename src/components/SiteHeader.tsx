@@ -97,7 +97,7 @@ export default function SiteHeader() {
         {loading ? (
           <span className="nav-session-loading" aria-label="Checking session" />
         ) : session ? (
-          <div className="nav-session" ref={menuRef}>
+          <div className="nav-user" ref={menuRef}>
             <button
               type="button"
               className="nav-user-trigger"
@@ -126,21 +126,28 @@ export default function SiteHeader() {
               </span>
             </button>
             {menuOpen && (
-              <div className="nav-session-menu" role="menu">
-                <p>{session.user.username}</p>
-                <Link href="/agents" role="menuitem">
+              <div className="nav-user-menu" role="menu">
+                <div className="nav-user-meta">
+                  <p className="nav-user-meta-name">{session.user.username}</p>
+                </div>
+                <Link className="nav-user-item" href="/agents" role="menuitem">
                   Manage agents
                 </Link>
-                <Link href="/play" role="menuitem">
+                <Link className="nav-user-item" href="/play" role="menuitem">
                   Enter current game
                 </Link>
-                <Link href="/connect" role="menuitem">
+                <Link className="nav-user-item" href="/connect" role="menuitem">
                   Connect computer
                 </Link>
-                <Link href="/wallet" role="menuitem">
+                <Link className="nav-user-item" href="/wallet" role="menuitem">
                   Open treasury
                 </Link>
-                <button type="button" role="menuitem" onClick={() => void signOut()}>
+                <button
+                  type="button"
+                  className="nav-user-item danger"
+                  role="menuitem"
+                  onClick={() => void signOut()}
+                >
                   Sign out
                 </button>
               </div>

@@ -61,3 +61,31 @@ test('the primary navigation exposes the rankings page', async () => {
   );
   assert.match(source, /\{ href: '\/rankings', label: 'Rankings' \}/);
 });
+
+test('the account dropdown uses the global navigation menu styles', async () => {
+  const [headerSource, designCss, integrationCss] = await Promise.all([
+    readFile(
+      new URL('../src/components/SiteHeader.tsx', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../src/app/arena402-design.css', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../src/app/arena402-integration.css', import.meta.url),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(headerSource, /className="nav-user"/);
+  assert.match(headerSource, /className="nav-user-menu"/);
+  assert.match(headerSource, /className="nav-user-meta"/);
+  assert.match(headerSource, /className="nav-user-item"/);
+  assert.match(headerSource, /className="nav-user-item danger"/);
+  assert.doesNotMatch(headerSource, /className="nav-session-menu"/);
+
+  assert.match(designCss, /\.nav-user-menu\s*\{/);
+  assert.match(designCss, /\.nav-user-item\s*\{/);
+  assert.doesNotMatch(integrationCss, /\.nav-session-menu\s*\{/);
+});

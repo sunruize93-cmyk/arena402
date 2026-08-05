@@ -161,6 +161,12 @@ button { font-family: inherit; }
 .nav-deploy:hover { opacity: 1; border-bottom-color: var(--paper); }
 
 /* User menu — solid panel (avoids mix-blend washout) */
+.nav-session-loading {
+  width: 78px;
+  height: 31px;
+  border: 1px solid var(--line);
+  background: rgba(244, 242, 236, 0.04);
+}
 .nav-user { position: relative; isolation: isolate; }
 .nav-user-trigger {
   display: inline-flex; align-items: center; gap: 10px;
@@ -200,9 +206,9 @@ button { font-family: inherit; }
 .nav-user-caret { opacity: 0.55; font-size: 9px; letter-spacing: 0; }
 
 .nav-user-menu {
-  position: fixed;
-  top: 72px; right: var(--edge);
-  min-width: 220px;
+  position: absolute;
+  top: calc(100% + 12px); right: 0;
+  width: 220px;
   background: var(--ink);
   border: 1px solid var(--line-strong);
   padding: 10px;

@@ -13,61 +13,6 @@
   text-decoration: none;
 }
 
-.nav-session-loading {
-  width: 78px;
-  height: 31px;
-  border: 1px solid var(--line);
-  background: rgba(244, 242, 236, 0.04);
-}
-
-.nav-session {
-  position: relative;
-}
-
-.nav-session-menu {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 220px;
-  padding: 10px;
-  border: 1px solid var(--line-strong);
-  background: var(--ink);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  mix-blend-mode: normal;
-}
-
-.nav-session-menu p {
-  padding: 9px 11px 12px;
-  border-bottom: 1px solid var(--line);
-  color: var(--paper);
-  font-family: var(--serif);
-  font-size: 21px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.nav-session-menu a,
-.nav-session-menu button {
-  display: block;
-  width: 100%;
-  padding: 11px;
-  border: 0;
-  background: transparent;
-  color: var(--grey);
-  cursor: pointer;
-  font-size: 9px;
-  letter-spacing: 0.24em;
-  text-align: left;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.nav-session-menu a:hover,
-.nav-session-menu button:hover {
-  color: var(--paper);
-  background: rgba(244, 242, 236, 0.05);
-}
-
 .btn,
 .feat-link,
 .back-btn,
@@ -331,11 +276,6 @@
 }
 
 @media (max-width: 700px) {
-  .nav-session .nav-user-name,
-  .nav-session .nav-user-caret {
-    display: none;
-  }
-
   .live-game-search {
     grid-template-columns: 1fr;
   }
