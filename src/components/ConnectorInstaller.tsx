@@ -195,9 +195,8 @@ export default function ConnectorInstaller({
           </div>
           <a
             className="connector-download"
-            href={connectorInstallerUrl(platform, apiOrigin)}
-            target="_blank"
-            rel="noreferrer"
+            href={connectorInstallerUrl(platform)}
+            download={platform === 'windows' ? 'install-connector.ps1' : 'install-connector.sh'}
           >
             <Download aria-hidden="true" />
             Download {platform === 'windows' ? 'install-connector.ps1' : 'install-connector.sh'}

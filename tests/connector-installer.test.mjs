@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -7,15 +8,29 @@ import {
   isAbsoluteConnectorPath,
 } from '../src/lib/connector-installer.mjs';
 
-test('connector installer URLs use the Arena API download origin', () => {
+test('connector installer links use the same-origin download route', () => {
   assert.equal(
-    connectorInstallerUrl('windows', 'https://api.arena402.com/'),
-    'https://api.arena402.com/downloads/install.ps1',
+    connectorInstallerUrl('windows'),
+    '/downloads/install.ps1',
   );
   assert.equal(
-    connectorInstallerUrl('linux', 'https://api.arena402.com'),
-    'https://api.arena402.com/downloads/install.sh',
+    connectorInstallerUrl('linux'),
+    '/downloads/install.sh',
   );
+});
+
+test('same-origin download route forces reviewed installer filenames', () => {
+  const routeSource = readFileSync(
+    new URL('../src/app/downloads/[filename]/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(routeSource, /'install\.ps1'/);
+  assert.match(routeSource, /'install\.sh'/);
+  assert.match(routeSource, /Content-Disposition/);
+  assert.match(routeSource, /attachment; filename=/);
+  assert.match(routeSource, /text\/plain; charset=utf-8/);
+  assert.match(routeSource, /X-Content-Type-Options/);
 });
 
 test('Windows task-enabled install command freezes the selected allow-root', () => {

@@ -129,6 +129,7 @@ Environment variables:
 | Variable | Use |
 | --- | --- |
 | `API_PROXY_TARGET` | Server-side target for same-origin local `/api/*` rewrites |
+| `CONNECTOR_DOWNLOAD_ORIGIN` | Optional server-only upstream for the allowlisted Connector installer downloads |
 | `NEXT_PUBLIC_API_URL` | Browser-visible API origin; set to `https://api.arena402.com` in Vercel |
 | `NEXT_PUBLIC_EXPLORER_URL` | Explorer base used by Ledger verification links |
 

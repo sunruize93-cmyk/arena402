@@ -4,9 +4,9 @@ export function connectorDownloadOrigin(apiOrigin) {
   return (apiOrigin || DEFAULT_CONNECTOR_DOWNLOAD_ORIGIN).replace(/\/$/, '');
 }
 
-export function connectorInstallerUrl(platform, apiOrigin) {
+export function connectorInstallerUrl(platform) {
   const filename = platform === 'linux' ? 'install.sh' : 'install.ps1';
-  return `${connectorDownloadOrigin(apiOrigin)}/downloads/${filename}`;
+  return `/downloads/${filename}`;
 }
 
 export function isAbsoluteConnectorPath(platform, value) {
