@@ -19,22 +19,58 @@ function pick(
   return undefined;
 }
 
+function pairingIdFromNegotiation(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null;
+  if (value.startsWith('neg:') && value.length > 4) {
+    return value.slice(4);
+  }
+  if (value.startsWith('negotiation:') && value.length > 12) {
+    return `pairing:engagement:${value.slice('negotiation:'.length)}`;
+  }
+  return value;
+}
+
+function pairingIdFromSettlement(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null;
+  if (
+    value.startsWith('settlement:negotiation:')
+    && value.length > 'settlement:negotiation:'.length
+  ) {
+    return `pairing:engagement:${value.slice('settlement:negotiation:'.length)}`;
+  }
+  return null;
+}
+
 function explicitPairingId(event: TimelineEventLike): string | null {
   const value = pick(event.data, 'pairingId', 'pairing_id');
   if (typeof value === 'string' && value) return value;
-  const negotiation = pick(event.data, 'negotiationId', 'negotiation_id');
-  if (
-    typeof negotiation === 'string'
-    && negotiation.startsWith('neg:')
-    && negotiation.length > 4
-  ) {
-    return negotiation.slice(4);
+  const engagement = pick(event.data, 'engagementId', 'engagement_id');
+  if (typeof engagement === 'string' && engagement) {
+    return engagement.startsWith('pairing:')
+      ? engagement
+      : `pairing:${engagement}`;
+  }
+  const negotiation = pairingIdFromNegotiation(
+    pick(event.data, 'negotiationId', 'negotiation_id'),
+  );
+  if (negotiation) return negotiation;
+  const settlement = pairingIdFromSettlement(
+    pick(event.data, 'settlementIntentId', 'settlement_intent_id'),
+  );
+  if (settlement) return settlement;
+  const request = pick(event.data, 'requestId', 'request_id');
+  if (typeof request === 'string' && request) {
+    return `pairing:engagement:${request}`;
   }
   return null;
 }
 
 function pairingId(event: TimelineEventLike): string {
   return explicitPairingId(event) || `pair-${event.sequence}`;
+}
+
+export function timelinePairingId(event: TimelineEventLike): string {
+  return pairingId(event);
 }
 
 function matchesPairing(event: TimelineEventLike, targetPairingId: string): boolean {
@@ -83,7 +119,7 @@ export function isPairingClosed(
 
   const created = events.find(
     (event) =>
-      event.type === 'pairing.created'
+      ['pairing.created', 'market.engagement_created'].includes(event.type)
       && pairingId(event) === targetPairingId,
   );
   const createdRoundId = created ? pairingRoundId(created) : null;
@@ -139,7 +175,9 @@ function roundIndex(record: Record<string, unknown> | undefined): number | null 
 
 export function activePairingIds(events: TimelineEventLike[]): string[] {
   return events
-    .filter((event) => event.type === 'pairing.created')
+    .filter((event) =>
+      ['pairing.created', 'market.engagement_created'].includes(event.type),
+    )
     .filter((event) => !isPairingClosed(events, pairingId(event)))
     .sort((left, right) => right.sequence - left.sequence)
     .map(pairingId);

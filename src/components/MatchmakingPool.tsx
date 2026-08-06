@@ -6,11 +6,19 @@ import {
   projectionValue as pick,
   publicAgentName,
 } from '@/lib/public-projection';
+import { projectCurrentRoundMarket } from '@/lib/market-projection';
 
 const GOODS = ['grain', 'iron', 'warhorse', 'gems'] as const;
 
 function displayName(value: unknown, fallback: string): string {
   return publicAgentName(value, fallback, 120);
+}
+
+function displayGold(value: number | null): string {
+  if (value === null) return '';
+  return `${(value / 1_000_000).toLocaleString('en-US', {
+    maximumFractionDigits: 4,
+  })} GOLD`;
 }
 
 export default function MatchmakingPool({
@@ -21,34 +29,12 @@ export default function MatchmakingPool({
   events: PawnhouseTimelineEvent[];
 }) {
   const participants = Array.isArray(state?.participants) ? state.participants : [];
-  const currentRound = Number(state?.currentRound || 0);
-  const currentRoundStart = [...events]
-    .reverse()
-    .find(
-      (event) =>
-        event.type === 'round.started' &&
-        Number(pick(event.data, 'round', 'roundIndex', 'round_index')) ===
-          currentRound,
-    )?.sequence;
-  const roundEvents = currentRoundStart === undefined
-    ? events.filter(
-        (event) =>
-          Number(pick(event.data, 'round', 'roundIndex', 'round_index')) ===
-            currentRound,
-      )
-    : events.filter((event) => event.sequence >= currentRoundStart);
-  const pairEvents = roundEvents.filter((event) => event.type === 'pairing.created');
-  const orders = roundEvents
-    .filter((event) => ['order.queued', 'decision.applied'].includes(event.type))
-    .map((event) => ({
-      sequence: event.sequence,
-      agentId: String(
-        pick(event.data, 'agentId', 'agent_id', 'participantId', 'participant_id') || '',
-      ),
-      side: String(pick(event.data, 'side', 'action', 'intent') || '').toLowerCase(),
-      goodId: String(pick(event.data, 'goodId', 'good_id', 'good') || '').toLowerCase(),
-      quantity: Number(pick(event.data, 'quantity', 'qty') || 0),
-    }))
+  const market = projectCurrentRoundMarket(state, events);
+  const isA2A = market.protocol === 'agent_a2a.v1';
+  const pairEvents = market.events.filter((event) =>
+    ['pairing.created', 'market.engagement_created'].includes(event.type),
+  );
+  const orders = market.orders
     .filter(
       (order) =>
         ['buy', 'sell'].includes(order.side)
@@ -56,27 +42,95 @@ export default function MatchmakingPool({
     );
 
   const latestDecision = new Map<string, PawnhouseTimelineEvent>();
-  for (const event of roundEvents) {
-    if (!['decision.applied', 'order.queued'].includes(event.type)) continue;
-    const agentId = String(pick(event.data, 'agentId', 'agent_id') || '');
+  for (const event of market.events) {
+    if (
+      ![
+        'decision.applied',
+        'order.queued',
+        'market.intent_published',
+      ].includes(event.type)
+    ) {
+      continue;
+    }
+    const agentId = String(
+      pick(
+        event.data,
+        'participantId',
+        'participant_id',
+        'agentId',
+        'agent_id',
+      ) || '',
+    );
     if (agentId) latestDecision.set(agentId, event);
   }
 
-  const matchedAgentIds = new Set<string>();
+  const matchedAgentIds = new Set(market.engagedParticipantIds);
   for (const event of pairEvents) {
-    const buyer = String(pick(event.data, 'buyerAgentId', 'buyer_agent_id') || '');
-    const seller = String(pick(event.data, 'sellerAgentId', 'seller_agent_id') || '');
+    const buyer = String(
+      pick(
+        event.data,
+        'buyerParticipantId',
+        'buyer_participant_id',
+        'buyerAgentId',
+        'buyer_agent_id',
+      ) || '',
+    );
+    const seller = String(
+      pick(
+        event.data,
+        'sellerParticipantId',
+        'seller_participant_id',
+        'sellerAgentId',
+        'seller_agent_id',
+      ) || '',
+    );
     if (buyer) matchedAgentIds.add(buyer);
     if (seller) matchedAgentIds.add(seller);
   }
+  const participantNames = new Map<string, string>();
+  participants.forEach((participant, index) => {
+    const name = displayName(
+      pick(
+        participant,
+        'displayName',
+        'display_name',
+        'agentId',
+        'agent_id',
+      ),
+      `Agent ${index + 1}`,
+    );
+    for (const key of [
+      pick(
+        participant,
+        'participantId',
+        'participant_id',
+        'gameParticipantId',
+        'game_participant_id',
+      ),
+      pick(participant, 'agentId', 'agent_id'),
+    ]) {
+      if (key) participantNames.set(String(key), name);
+    }
+  });
 
   return (
     <section className="gm-matchmaking-pool" aria-labelledby="matchmaking-pool-title">
       <div className="gm-panel-head">
-        <p className="label" id="matchmaking-pool-title">Matchmaking pool</p>
-        <p>Agent orders are paired by Arena receive time</p>
+        <p className="label" id="matchmaking-pool-title">
+          {isA2A ? 'A2A discovery market' : 'Matchmaking pool'}
+        </p>
+        <p>
+          {isA2A
+            ? 'Public intents become targeted RFQs and one-to-one engagements'
+            : 'Agent orders are paired by Arena receive time'}
+        </p>
       </div>
-      <div className="gm-order-books" aria-label="FCFS order queue by good">
+      <div
+        className="gm-order-books"
+        aria-label={
+          isA2A ? 'A2A intent directory by good' : 'FCFS order queue by good'
+        }
+      >
         {GOODS.map((good) => (
           <article key={good}>
             <header>
@@ -89,19 +143,29 @@ export default function MatchmakingPool({
               );
               return (
                 <div key={side}>
-                  <p className="label">{side} queue · FCFS</p>
+                  <p className="label">
+                    {isA2A ? `${side} intents` : `${side} queue · FCFS`}
+                  </p>
                   {queued.length > 0 ? (
                     <ol>
                       {queued.map((order) => (
-                        <li key={`${order.sequence}-${order.agentId}`}>
+                        <li key={`${order.sequence}-${order.participantId}`}>
                           <span>#{String(order.sequence).padStart(3, '0')}</span>
-                          <strong>{displayName(order.agentId, 'Agent')}</strong>
-                          <b>QTY {order.quantity || '—'}</b>
+                          <strong>
+                            {participantNames.get(order.participantId)
+                              || displayName(order.participantId, 'Agent')}
+                          </strong>
+                          <b>
+                            QTY {order.quantity || '—'}
+                            {isA2A && order.publicPriceAtomic !== null
+                              ? ` · ${displayGold(order.publicPriceAtomic)}`
+                              : ''}
+                          </b>
                         </li>
                       ))}
                     </ol>
                   ) : (
-                    <em>No public {side} order</em>
+                    <em>No public {side} {isA2A ? 'intent' : 'order'}</em>
                   )}
                 </div>
               );
@@ -113,12 +177,27 @@ export default function MatchmakingPool({
         <div className="gm-matchmaking-rows" aria-label="Agent decision status">
           {participants.map((participant, index) => {
             const agentId = String(pick(participant, 'agentId', 'agent_id') || '');
-            const decision = latestDecision.get(agentId);
-            const action = String(pick(decision?.data, 'action') || '').toUpperCase();
+            const participantId = String(
+              pick(
+                participant,
+                'participantId',
+                'participant_id',
+                'gameParticipantId',
+                'game_participant_id',
+              ) || '',
+            );
+            const decision =
+              latestDecision.get(participantId)
+              || latestDecision.get(agentId);
+            const action = String(
+              pick(decision?.data, 'side', 'action') || '',
+            ).toUpperCase();
             const good = String(pick(decision?.data, 'goodId', 'good_id', 'good') || '').toUpperCase();
-            const matched = matchedAgentIds.has(agentId);
+            const matched =
+              matchedAgentIds.has(participantId)
+              || matchedAgentIds.has(agentId);
             const stateLabel = matched
-              ? 'MATCHED'
+              ? isA2A ? 'ENGAGED' : 'MATCHED'
               : action === 'PASS'
                 ? 'WATCHING'
                 : action

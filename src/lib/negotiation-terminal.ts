@@ -28,19 +28,46 @@ function agentName(value: unknown, fallback: string): string {
   return publicAgentName(value, fallback, 120);
 }
 
-function eventPairingId(event: PawnhouseTimelineEvent): string {
+export function eventPairingId(event: PawnhouseTimelineEvent): string {
   const pairingId = cleanText(
     pick(event.data, 'pairingId', 'pairing_id'),
     '',
   );
   if (pairingId) return pairingId;
+  const engagementId = cleanText(
+    pick(event.data, 'engagementId', 'engagement_id'),
+    '',
+  );
+  if (engagementId) {
+    return engagementId.startsWith('pairing:')
+      ? engagementId
+      : `pairing:${engagementId}`;
+  }
   const negotiationId = cleanText(
     pick(event.data, 'negotiationId', 'negotiation_id'),
     '',
   );
-  return negotiationId.startsWith('neg:')
-    ? negotiationId.slice('neg:'.length)
-    : negotiationId;
+  if (negotiationId.startsWith('neg:')) {
+    return negotiationId.slice('neg:'.length);
+  }
+  if (negotiationId.startsWith('negotiation:')) {
+    return `pairing:engagement:${negotiationId.slice('negotiation:'.length)}`;
+  }
+  if (negotiationId) return negotiationId;
+  const settlementIntentId = cleanText(
+    pick(event.data, 'settlementIntentId', 'settlement_intent_id'),
+    '',
+  );
+  if (settlementIntentId.startsWith('settlement:negotiation:')) {
+    return `pairing:engagement:${settlementIntentId.slice(
+      'settlement:negotiation:'.length,
+    )}`;
+  }
+  const requestId = cleanText(
+    pick(event.data, 'requestId', 'request_id'),
+    '',
+  );
+  return requestId ? `pairing:engagement:${requestId}` : '';
 }
 
 function terminalTime(event: PawnhouseTimelineEvent): string {
@@ -68,7 +95,8 @@ export function buildNegotiationTerminalLines(
 ): NegotiationTerminalLine[] {
   const pairing = events.find(
     (event) =>
-      event.type === 'pairing.created' && eventPairingId(event) === pairingId,
+      ['pairing.created', 'market.engagement_created'].includes(event.type)
+      && eventPairingId(event) === pairingId,
   );
   if (!pairing) return [];
 

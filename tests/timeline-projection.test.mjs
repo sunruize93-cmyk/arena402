@@ -113,6 +113,39 @@ test('thinking stops on negotiation, settlement, round, or snapshot terminal sta
   );
 });
 
+test('A2A engagement, negotiation, and settlement IDs share one pairing identity', () => {
+  const pairId = 'pairing:engagement:request:task-market:1';
+  const events = [
+    event(1, 'market.engagement_created', {
+      requestId: 'request:task-market:1',
+      engagementId: 'engagement:request:task-market:1',
+    }),
+    event(2, 'market.negotiation_created', {
+      engagementId: 'engagement:request:task-market:1',
+      negotiationId: 'negotiation:request:task-market:1',
+    }),
+    event(3, 'negotiation.message', {
+      negotiationId: 'negotiation:request:task-market:1',
+      action: 'propose',
+    }),
+  ];
+
+  assert.equal(projection.timelinePairingId(events[0]), pairId);
+  assert.equal(projection.timelinePairingId(events[1]), pairId);
+  assert.equal(projection.timelinePairingId(events[2]), pairId);
+  assert.deepEqual(projection.activePairingIds(events), [pairId]);
+  assert.equal(projection.isPairingAwaitingAgentAction(events, pairId), true);
+
+  const settled = [
+    ...events,
+    event(4, 'settlement.inventory_committed', {
+      pairingId: pairId,
+      settlementIntentId: 'settlement:negotiation:request:task-market:1',
+    }),
+  ];
+  assert.deepEqual(projection.activePairingIds(settled), []);
+});
+
 test('replay price snapshots are visible only after that round closes', () => {
   const snapshots = [
     { round: 1, close: '5' },

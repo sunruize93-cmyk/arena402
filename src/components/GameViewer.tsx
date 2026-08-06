@@ -24,6 +24,7 @@ import {
 } from '@/lib/game-api';
 import { rankingAgentIdentity } from '@/lib/game-display';
 import { buildLedgerTrades, formatGold } from '@/lib/ledger-model';
+import { resolveMarketProtocol } from '@/lib/market-projection';
 import {
   startLiveGameFeed,
 } from '@/lib/live-game-feed';
@@ -31,6 +32,7 @@ import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 import { readAgentReputation } from '@/lib/reputation';
 import {
   activePairingIds,
+  timelinePairingId,
   visibleReplaySnapshots,
 } from '@/lib/timeline-projection';
 import {
@@ -352,6 +354,13 @@ function pairingRows(
     const status = String(pick(pairing, 'status') || '').toLowerCase();
     if (id && status) pairingStatuses.set(id, status);
   });
+  events
+    .filter((event) => event.type === 'pairing.closed')
+    .forEach((event) => {
+      const id = timelinePairingId(event);
+      const status = String(pick(event.data, 'status') || '').toLowerCase();
+      if (id && status) pairingStatuses.set(id, status);
+    });
   const participantNames = new Map<string, string>();
   const participants = Array.isArray(state?.participants) ? state.participants : [];
   participants.forEach((participant, index) => {
@@ -371,7 +380,9 @@ function pairingRows(
     }
   });
   return events
-    .filter((event) => event.type === 'pairing.created')
+    .filter((event) =>
+      ['pairing.created', 'market.engagement_created'].includes(event.type),
+    )
     .slice(-4)
     .reverse()
     .map((event) => {
@@ -394,10 +405,7 @@ function pairingRows(
           'seller_participant_id',
         ) || '',
       );
-      const id = publicText(
-        pick(data, 'pairingId', 'pairing_id'),
-        `pair-${event.sequence}`,
-      );
+      const id = timelinePairingId(event);
       const status = pairingStatuses.get(id) || '';
       return {
         id,
@@ -582,6 +590,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             : state.priceSnapshots,
         }
       : state;
+  const marketProtocol = resolveMarketProtocol(viewState, events);
   const totalRounds = Number(state?.roundCount || state?.totalRounds || 0);
   const currentRoundState = Array.isArray(state?.rounds)
     ? state.rounds.find(
@@ -996,8 +1005,16 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                   <MatchmakingPool state={viewState} events={events} />
                   <div className="gm-desk-pairings">
                     <div className="gm-panel-head">
-                      <p className="label">Pairing rail</p>
-                      <p>FCFS</p>
+                      <p className="label">
+                        {marketProtocol === 'agent_a2a.v1'
+                          ? 'Engagement rail'
+                          : 'Pairing rail'}
+                      </p>
+                      <p>
+                        {marketProtocol === 'agent_a2a.v1'
+                          ? 'TARGETED RFQ'
+                          : 'FCFS'}
+                      </p>
                     </div>
                     {pairs.length > 0 ? (
                       pairs.map((pair) => (
@@ -1024,7 +1041,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                         </article>
                       ))
                     ) : (
-                      <p className="empty">No compatible orders have met yet.</p>
+                      <p className="empty">
+                        {marketProtocol === 'agent_a2a.v1'
+                          ? 'No RFQ engagement has been accepted yet.'
+                          : 'No compatible orders have met yet.'}
+                      </p>
                     )}
                   </div>
                 </>
