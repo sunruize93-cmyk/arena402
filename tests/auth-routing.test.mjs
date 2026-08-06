@@ -14,6 +14,10 @@ const walletSource = fs.readFileSync(
   new URL('../src/components/WalletSurface.tsx', import.meta.url),
   'utf8',
 );
+const agentsPageSource = fs.readFileSync(
+  new URL('../src/app/agents/page.tsx', import.meta.url),
+  'utf8',
+);
 
 test('registration is invite-free and opens the memorial claim page', () => {
   assert.doesNotMatch(credentialSource, /inviteCode|Invite code|invite_code/);
@@ -38,4 +42,8 @@ test('wallet surface exposes the memorial claim page', () => {
   assert.match(walletSource, /href=\{\s*session\s*\? '\/founding402\/claim'/s);
   assert.match(walletSource, /Open memorial record/);
   assert.match(walletSource, /Sign in to claim/);
+});
+
+test('agent workshop loads its deployment journey styles', () => {
+  assert.match(agentsPageSource, /import '\.\.\/arena402-auth\.css';/);
 });
