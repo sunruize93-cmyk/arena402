@@ -45,6 +45,7 @@ import {
   revokeConnectorDevice,
   sendBindingCommand,
 } from '@/lib/connector-api';
+import { connectorTaskRunFlags } from '@/lib/connector-task-policy.mjs';
 import { useLocale } from '@/components/LocaleProvider';
 
 const REFRESH_INTERVAL_MS = 8_000;
@@ -129,10 +130,7 @@ function RuntimeRow({
   const canControl = Boolean(binding && runtime.available && isOnline);
   const taskExecutionEnabled = runtime.capabilities.includes('task.dispatch');
   const canManageSession = canControl && taskExecutionEnabled;
-  const taskOptInFlag =
-    runtime.kind === 'claude_code'
-      ? '--unsafe-enable-claude-tasks'
-      : '--enable-codex-tasks';
+  const taskRunFlags = connectorTaskRunFlags(runtime.kind);
 
   return (
     <div className="border-t border-arena-border/80 first:border-t-0">
@@ -286,8 +284,8 @@ function RuntimeRow({
           {!taskExecutionEnabled && (
             <div className="mb-3 rounded-lg border border-arena-gold/20 bg-arena-gold/[0.04] px-3 py-2 text-[11px] leading-5 text-arena-gold/80">
               Local task execution is off. Restart this trusted Connector with{' '}
-              <span className="font-mono">{taskOptInFlag}</span> to enable managed
-              sessions for this Runtime.
+              <span className="font-mono">{taskRunFlags}</span> to use the production
+              MCP task path and enable managed sessions for this Runtime.
             </div>
           )}
           <div className="mb-3">

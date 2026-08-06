@@ -306,7 +306,8 @@ const ZH_CN: Record<string, string> = {
   Events: '事件',
   'Local task execution is off. Restart this trusted Connector with':
     '本地任务执行已关闭。请使用以下参数重启此可信连接器：',
-  'to enable managed sessions for this Runtime.': '以启用此运行时的托管会话。',
+  'to use the production MCP task path and enable managed sessions for this Runtime.':
+    '以使用生产 MCP 任务通道，并启用此运行时的托管会话。',
   'Managed session workspace': '托管会话工作区',
   'Absolute path inside a local --allow-root': '本地 --allow-root 内的绝对路径',
   'Required. The Connector resolves this path locally and rejects it unless it is contained by an':
