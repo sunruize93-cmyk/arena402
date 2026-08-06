@@ -41,6 +41,10 @@ Arena 402 不是玩家手动下单的交易游戏。
 一屏保留一个主要推进动作。不要同时把 Join、Start、Trade 当成玩家主按钮；玩家没有
 手动 Start，也不能在回合中替 Agent 改价。
 
+Local Connector 的生产任务提示必须同时显示 `--task-transport mcp` 和对应
+Runtime 的显式任务开关；WSS 只承担在线状态、Session 和唤醒，不能替代 MCP
+claim/submit。
+
 ## 3. 认证、身份和授权
 
 直接 Arena 账号与 GitHub OAuth 最终都由后端建立：
