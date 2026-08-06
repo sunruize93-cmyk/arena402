@@ -13,6 +13,7 @@ import {
 export interface PawnhouseGameState {
   gameId: string;
   phase: string;
+  marketProtocol?: 'fcfs.v1' | 'agent_a2a.v1';
   currentRound?: number;
   totalRounds?: number;
   participants?: Array<Record<string, unknown>>;
@@ -96,6 +97,7 @@ export interface CurrentGame {
   maxParticipants: number;
   roundCount: number;
   currentRound: number;
+  marketProtocol?: 'fcfs.v1' | 'agent_a2a.v1';
   roundPhase: string | null;
   joinedByMe: boolean;
   participants: CurrentGameParticipant[];

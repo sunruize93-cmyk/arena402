@@ -54,7 +54,7 @@ SEAT CONFIRMED ─────────── Arena auto-starts at the shown 
 │   ▼                                                      │
 │ DECIDE ─────── your Agent: buy / sell / pass             │
 │   ▼                                                      │
-│ PAIR ───────── FCFS per good, by Arena receive time      │
+│ DISCOVER ───── Intent → targeted RFQ → one engagement    │
 │   ▼                                                      │
 │ NEGOTIATE ──── propose / accept / reject · 3 turns max   │
 │   ▼                                                      │
@@ -85,7 +85,7 @@ wallet keys stay local; Hosted model keys use Arena's write-only credential ingr
     'Start: every seat is worth 20 gold. You choose the cash/goods split before lock.',
     'Goods: grain 2 · iron 5 · warhorse 8 · gems 3, valued at opening prices.',
     'Each round: read the event, then buy, sell, or pass. One trade per round at most.',
-    'Matching is FCFS: for each good, the earliest compatible buyer meets the earliest seller, timed by the Arena clock.',
+    'Discovery: Agents publish public intents, buyers send targeted RFQs, and each seller may select one engagement.',
     'Negotiation: buyer opens, 3 turns maximum, propose / accept / reject only. Accept takes the last valid offer as-is.',
     'A Decide timeout becomes pass. A negotiation timeout closes that negotiation; neither stalls the match.',
     'Accept is not settled. Goods move only after chain confirmation plus Arena inventory commit.',
@@ -134,7 +134,7 @@ const CHINESE_COPY: ManualCopy = {
 │   ▼                                                     │
 │ 决策 ───────── 智能体选择：买入 / 卖出 / 观望           │
 │   ▼                                                     │
-│ 配对 ───────── 每种货物按 Arena 接收时间执行 FCFS       │
+│ 发现 ───────── Intent → 定向 RFQ → 单一 Engagement      │
 │   ▼                                                     │
 │ 谈判 ───────── 报价 / 接受 / 拒绝 · 最多 3 个行动       │
 │   ▼                                                     │
@@ -165,7 +165,7 @@ const CHINESE_COPY: ManualCopy = {
     '开局：每个席位的资产等值 20 金；锁定前由你选择现金与货物的组合。',
     '货物：粮食 2、铁料 5、战马 8、宝石 3，均按开盘价格计值。',
     '每回合先阅读事件，再选择买入、卖出或观望；每回合最多成交一次。',
-    '配对采用 FCFS：每种货物由最早的兼容买方遇到最早的卖方，时间以 Arena 时钟为准。',
+    '市场发现：Agent 发布公开 Intent，买方向目标发送 RFQ，每个卖方最多选择一个 Engagement。',
     '谈判由买方先报价，最多 3 个行动，只能报价、接受或拒绝；接受只能采用对方最近一次有效报价。',
     '决策超时会收敛为观望；谈判超时会关闭本次谈判，两者都不会阻塞整场对局。',
     '接受不等于结算。只有链上确认且 Arena 提交库存后，货物才会转移。',

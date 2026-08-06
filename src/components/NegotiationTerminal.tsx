@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PawnhouseTimelineEvent } from '@/lib/game-api';
-import { buildNegotiationTerminalLines } from '@/lib/negotiation-terminal';
+import {
+  buildNegotiationTerminalLines,
+  eventPairingId,
+} from '@/lib/negotiation-terminal';
 import { useLocale } from '@/components/LocaleProvider';
 import { translateText } from '@/lib/i18n';
 import { isPairingAwaitingAgentAction } from '@/lib/timeline-projection';
@@ -32,15 +35,8 @@ export default function NegotiationTerminal({
   const [visibleChars, setVisibleChars] = useState<Record<string, number>>({});
   const [reduceMotion, setReduceMotion] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const matchesPairing = (event: PawnhouseTimelineEvent) => {
-    const direct = String(
-      event.data.pairingId || event.data.pairing_id || '',
-    );
-    const negotiation = String(
-      event.data.negotiationId || event.data.negotiation_id || '',
-    );
-    return direct === pairingId || negotiation === `neg:${pairingId}`;
-  };
+  const matchesPairing = (event: PawnhouseTimelineEvent) =>
+    eventPairingId(event) === pairingId;
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -91,8 +87,8 @@ export default function NegotiationTerminal({
   );
   const pairingEvent = events.find(
     (event) =>
-      event.type === 'pairing.created' &&
-      String(event.data.pairingId || event.data.pairing_id || '') === pairingId,
+      ['pairing.created', 'market.engagement_created'].includes(event.type)
+      && eventPairingId(event) === pairingId,
   );
   const sellerId = String(
     pairingEvent?.data.sellerAgentId ||

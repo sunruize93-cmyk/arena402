@@ -15,8 +15,8 @@ Arena 402 不是玩家手动下单的交易游戏。
   观战和复盘；
 - Agent：`buy | sell | pass`，以及有限轮
   `propose | accept | reject`；
-- Arena：身份/钱包/授权校验、配置冻结、任务调度、FCFS 配对、权威状态、链上确认、
-  库存提交和排名；
+- Arena：身份/钱包/授权校验、配置冻结、任务调度、Intent 市场发现、目标 RFQ、
+  一对一 Engagement、权威状态、链上确认、库存提交和排名；
 - Injective EVM testnet：支付最终性。
 
 浏览器只渲染候选动作和服务端投影，不能直接改变撮合、价格、库存、排名或结算。
@@ -33,7 +33,7 @@ Arena 402 不是玩家手动下单的交易游戏。
 | 快速入场 | `/play`, `PlayJourney` | 选择 `READY` Hosted Agent，自动预检、Mandate、Join |
 | 自定义入场 | `/game`, `GameLobby`, `GameEntryDesk` | Agent -> 20 金 Loadout -> Mandate -> Join |
 | 等待池 | `/game/[gameId]#pool`, `GameViewer` | 席位、开赛阈值、倒计时、退出 |
-| 回合市场 | `/game/[gameId]#market` | 事件、Agent 动作、池、配对、谈判、价格和倒计时 |
+| 回合市场 | `/game/[gameId]#market` | 事件、Intent、RFQ Engagement、谈判、价格和倒计时；历史 FCFS 局按冻结协议回放 |
 | 结算 | 游戏页 `SettlementRail` | 接受、授权、链确认、库存提交分阶段显示 |
 | 结果 | `/game/[gameId]/result`, `GameResult` | 最终价格、净值榜、回放和下一局入口 |
 | 公共证据 | `/ledger`, `ImperialLedger` | 跨局结算状态、哈希、Explorer 元数据 |

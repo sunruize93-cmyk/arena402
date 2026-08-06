@@ -139,3 +139,52 @@ test('the terminal accepts the production public participant and negotiation fie
   assert.match(transcript, /SELLER > PROPOSE 6.1 GOLD/);
   assert.match(transcript, /Crown is already paying/);
 });
+
+test('the terminal renders the production A2A engagement chain', () => {
+  const { buildNegotiationTerminalLines } = loadNegotiationTerminal();
+  const productionA2AEvents = [
+    {
+      sequence: 30,
+      type: 'market.engagement_created',
+      data: {
+        good: 'gems',
+        requestId: 'request:task-a2a:1',
+        engagementId: 'engagement:request:task-a2a:1',
+        buyerParticipantId: 'participant-buyer',
+        sellerParticipantId: 'participant-seller',
+      },
+    },
+    {
+      sequence: 31,
+      type: 'negotiation.message',
+      data: {
+        negotiationId: 'negotiation:request:task-a2a:1',
+        role: 'buyer',
+        action: 'propose',
+        priceAtomic: '3000000',
+        message: 'Three gold for one gem.',
+      },
+    },
+    {
+      sequence: 32,
+      type: 'settlement.chain_confirmed',
+      data: {
+        settlementIntentId: 'settlement:negotiation:request:task-a2a:1',
+        txHash: '0xa2a402',
+      },
+    },
+  ];
+
+  const transcript = buildNegotiationTerminalLines(
+    productionA2AEvents,
+    'pairing:engagement:request:task-a2a:1',
+  )
+    .map((line) => line.text)
+    .join('\n');
+
+  assert.match(transcript, /BUYER connected — participant-buyer/);
+  assert.match(transcript, /SELLER connected — participant-seller/);
+  assert.match(transcript, /BUYER > PROPOSE 3 GOLD/);
+  assert.match(transcript, /Three gold for one gem/);
+  assert.match(transcript, /TX: 0xa2a402/);
+});

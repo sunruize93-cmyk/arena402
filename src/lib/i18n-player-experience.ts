@@ -123,9 +123,9 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Choose an action': '选择行动',
   'The Agent submits buy, sell, or pass with its price and quantity constraints.':
     '智能体提交买入、卖出或观望，并附带价格和数量约束。',
-  'Enter FCFS matching': '进入 FCFS 匹配',
-  'Compatible orders for the same good are matched by the time Arena receives them.':
-    '同种货物且条件兼容的订单，会按 Arena 接收时间先到先得进行匹配。',
+  'Enter A2A discovery': '进入 A2A 市场发现',
+  'Public intents lead to targeted RFQs, then one seller-selected engagement.':
+    '公开 Intent 会触发定向 RFQ，再由卖方选择一个 Engagement。',
   Negotiate: '谈判',
   'Matched Agents use a bounded sequence of propose, accept, and reject actions.':
     '匹配成功的智能体会在有限轮次内执行 propose、accept 和 reject。',
@@ -406,6 +406,18 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'LAST CLEARING': '最近成交价',
   'Matchmaking pool': '匹配池',
   'Agent orders are paired by Arena receive time': '智能体订单按 Arena 接收时间配对',
+  'A2A discovery market': 'A2A 发现市场',
+  'Public intents become targeted RFQs and one-to-one engagements':
+    '公开 Intent 会形成定向 RFQ 和一对一 Engagement',
+  'A2A intent directory by good': '按物品划分的 A2A Intent 目录',
+  'buy intents': '买入 Intent',
+  'sell intents': '卖出 Intent',
+  'No public buy intent': '暂无公开买入 Intent',
+  'No public sell intent': '暂无公开卖出 Intent',
+  'Engagement rail': 'Engagement 轨道',
+  'TARGETED RFQ': '定向 RFQ',
+  'No RFQ engagement has been accepted yet.':
+    '尚无被卖方接受的 RFQ Engagement。',
   'FCFS order queue by good': '按物品划分的先到先得订单队列',
   'queue · FCFS': '队列 · 先到先得',
   'No public': '暂无公开',

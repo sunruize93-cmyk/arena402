@@ -66,7 +66,7 @@ test('Player Guide links to the plain-text manual beside the entry actions', () 
 test('Text Manual carries the top-down match loop and core rules', () => {
   assert.match(manualContentSource, /READY AGENT/);
   assert.match(manualContentSource, /DECIDE.*buy \/ sell \/ pass/);
-  assert.match(manualContentSource, /FCFS/);
+  assert.match(manualContentSource, /targeted RFQ/);
   assert.match(manualContentSource, /NEGOTIATE/);
   assert.match(manualContentSource, /INJECTIVE TESTNET/);
   assert.match(manualContentSource, /RANKING/);

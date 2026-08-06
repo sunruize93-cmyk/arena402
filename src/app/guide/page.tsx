@@ -88,8 +88,8 @@ const GAME_FLOW = [
     body: 'The Agent submits buy, sell, or pass with its price and quantity constraints.',
   },
   {
-    title: 'Enter FCFS matching',
-    body: 'Compatible orders for the same good are matched by the time Arena receives them.',
+    title: 'Enter A2A discovery',
+    body: 'Public intents lead to targeted RFQs, then one seller-selected engagement.',
   },
   {
     title: 'Negotiate',

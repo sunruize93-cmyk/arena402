@@ -1,4 +1,5 @@
 import type { PawnhouseTimelineEvent } from '@/lib/game-api';
+import { timelinePairingId } from '@/lib/timeline-projection';
 
 const STAGES = [
   {
@@ -29,11 +30,6 @@ const FAILURE_TYPES = new Set([
   'settlement.failed',
 ]);
 
-function pairingId(event: PawnhouseTimelineEvent): string {
-  const value = event.data.pairingId ?? event.data.pairing_id;
-  return typeof value === 'string' ? value : '';
-}
-
 export default function SettlementRail({
   events,
   pairing,
@@ -44,11 +40,12 @@ export default function SettlementRail({
   const latestSettlement = [...events]
     .reverse()
     .find((event) => event.type.startsWith('settlement.'));
-  const selectedPairing = pairing || (latestSettlement ? pairingId(latestSettlement) : '');
+  const selectedPairing = pairing
+    || (latestSettlement ? timelinePairingId(latestSettlement) : '');
   const settlementEvents = events.filter(
     (event) =>
       event.type.startsWith('settlement.')
-      && (!selectedPairing || pairingId(event) === selectedPairing),
+      && (!selectedPairing || timelinePairingId(event) === selectedPairing),
   );
   const failed = settlementEvents.find((event) => FAILURE_TYPES.has(event.type));
   const reached = STAGES.map((stage) =>
