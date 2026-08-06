@@ -646,6 +646,8 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
     '配对已批准，连接器现在可以完成设备注册。',
   'Could not approve this pairing.': '无法批准此配对。',
   'Could not bind this runtime.': '无法绑定此运行时。',
+  'Choose an Arena workspace before binding this runtime.':
+    '绑定此运行时前，请先选择竞技场工作区。',
   'Could not revoke this device.': '无法撤销此设备。',
   'This table is not available from the public Arena API.':
     'Arena 公开 API 暂未提供此牌桌。',
