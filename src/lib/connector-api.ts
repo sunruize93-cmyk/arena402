@@ -63,6 +63,7 @@ export interface AgentBinding {
   runtime_kind?: string;
   agent_id?: string;
   display_name: string;
+  working_directory?: string;
   status: BindingStatus;
   binding_epoch?: number;
   last_session_id?: string;
@@ -214,7 +215,12 @@ export async function revokeConnectorDevice(
 
 export async function createBinding(
   deviceId: string,
-  input: { runtime_id: string; agent_id?: string; display_name?: string },
+  input: {
+    runtime_id: string;
+    working_directory: string;
+    agent_id?: string;
+    display_name?: string;
+  },
 ): Promise<AgentBinding> {
   return apiRequest<AgentBinding>(
     `/api/connectors/devices/${encodeURIComponent(deviceId)}/bindings`,

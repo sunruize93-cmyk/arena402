@@ -209,7 +209,9 @@ Arena Gateway
 
 网站不访问本机端口。Pairing、Device、Binding 和 Runtime readiness 由 Connector
 Gateway 投影。Installed/online 不自动等于 Arena-ready；后端还要校验认证、任务支持、
-兼容性、隔离和冻结 Binding。
+兼容性、隔离和冻结 Binding。创建 Binding 前，页面必须先要求用户填写位于本机
+`--allow-root` 内的绝对工作目录，并把 `working_directory` 与 Runtime 一起提交；
+该目录随 Agent 路由冻结，不能先创建空目录 Binding 再把它当作可参赛 Agent。
 
 Connector 断线不会自动切换 Hosted Runtime。Deadline Finalizer 负责把逾期 decide
 收敛为 `pass`、谈判收敛为 timeout。

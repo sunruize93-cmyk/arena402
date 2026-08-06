@@ -204,10 +204,30 @@ function RuntimeRow({
                 persistent ownership service is connected.
               </p>
             </div>
+            <label
+              htmlFor={`workspace-${device.device_id}-${runtime.runtime_id}`}
+              className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-600"
+            >
+              Arena workspace
+            </label>
+            <input
+              id={`workspace-${device.device_id}-${runtime.runtime_id}`}
+              value={workspaceDraft}
+              onChange={(event) => onWorkspaceDraftChange(event.target.value)}
+              placeholder="Absolute path inside a local --allow-root"
+              className="w-full rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2 font-mono text-xs text-gray-300 outline-none transition placeholder:font-sans placeholder:text-gray-700 focus:border-arena-accent/50"
+            />
+            <p className="text-[10px] leading-4 text-gray-600">
+              Frozen with this Agent route and used for Arena-managed sessions.
+            </p>
             <button
               type="button"
               onClick={onBind}
-              disabled={!runtime.available || busyAction === 'binding'}
+              disabled={
+                !runtime.available
+                || !workspaceDraft.trim()
+                || busyAction === 'binding'
+              }
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-arena-accent px-4 py-2 text-sm font-bold text-black transition hover:shadow-[0_0_24px_rgba(0,240,255,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busyAction === 'binding' ? (
@@ -675,14 +695,24 @@ export default function ConnectorConsole({
     window.setTimeout(() => setCommandCopied(false), 1_500);
   }
 
-  async function handleCreateBinding(device: ConnectorDevice, runtime: ConnectorRuntime) {
+  async function handleCreateBinding(
+    device: ConnectorDevice,
+    runtime: ConnectorRuntime,
+    workspaceDraft: string,
+  ) {
     const key = `${device.device_id}:${runtime.runtime_id}`;
+    const workingDirectory = workspaceDraft.trim();
+    if (!workingDirectory) {
+      setApiError('Choose an Arena workspace before binding this runtime.');
+      return;
+    }
     setBusy((current) => ({ ...current, [key]: 'binding' }));
     setApiError(null);
     try {
       await createBinding(device.device_id, {
         runtime_id: runtime.runtime_id,
         display_name: `${runtime.display_name} on ${device.name}`,
+        working_directory: workspaceDraft.trim(),
       });
       setNotice(`${runtime.display_name} now has an ADX control-plane binding.`);
       await refresh(true);
@@ -1183,10 +1213,9 @@ export default function ConnectorConsole({
                   </div>
                 ) : (
                   device.runtimes.map((runtime) => {
-                    const binding = bindingByRuntime.get(
-                      `${device.device_id}:${runtime.runtime_id}`,
-                    );
-                    const busyKey = binding?.binding_id || `${device.device_id}:${runtime.runtime_id}`;
+                    const runtimeKey = `${device.device_id}:${runtime.runtime_id}`;
+                    const binding = bindingByRuntime.get(runtimeKey);
+                    const busyKey = binding?.binding_id || runtimeKey;
                     return (
                       <RuntimeRow
                         key={runtime.runtime_id}
@@ -1198,9 +1227,17 @@ export default function ConnectorConsole({
                         eventsOpen={binding ? Boolean(openEvents[binding.binding_id]) : false}
                         taskDraft={binding ? taskDrafts[binding.binding_id] || '' : ''}
                         workspaceDraft={
-                          binding ? workspaceDrafts[binding.binding_id] || '' : ''
+                          workspaceDrafts[runtimeKey]
+                          || binding?.working_directory
+                          || ''
                         }
-                        onBind={() => void handleCreateBinding(device, runtime)}
+                        onBind={() =>
+                          void handleCreateBinding(
+                            device,
+                            runtime,
+                            workspaceDrafts[runtimeKey] || '',
+                          )
+                        }
                         onAction={(action, payload) =>
                           binding && void handleCommand(binding, action, payload)
                         }
@@ -1212,10 +1249,9 @@ export default function ConnectorConsole({
                           }))
                         }
                         onWorkspaceDraftChange={(value) =>
-                          binding &&
                           setWorkspaceDrafts((current) => ({
                             ...current,
-                            [binding.binding_id]: value,
+                            [runtimeKey]: value,
                           }))
                         }
                         onToggleEvents={() => binding && void handleToggleEvents(binding)}

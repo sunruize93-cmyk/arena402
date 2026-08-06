@@ -298,6 +298,9 @@ const ZH_CN: Record<string, string> = {
   'Control-plane identity': '控制平面身份',
   'ADX assigns this binding. Arena trading identity stays separate until the persistent ownership service is connected.':
     '此绑定由 ADX 分配；在接入持久所有权服务前，竞技场交易身份保持独立。',
+  'Arena workspace': '竞技场工作区',
+  'Frozen with this Agent route and used for Arena-managed sessions.':
+    '该路径将随智能体路由冻结，并用于竞技场托管会话。',
   'Bind runtime': '绑定运行时',
   'Ask the Connector to re-check this runtime': '让连接器重新检查此运行时',
   Events: '事件',
@@ -371,6 +374,8 @@ const ZH_CN: Record<string, string> = {
     '配对已批准，连接器现在可以完成设备注册。',
   'Could not approve this pairing.': '无法批准此配对。',
   'Could not bind this runtime.': '无法绑定此运行时。',
+  'Choose an Arena workspace before binding this runtime.':
+    '绑定此运行时前，请先选择竞技场工作区。',
   'Could not revoke this device.': '无法撤销此设备。',
   'Could not load runtime events.': '无法加载运行时事件。',
 
