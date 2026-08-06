@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AgentReputationCard from '@/components/AgentReputationCard';
 import InitialLoadoutEditor from '@/components/InitialLoadoutEditor';
 import { listBindings } from '@/lib/connector-api';
+import { isConnectorBindingJoinable } from '@/lib/connector-binding-policy.mjs';
 import {
   CurrentGame,
   isJoinPreflightReady,
@@ -147,9 +148,7 @@ export default function GameEntryDesk({
           bindingResult.status === 'fulfilled'
             ? bindingResult.value
                 .filter(
-                  (binding) =>
-                    Boolean(binding.agent_id)
-                    && binding.status === 'available',
+                  isConnectorBindingJoinable,
                 )
                 .map((binding) => ({
                   agentId: String(binding.agent_id),
