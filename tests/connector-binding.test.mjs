@@ -28,3 +28,30 @@ test('local runtime binding freezes a non-empty managed workspace', () => {
     'binding must stay disabled until a workspace is provided',
   );
 });
+
+test('agent readiness uses the authoritative reusable-binding policy', () => {
+  const consoleSource = readFileSync(
+    new URL('../src/components/ConnectorConsole.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    consoleSource,
+    /bindings\.some\(isConnectorBindingJoinable\)/,
+    'starting, degraded, and unowned bindings must not unlock game entry',
+  );
+});
+
+test('production hides the entire browser-created demo pairing control', () => {
+  const consoleSource = readFileSync(
+    new URL('../src/components/ConnectorConsole.tsx', import.meta.url),
+    'utf8',
+  );
+  const demoGuard = consoleSource.indexOf('{CONNECTOR_DEMO_ENABLED && (');
+  const demoLabel = consoleSource.indexOf('Demo and API testing');
+  const demoInput = consoleSource.indexOf('connector-device-name');
+  const demoEnd = consoleSource.indexOf(')}', demoInput);
+
+  assert.ok(demoGuard >= 0 && demoGuard < demoLabel);
+  assert.ok(demoLabel < demoInput && demoInput < demoEnd);
+});

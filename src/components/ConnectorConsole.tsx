@@ -45,6 +45,7 @@ import {
   revokeConnectorDevice,
   sendBindingCommand,
 } from '@/lib/connector-api';
+import { isConnectorBindingJoinable } from '@/lib/connector-binding-policy.mjs';
 import { connectorTaskRunFlags } from '@/lib/connector-task-policy.mjs';
 import { useLocale } from '@/components/LocaleProvider';
 
@@ -554,7 +555,7 @@ export default function ConnectorConsole({
 
   useEffect(() => {
     onReadyChange?.(
-      bindings.some((binding) => binding.status !== 'stopped'),
+      bindings.some(isConnectorBindingJoinable),
     );
   }, [bindings, onReadyChange]);
 
@@ -787,26 +788,29 @@ export default function ConnectorConsole({
   }
 
   return (
-    <section id="connect" aria-labelledby="connector-heading">
-      <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <section
+      id="connect"
+      aria-labelledby="connector-heading"
+      className="agent-path-console connector-console"
+    >
+      <div className="connector-console-intro mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.22em] text-arena-accent/70">
             Agent entry
           </p>
-          <h1
+          <h4
             id="connector-heading"
             className="mt-2 text-4xl font-black tracking-tight text-white sm:text-5xl"
           >
             Bring a runtime into the Arena.
-          </h1>
+          </h4>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-400 sm:text-base">
-            Pair a Connector running on your computer, or create a Hosted Agent below.
-            Local runtimes keep their own configuration while ADX receives a controlled,
-            auditable event stream.
+            Start the Connector, approve the matching code, then bind one detected
+            Codex or Claude runtime to an Arena workspace.
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-arena-border bg-arena-border lg:min-w-[360px]">
+        <div className="connector-stats grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-arena-border bg-arena-border lg:min-w-[360px]">
           {[
             { label: 'Devices online', value: onlineCount },
             { label: 'Runtimes found', value: runtimeCount },
@@ -820,8 +824,8 @@ export default function ConnectorConsole({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.7fr)]">
-        <div className="glow-card overflow-hidden">
+      <div className="connector-layout grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.7fr)]">
+        <div className="connector-primary glow-card overflow-hidden">
           <div className="border-b border-arena-border p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -869,7 +873,7 @@ export default function ConnectorConsole({
           <div className="p-5 sm:p-6">
             {!pairing ? (
               <div>
-                <div className="rounded-xl border border-arena-accent/20 bg-arena-accent/[0.025] p-4">
+                <div className="connector-pairing-card rounded-xl border border-arena-accent/20 bg-arena-accent/[0.025] p-4">
                   <div className="mb-3 flex items-start gap-3">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-arena-accent text-black">
                       <TerminalSquare className="h-3.5 w-3.5" />
@@ -934,31 +938,32 @@ export default function ConnectorConsole({
                   </div>
                 </div>
 
-                <div className="my-4 flex items-center gap-3">
-                  <span className="h-px flex-1 bg-arena-border" />
-                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-700">
-                    Demo and API testing
-                  </span>
-                  <span className="h-px flex-1 bg-arena-border" />
-                </div>
+                {CONNECTOR_DEMO_ENABLED && (
+                  <div className="connector-demo-tools">
+                    <div className="my-4 flex items-center gap-3">
+                      <span className="h-px flex-1 bg-arena-border" />
+                      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-700">
+                        Demo and API testing
+                      </span>
+                      <span className="h-px flex-1 bg-arena-border" />
+                    </div>
 
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                  <div>
-                    <label
-                      htmlFor="connector-device-name"
-                      className="mb-1.5 block text-xs font-medium text-gray-500"
-                    >
-                      Generate a demo pairing request for
-                    </label>
-                    <input
-                      id="connector-device-name"
-                      value={deviceName}
-                      maxLength={128}
-                      onChange={(event) => setDeviceName(event.target.value)}
-                      className="w-full rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-arena-accent/50"
-                    />
-                  </div>
-                  {CONNECTOR_DEMO_ENABLED && (
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <div>
+                        <label
+                          htmlFor="connector-device-name"
+                          className="mb-1.5 block text-xs font-medium text-gray-500"
+                        >
+                          Generate a demo pairing request for
+                        </label>
+                        <input
+                          id="connector-device-name"
+                          value={deviceName}
+                          maxLength={128}
+                          onChange={(event) => setDeviceName(event.target.value)}
+                          className="w-full rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-arena-accent/50"
+                        />
+                      </div>
                     <button
                       type="button"
                       onClick={handleCreatePairing}
@@ -972,8 +977,9 @@ export default function ConnectorConsole({
                       )}
                       Generate demo code
                     </button>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="rounded-xl border border-arena-accent/20 bg-arena-accent/[0.035] p-4">
@@ -1055,7 +1061,7 @@ export default function ConnectorConsole({
         <button
           type="button"
           onClick={onOpenHostedPath}
-          className="group glow-card flex min-h-[300px] flex-col justify-between overflow-hidden p-6 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arena-accent"
+          className="connector-hosted-switch group glow-card flex min-h-[300px] flex-col justify-between overflow-hidden p-6 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arena-accent"
         >
           <div>
             <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-400/[0.06] text-purple-300">

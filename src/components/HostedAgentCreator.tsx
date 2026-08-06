@@ -32,6 +32,8 @@ import {
   getHostedAgents,
   updateHostedAgent,
 } from '@/lib/hosted-agent-api';
+import { useLocale } from '@/components/LocaleProvider';
+import { translateText } from '@/lib/i18n';
 
 type SubmitStage =
   | 'idle'
@@ -128,6 +130,8 @@ export default function HostedAgentCreator({
   onReadyChange,
   onOpenLocalPath,
 }: HostedAgentCreatorProps) {
+  const { locale } = useLocale();
+  const t = (source: string) => translateText(source, locale);
   const apiKeyRef = useRef<HTMLInputElement>(null);
   const credentialRequestKey = useRef('');
   const agentRequestKey = useRef('');
@@ -142,6 +146,7 @@ export default function HostedAgentCreator({
   const [displayName, setDisplayName] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [costAcknowledged, setCostAcknowledged] = useState(false);
   const [strategyInstructions, setStrategyInstructions] = useState('');
   const [credential, setCredential] = useState<CredentialMetadata | null>(null);
   const [pendingAgent, setPendingAgent] = useState<PendingAgentInput | null>(
@@ -342,6 +347,12 @@ export default function HostedAgentCreator({
     let activeInput = pendingAgent;
 
     if (!activeCredential || !activeInput) {
+      if (!costAcknowledged) {
+        setFormError(
+          'Confirm the testnet and model API cost notice before creating an Agent.',
+        );
+        return;
+      }
       if (!selectedCapability || !displayName.trim()) {
         setFormError('Choose a model and name the Agent before continuing.');
         return;
@@ -395,6 +406,7 @@ export default function HostedAgentCreator({
     agentRequestKey.current = '';
     setDisplayName('');
     setStrategyInstructions('');
+    setCostAcknowledged(false);
     setCredential(null);
     setPendingAgent(null);
     setEditingAgent(null);
@@ -463,23 +475,25 @@ export default function HostedAgentCreator({
     <section
       id="hosted-agents"
       aria-labelledby="hosted-agents-heading"
-      className="mt-16 border-t border-arena-border pt-10"
+      className="agent-path-console hosted-agent-forge mt-16 border-t border-arena-border pt-10"
     >
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="hosted-forge-intro mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-purple-300/60">
-            Hosted path
+            {t('Hosted path')}
           </p>
-          <h2
+          <h4
             id="hosted-agents-heading"
             className="mt-1 text-2xl font-bold text-white"
           >
-            {editingAgent ? `Reconfigure ${editingAgent.displayName}` : 'Create a Hosted Agent'}
-          </h2>
+            {editingAgent
+              ? `${t('Reconfigure')} ${editingAgent.displayName}`
+              : t('Create a Hosted Agent')}
+          </h4>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
             {editingAgent
-              ? 'Update the model and strategy without resending its stored provider key. Active-game snapshots remain unchanged.'
-              : 'Choose an approved model. Arena stores the provider key through its dedicated credential ingress, then provisions an Agent that can remain online when your browser is closed.'}
+              ? t('Update the model and strategy without resending its stored provider key. Active-game snapshots remain unchanged.')
+              : t('Choose an approved model. Arena stores the provider key through its dedicated credential ingress, then provisions an Agent that can remain online when your browser is closed.')}
           </p>
         </div>
         <button
@@ -489,14 +503,14 @@ export default function HostedAgentCreator({
           className="inline-flex items-center gap-2 rounded-lg border border-arena-border px-3 py-2 text-xs text-gray-400 transition hover:border-purple-400/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          {t('Refresh')}
         </button>
       </div>
 
       {loading && !capabilities ? (
         <div className="rounded-xl border border-arena-border bg-arena-card p-8 text-center text-sm text-gray-500">
           <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
-          Checking Hosted Agent availability…
+          {t('Checking Hosted Agent availability…')}
         </div>
       ) : !capabilities?.creationEnabled ? (
         <div className="rounded-xl border border-arena-gold/20 bg-arena-gold/[0.035] p-5">
@@ -504,19 +518,21 @@ export default function HostedAgentCreator({
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-arena-gold" />
             <div>
               <h3 className="font-semibold text-white">
-                Hosted Agent creation is unavailable
+                {t('Hosted Agent creation is unavailable')}
               </h3>
               <p className="mt-1 text-sm leading-6 text-gray-500">
-                {loadError ||
-                  readinessMessage ||
-                  'Use the Local Agent Connector above for now.'}
+                {t(
+                  loadError ||
+                    readinessMessage ||
+                    'Use the Local Agent Connector above for now.',
+                )}
               </p>
               <button
                 type="button"
                 onClick={onOpenLocalPath}
                 className="mt-3 inline-flex text-sm font-medium text-arena-accent hover:underline"
               >
-                Use a Local Agent
+                {t('Use a Local Agent')}
               </button>
             </div>
           </div>
@@ -527,30 +543,31 @@ export default function HostedAgentCreator({
             <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-purple-300" />
             <div>
               <h3 className="font-semibold text-white">
-                Sign in to create a Hosted Agent
+                {t('Sign in to create a Hosted Agent')}
               </h3>
               <p className="mt-1 text-sm leading-6 text-gray-500">
-                Hosted Agents and model credentials are private to your Arena
-                account.
+                {t(
+                  'Hosted Agents and model credentials are private to your Arena account.',
+                )}
               </p>
               <a
                 href="/signin?return_to=%2Fagents%23hosted-agents"
                 className="mt-3 inline-flex rounded-lg bg-purple-400/10 px-3 py-2 text-sm font-medium text-purple-200 hover:bg-purple-400/15"
               >
-                Open sign in
+                {t('Open sign in')}
               </a>
             </div>
           </div>
         </div>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.72fr)]">
+        <div className="hosted-forge-layout grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.72fr)]">
           <form
             onSubmit={handleSubmit}
-            className="rounded-xl border border-arena-border bg-arena-card p-5 sm:p-6"
+            className="hosted-forge-form rounded-xl border border-arena-border bg-arena-card p-5 sm:p-6"
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1.5 text-xs font-medium text-gray-400">
-                Agent name
+                {t('Agent name')}
                 <input
                   required
                   maxLength={100}
@@ -560,13 +577,13 @@ export default function HostedAgentCreator({
                     setDisplayName(event.target.value);
                     rotateAgentRequest();
                   }}
-                  placeholder="My Arena trader"
+                  placeholder={t('My Arena trader')}
                   className="rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2.5 text-sm text-white outline-none focus:border-purple-400/50 disabled:opacity-60"
                 />
               </label>
 
               <label className="grid gap-1.5 text-xs font-medium text-gray-400">
-                Provider and model
+                {t('Provider and model')}
                 <select
                   required
                   value={selectedModel}
@@ -599,7 +616,7 @@ export default function HostedAgentCreator({
 
             {!locked && !editingAgent && (
               <label className="mt-4 grid gap-1.5 text-xs font-medium text-gray-400">
-                Model API key
+                {t('Model API key')}
                 <input
                   ref={apiKeyRef}
                   required
@@ -608,18 +625,19 @@ export default function HostedAgentCreator({
                   autoComplete="new-password"
                   spellCheck={false}
                   onChange={rotateCredentialRequest}
-                  placeholder="Stored only through secure credential ingress"
+                  placeholder={t('Stored only through secure credential ingress')}
                   className="rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-purple-400/50"
                 />
                 <span className="font-normal leading-5 text-gray-600">
-                  The key is not saved in this browser or returned by the Arena
-                  API.
+                  {t(
+                    'The key is not saved in this browser or returned by the Arena API.',
+                  )}
                 </span>
               </label>
             )}
 
             <label className="mt-4 grid gap-1.5 text-xs font-medium text-gray-400">
-              Strategy instructions
+              {t('Strategy instructions')}
               <textarea
                 maxLength={4000}
                 rows={4}
@@ -629,13 +647,15 @@ export default function HostedAgentCreator({
                   setStrategyInstructions(event.target.value);
                   rotateAgentRequest();
                 }}
-                placeholder="Optional constraints for Arena decisions and negotiation."
+                placeholder={t(
+                  'Optional constraints for Arena decisions and negotiation.',
+                )}
                 className="resize-y rounded-lg border border-arena-border bg-arena-bg/70 px-3 py-2.5 text-sm leading-6 text-white outline-none focus:border-purple-400/50 disabled:opacity-60"
               />
             </label>
 
             {selectedCapability && (
-              <label className="mt-4 flex items-start gap-3 rounded-lg border border-arena-border bg-black/15 p-3">
+              <label className="hosted-option mt-4 flex items-start gap-3 rounded-lg border border-arena-border bg-black/15 p-3">
                 <input
                   type="checkbox"
                   checked={thinkingEnabled}
@@ -650,11 +670,37 @@ export default function HostedAgentCreator({
                 />
                 <span>
                   <span className="block text-sm font-medium text-gray-300">
-                    Enable model thinking
+                    {t('Enable model thinking')}
                   </span>
                   <span className="mt-0.5 block text-xs leading-5 text-gray-600">
-                    Uses the provider default reasoning strength. Private
-                    chain-of-thought is not stored or shown.
+                    {t(
+                      'Uses the provider default reasoning strength. Private chain-of-thought is not stored or shown.',
+                    )}
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {!editingAgent && (
+              <label className="hosted-cost-notice mt-4 flex items-start gap-3">
+                <input
+                  required
+                  type="checkbox"
+                  checked={costAcknowledged}
+                  disabled={locked}
+                  onChange={(event) => {
+                    setCostAcknowledged(event.target.checked);
+                    rotateAgentRequest();
+                  }}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-300">
+                    {t('Testnet and model usage')}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-5 text-gray-600">
+                    {t(
+                      'I understand Arena uses testnet assets, while my model provider may charge for API calls.',
+                    )}
                   </span>
                 </span>
               </label>
@@ -663,8 +709,9 @@ export default function HostedAgentCreator({
             {locked && (
               <div className="mt-4 flex items-start gap-2 rounded-lg border border-arena-success/15 bg-arena-success/[0.035] p-3 text-xs leading-5 text-gray-500">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-arena-success" />
-                Model key saved. Agent creation retries reuse the credential
-                reference and never resend the key.
+                {t(
+                  'Model key saved. Agent creation retries reuse the credential reference and never resend the key.',
+                )}
               </div>
             )}
 
@@ -673,7 +720,7 @@ export default function HostedAgentCreator({
                 role="alert"
                 className="mt-4 rounded-lg border border-arena-danger/20 bg-arena-danger/[0.04] px-3 py-2.5 text-sm text-red-300"
               >
-                {formError}
+                {t(formError)}
               </p>
             )}
 
@@ -682,20 +729,28 @@ export default function HostedAgentCreator({
                 <>
                   <span className="inline-flex items-center gap-2 text-sm font-medium text-arena-success">
                     <CheckCircle2 className="h-4 w-4" />
-                    {editingAgent ? 'Agent reconfiguration queued' : 'Agent created'}
+                    {t(
+                      editingAgent
+                        ? 'Agent reconfiguration queued'
+                        : 'Agent created',
+                    )}
                   </span>
                   <button
                     type="button"
                     onClick={resetForm}
                     className="rounded-lg border border-arena-border px-4 py-2 text-sm text-gray-400 hover:text-white"
                   >
-                    {editingAgent ? 'Done' : 'Create another'}
+                    {t(editingAgent ? 'Done' : 'Create another')}
                   </button>
                 </>
               ) : (
                 <button
                   type="submit"
-                  disabled={busy || !selectedCapability}
+                  disabled={
+                    busy ||
+                    !selectedCapability ||
+                    (!editingAgent && !costAcknowledged)
+                  }
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-purple-300 px-5 py-2.5 text-sm font-bold text-[#151019] transition hover:bg-purple-200 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {busy ? (
@@ -703,31 +758,35 @@ export default function HostedAgentCreator({
                   ) : (
                     <Cloud className="h-4 w-4" />
                   )}
-                  {stage === 'saving-credential'
-                    ? 'Saving model key…'
-                    : stage === 'creating-agent'
-                      ? 'Creating Agent…'
-                      : stage === 'updating-agent'
-                        ? 'Reconfiguring Agent…'
-                      : stage === 'agent-failed'
-                        ? 'Retry Agent creation'
-                        : editingAgent
-                          ? 'Reconfigure Agent'
-                          : 'Create Hosted Agent'}
+                  {t(
+                    stage === 'saving-credential'
+                      ? 'Saving model key…'
+                      : stage === 'creating-agent'
+                        ? 'Creating Agent…'
+                        : stage === 'updating-agent'
+                          ? 'Reconfiguring Agent…'
+                        : stage === 'agent-failed'
+                          ? 'Retry Agent creation'
+                          : editingAgent
+                            ? 'Reconfigure Agent'
+                            : 'Create Hosted Agent',
+                  )}
                 </button>
               )}
               <span className="text-xs text-gray-600">
-                Step 1: secure credential · Step 2: Agent provisioning
+                {t('Step 1: secure credential · Step 2: Agent provisioning')}
               </span>
             </div>
           </form>
 
-          <div className="rounded-xl border border-arena-border bg-arena-card p-5">
+          <div className="hosted-agent-roster rounded-xl border border-arena-border bg-arena-card p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-white">Your Hosted Agents</h3>
+                <h3 className="font-semibold text-white">
+                  {t('Your Hosted Agents')}
+                </h3>
                 <p className="mt-1 text-xs text-gray-600">
-                  Provisioning and runtime route status
+                  {t('Provisioning and runtime route status')}
                 </p>
               </div>
               <span className="font-mono text-xs text-gray-600">
@@ -737,7 +796,7 @@ export default function HostedAgentCreator({
 
             {loadError && (
               <p className="mb-3 rounded-lg border border-arena-danger/20 bg-arena-danger/[0.035] p-3 text-xs leading-5 text-red-300">
-                {loadError}
+                {t(loadError)}
               </p>
             )}
 
@@ -745,10 +804,10 @@ export default function HostedAgentCreator({
               <div className="rounded-lg border border-dashed border-arena-border px-4 py-8 text-center">
                 <Bot className="mx-auto h-6 w-6 text-gray-700" />
                 <p className="mt-3 text-sm font-medium text-gray-400">
-                  No Hosted Agents yet
+                  {t('No Hosted Agents yet')}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-gray-600">
-                  Complete the form to create the first one.
+                  {t('Complete the form to create the first one.')}
                 </p>
               </div>
             ) : (
@@ -773,11 +832,11 @@ export default function HostedAgentCreator({
                           STATUS_STYLES.disabled
                         }`}
                       >
-                        {agent.provisioningStatus}
+                        {t(agent.provisioningStatus)}
                       </span>
                     </div>
                     <p className="mt-2 text-[10px] text-gray-700">
-                      Updated {formatTimestamp(agent.updatedAt)}
+                      {t('Updated')} {formatTimestamp(agent.updatedAt)}
                     </p>
                     <button
                       type="button"
@@ -785,9 +844,11 @@ export default function HostedAgentCreator({
                       disabled={busy || Boolean(editingAgentId)}
                       className="mt-3 rounded-md border border-arena-border px-2.5 py-1.5 text-[10px] font-medium text-gray-400 transition hover:border-purple-400/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
                     >
-                      {editingAgentId === agent.agentId
-                        ? 'Loading…'
-                        : 'Reconfigure'}
+                      {t(
+                        editingAgentId === agent.agentId
+                          ? 'Loading…'
+                          : 'Reconfigure',
+                      )}
                     </button>
                   </li>
                 ))}

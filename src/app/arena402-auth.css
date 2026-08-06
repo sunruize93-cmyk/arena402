@@ -505,37 +505,29 @@
 }
 
 .deployment-workspace {
+  position: relative;
   margin-top: 48px;
-  padding-top: 32px;
+  padding-top: 58px;
   border-top: 1px solid var(--line);
 }
 
-.deployment-workspace [class*='rounded'] {
-  border-radius: 0;
+.deployment-workspace::before {
+  position: absolute;
+  top: 18px;
+  right: 0;
+  color: var(--grey-dark);
+  font-family: var(--serif);
+  font-size: 13px;
+  font-style: italic;
+  letter-spacing: 0.08em;
 }
 
-.deployment-workspace [class*='border-arena'] {
-  border-color: var(--line-strong);
+.deployment-workspace[data-path='local']::before {
+  content: 'I / LOCAL CONNECTOR';
 }
 
-.deployment-workspace [class*='bg-arena-'],
-.deployment-workspace [class*='bg-purple-'],
-.deployment-workspace [class*='bg-red-'],
-.deployment-workspace [class*='bg-green-'] {
-  background-color: var(--line);
-}
-
-.deployment-workspace [class*='text-arena'],
-.deployment-workspace [class*='text-purple-'],
-.deployment-workspace [class*='text-red-'],
-.deployment-workspace [class*='text-green-'] {
-  color: var(--paper-dim);
-}
-
-.deployment-workspace .bg-arena-accent,
-.deployment-workspace .bg-purple-300 {
-  background: var(--paper);
-  color: var(--ink);
+.deployment-workspace[data-path='hosted']::before {
+  content: 'II / HOSTED AGENT';
 }
 
 .deployment-workspace .font-mono {

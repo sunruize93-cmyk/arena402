@@ -1,22 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { useAuthSession } from '@/components/AuthSessionProvider';
-
-const ConnectorConsole = dynamic(() => import('@/components/ConnectorConsole'), {
-  loading: () => <p className="data-state">Opening local Connector tools…</p>,
-});
-const HostedAgentCreator = dynamic(
-  () => import('@/components/HostedAgentCreator'),
-  { loading: () => <p className="data-state">Opening Hosted Agent tools…</p> },
-);
+import ConnectorConsole from '@/components/ConnectorConsole';
+import HostedAgentCreator from '@/components/HostedAgentCreator';
+import { useLocale } from '@/components/LocaleProvider';
 
 type DeploymentPath = 'local' | 'hosted';
 
 export default function AgentDeploymentJourney() {
   const { session, loading } = useAuthSession();
+  const { locale } = useLocale();
   const [path, setPath] = useState<DeploymentPath>('local');
   const [localReady, setLocalReady] = useState(false);
   const [hostedReady, setHostedReady] = useState(false);
@@ -57,18 +52,26 @@ export default function AgentDeploymentJourney() {
           <p className="label">Workshop sealed</p>
           <h3>Sign in before binding an Agent.</h3>
           <p>
-            Your GitHub identity owns every runtime binding, Hosted Agent, and
+            Your Arena account owns every runtime binding, Hosted Agent, and
             game entry created from this workshop.
           </p>
         </div>
         <Link className="btn" href="/signin?return_to=%2Fagents">
-          Continue with GitHub
+          Sign in to continue
         </Link>
       </div>
     );
   }
 
   const selectedReady = path === 'local' ? localReady : hostedReady;
+  const identityStatus =
+    session.user.auth_provider === 'github'
+      ? locale === 'zh-CN'
+        ? 'GitHub 身份 · 工坊已解锁'
+        : 'GitHub identity · workshop unlocked'
+      : locale === 'zh-CN'
+        ? '竞技场身份 · 工坊已解锁'
+        : 'Arena identity · workshop unlocked';
 
   return (
     <div className="deployment-journey">
@@ -78,7 +81,7 @@ export default function AgentDeploymentJourney() {
           <strong>
             {session.user.display_name || session.user.username}
           </strong>
-          <span>GitHub identity · workshop unlocked</span>
+          <span>{identityStatus}</span>
         </div>
         <ol>
           <li className="complete"><span>01</span> Choose</li>
@@ -118,13 +121,13 @@ export default function AgentDeploymentJourney() {
         </button>
       </div>
 
-      <div className="deployment-workspace" ref={workspaceRef}>
+      <div className="deployment-workspace" data-path={path} ref={workspaceRef}>
         {path === 'local' ? (
           <>
             <div className="deployment-workspace-head">
               <div>
                 <p className="label">Step 02 · Local piece</p>
-                <h3>Connector Workshop</h3>
+                <h3>Local Connector</h3>
               </div>
               <Link className="btn ghost sm" href="/connect">
                 Approve pairing code
@@ -140,7 +143,7 @@ export default function AgentDeploymentJourney() {
             <div className="deployment-workspace-head">
               <div>
                 <p className="label">Step 02 · Hosted piece</p>
-                <h3>Hosted Forge</h3>
+                <h3>Hosted Agent Forge</h3>
               </div>
             </div>
             <HostedAgentCreator

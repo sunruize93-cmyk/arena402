@@ -107,10 +107,7 @@
 }
 
 .agent-workbench .glow-card,
-.agent-workbench [class*='rounded-xl'],
-.agent-workbench [class*='rounded-2xl'],
-.connect-page [class*='rounded-xl'],
-.connect-page [class*='rounded-2xl'] {
+.connect-page .glow-card {
   border-radius: 0;
 }
 
@@ -155,6 +152,267 @@
 .workbench-label h2 {
   margin-top: 10px;
   font-size: clamp(32px, 4vw, 56px);
+}
+
+/* Agent path consoles deliberately reuse the Arena's engraved scorecard
+   language instead of the rounded SaaS panels from the underlying controls. */
+.agent-path-console {
+  color: var(--paper);
+}
+
+.agent-path-console h4 {
+  margin: 8px 0 0;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: clamp(30px, 4vw, 50px);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.agent-path-console :is(button, input, select, textarea) {
+  border-radius: 0 !important;
+}
+
+.agent-path-console :is(input, select, textarea)::placeholder {
+  color: var(--grey-dark);
+}
+
+.agent-path-console :is(.text-gray-500, .text-gray-600, .text-gray-700) {
+  color: var(--grey);
+}
+
+.agent-path-console .text-gray-400 {
+  color: var(--paper-dim);
+}
+
+.connector-console-intro,
+.hosted-forge-intro {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.connector-stats {
+  overflow: visible;
+  border-color: var(--line);
+  border-radius: 0;
+  background: var(--line);
+}
+
+.connector-stats > div {
+  min-height: 76px;
+  padding: 15px 12px;
+  background: var(--ink-deep);
+}
+
+.connector-stats p:first-child {
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 25px;
+  font-weight: 400;
+}
+
+.connector-stats p:last-child {
+  color: var(--grey);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connector-layout,
+.hosted-forge-layout {
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.connector-primary,
+.connector-hosted-switch,
+.hosted-forge-form,
+.hosted-agent-roster {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.connector-primary {
+  border-right: 1px solid var(--line) !important;
+}
+
+.connector-primary > div:first-child {
+  background:
+    linear-gradient(110deg, rgba(244, 242, 236, 0.035), transparent 58%),
+    var(--ink);
+}
+
+.connector-primary h2,
+.connector-hosted-switch h2,
+.hosted-agent-roster h3 {
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.connector-console .text-arena-accent,
+.connector-console .text-purple-300 {
+  color: var(--paper-dim) !important;
+}
+
+.connector-console .bg-arena-accent {
+  border-color: var(--paper) !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+
+.connector-pairing-card {
+  border-color: var(--line-strong) !important;
+  border-radius: 0 !important;
+  background: var(--ink-deep) !important;
+}
+
+.connector-pairing-card > div:first-child > span:first-child {
+  border: 1px solid var(--paper-dim);
+  background: transparent !important;
+  color: var(--paper) !important;
+}
+
+.connector-hosted-switch {
+  position: relative;
+  min-height: 100%;
+}
+
+.connector-hosted-switch > div > span:first-child {
+  border-color: var(--line-strong) !important;
+  background: var(--ink-deep) !important;
+  color: var(--paper-dim) !important;
+}
+
+.connector-hosted-switch::after {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  color: var(--line-strong);
+  content: '♟';
+  font-family: var(--serif);
+  font-size: 72px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.connector-hosted-switch:hover {
+  background: var(--paper) !important;
+  color: var(--ink);
+}
+
+.connector-hosted-switch:hover :is(h2, p, span, svg) {
+  color: var(--ink) !important;
+}
+
+.connector-demo-tools {
+  border-top: 1px dashed var(--line);
+}
+
+.hosted-agent-forge {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.hosted-forge-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(270px, 0.65fr);
+}
+
+.hosted-forge-form,
+.hosted-agent-roster {
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.hosted-forge-form > .grid:first-child {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hosted-forge-form label {
+  color: var(--paper-dim);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hosted-forge-form label :is(input, select, textarea) {
+  min-height: 46px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.hosted-forge-form label textarea {
+  min-height: 116px;
+}
+
+.hosted-option,
+.hosted-cost-notice {
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: var(--ink-deep);
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.hosted-option input[type='checkbox'],
+.hosted-cost-notice input[type='checkbox'] {
+  width: 16px;
+  min-height: 16px;
+  flex: 0 0 16px;
+  margin-top: 2px;
+  accent-color: var(--paper);
+}
+
+.hosted-option span,
+.hosted-cost-notice span {
+  color: var(--paper-dim);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.hosted-option > span > span:first-child,
+.hosted-cost-notice > span > span:first-child {
+  color: var(--paper);
+}
+
+.hosted-cost-notice {
+  border-color: var(--line-strong);
+}
+
+.hosted-forge-form button[type='submit'] {
+  min-height: 44px;
+  border: 1px solid var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hosted-agent-roster {
+  border-left: 1px solid var(--line) !important;
+}
+
+.hosted-agent-roster > div:first-child {
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hosted-agent-roster li,
+.hosted-agent-roster > div:last-child {
+  border-radius: 0 !important;
+  background: var(--ink-deep) !important;
+}
+
+.agent-path-console :focus-visible {
+  outline: 1px solid var(--paper);
+  outline-offset: 3px;
 }
 
 .connect-page {
@@ -273,10 +531,33 @@
   .game-demo-board {
     grid-template-columns: 1fr;
   }
+
+  .hosted-forge-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .hosted-agent-roster {
+    border-top: 1px solid var(--line) !important;
+    border-left: 0 !important;
+  }
 }
 
 @media (max-width: 700px) {
   .live-game-search {
     grid-template-columns: 1fr;
+  }
+
+  .connector-layout {
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .connector-primary {
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--line) !important;
+  }
+
+  .connector-stats {
+    width: 100%;
   }
 }

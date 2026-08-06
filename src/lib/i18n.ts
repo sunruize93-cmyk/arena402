@@ -218,17 +218,19 @@ const ZH_CN: Record<string, string> = {
   '← Back': '← 返回',
   'Bring a local runtime or create a Hosted Agent. Both enter the same Arena task and result boundary.':
     '接入本地运行时或创建托管智能体；二者都进入同一套竞技场任务与结果边界。',
-  'Local Piece': '本地棋子',
-  'Connector Workshop': '连接器工坊',
-  'Pair one outbound connection, inspect detected runtimes, and bind only the capabilities you intend to use.':
-    '配对一条出站连接，查看检测到的运行时，只绑定你准备使用的能力。',
+  'Two Paths': '两种路径',
+  'Choose Your Piece': '选择你的棋子',
+  'Bring a runtime you already trust, or forge a Hosted Agent that stays available after the browser closes.':
+    '接入你已信任的运行时，或打造一个在浏览器关闭后仍保持在线的托管智能体。',
   'Reading your Arena seal…': '正在读取竞技场身份…',
   'Workshop sealed': '工坊尚未开启',
   'Sign in before binding an Agent.': '请先登录，再绑定智能体。',
-  'Your GitHub identity owns every runtime binding, Hosted Agent, and game entry created from this workshop.':
-    '此工坊创建的每个运行时绑定、托管智能体和对局席位都归属于你的 GitHub 身份。',
+  'Your Arena account owns every runtime binding, Hosted Agent, and game entry created from this workshop.':
+    '此工坊创建的每个运行时绑定、托管智能体和对局席位都归属于你的竞技场账户。',
+  'Sign in to continue': '登录后继续',
   'Authenticated operator': '已认证操作者',
   'GitHub identity · workshop unlocked': 'GitHub 身份 · 工坊已解锁',
+  'Arena identity · workshop unlocked': '竞技场身份 · 工坊已解锁',
   Choose: '选择',
   Connect: '连接',
   'Enter game': '进入对局',
@@ -241,9 +243,10 @@ const ZH_CN: Record<string, string> = {
   'Store a model key through the write-only credential ingress and create an always-available piece.':
     '通过只写凭证入口保存模型密钥，创建一枚始终在线的棋子。',
   'Step 02 · Local piece': '步骤 02 · 本地棋子',
+  'Local Connector': '本地连接器',
   'Approve pairing code': '批准配对代码',
   'Step 02 · Hosted piece': '步骤 02 · 托管棋子',
-  'Hosted Forge': '托管铸造工坊',
+  'Hosted Agent Forge': '托管智能体工坊',
   'Step 03 · The board awaits': '步骤 03 · 棋盘静候',
   'Agent connected? Enter the market.': '智能体已连接？进入市场。',
   'Open a known game ID or watch the deterministic demo before joining a live round.':
@@ -275,6 +278,11 @@ const ZH_CN: Record<string, string> = {
   'Enable model thinking': '启用模型思考',
   'Uses the provider default reasoning strength. Private chain-of-thought is not stored or shown.':
     '使用供应商默认推理强度。私有思维链不会被存储或显示。',
+  'Testnet and model usage': '测试网与模型用量',
+  'I understand Arena uses testnet assets, while my model provider may charge for API calls.':
+    '我了解竞技场使用测试网资产，但模型供应商仍可能收取 API 调用费用。',
+  'Confirm the testnet and model API cost notice before creating an Agent.':
+    '创建智能体前，请确认测试网与模型 API 费用提示。',
   'Agent created': '智能体已创建',
   'Create another': '再创建一个',
   'Saving model key…': '正在保存模型密钥…',
@@ -287,6 +295,8 @@ const ZH_CN: Record<string, string> = {
   'Provisioning and runtime route status': '配置与运行时路由状态',
   'No Hosted Agents yet': '还没有托管智能体',
   'Complete the form to create the first one.': '填写表单，创建第一个托管智能体。',
+  'Start the Connector, approve the matching code, then bind one detected Codex or Claude runtime to an Arena workspace.':
+    '启动连接器，批准匹配代码，再将检测到的 Codex 或 Claude 运行时绑定到竞技场工作区。',
   Updated: '更新时间',
   'Not reported': '未上报',
   'Executable path not reported': '未上报可执行文件路径',
@@ -328,7 +338,7 @@ const ZH_CN: Record<string, string> = {
   'Runtime event stream': '运行时事件流',
   recent: '条近期事件',
   'No runtime events have been reported for this binding.': '此绑定尚未上报运行时事件。',
-  'Bring a runtime into the Arena.': '将运行时带入竞技场。',
+  'Bring a runtime into the Arena.': '将运行时接入竞技场。',
   'Pair a Connector running on your computer, or create a Hosted Agent below. Local runtimes keep their own configuration while ADX receives a controlled, auditable event stream.':
     '配对电脑上运行的连接器，或在下方创建托管智能体。本地运行时保留自己的配置，ADX 只接收受控且可审计的事件流。',
   'Devices online': '在线设备',

@@ -34,11 +34,11 @@ export default function AgentsPage() {
 
       <section className="section agent-workbench">
         <div className="workbench-label">
-          <p className="label">Local Piece</p>
-          <h2 className="display">Connector Workshop</h2>
+          <p className="label">Two Paths</p>
+          <h2 className="display">Choose Your Piece</h2>
           <p className="sec-sub">
-            Pair one outbound connection, inspect detected runtimes, and bind only
-            the capabilities you intend to use.
+            Bring a runtime you already trust, or forge a Hosted Agent that stays
+            available after the browser closes.
           </p>
         </div>
         <AgentDeploymentJourney />
