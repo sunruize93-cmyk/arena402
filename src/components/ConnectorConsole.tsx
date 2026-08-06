@@ -46,8 +46,10 @@ import {
   sendBindingCommand,
 } from '@/lib/connector-api';
 import { isConnectorBindingJoinable } from '@/lib/connector-binding-policy.mjs';
+import { DEFAULT_CONNECTOR_DOWNLOAD_ORIGIN } from '@/lib/connector-installer.mjs';
 import { connectorTaskRunFlags } from '@/lib/connector-task-policy.mjs';
 import { useLocale } from '@/components/LocaleProvider';
+import ConnectorInstaller from '@/components/ConnectorInstaller';
 
 const REFRESH_INTERVAL_MS = 8_000;
 const CONNECTOR_DEMO_ENABLED =
@@ -524,7 +526,7 @@ export default function ConnectorConsole({
   const [apiError, setApiError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [publicOrigin, setPublicOrigin] = useState(CONNECTOR_API_BASE_URL);
+  const publicOrigin = CONNECTOR_API_BASE_URL || DEFAULT_CONNECTOR_DOWNLOAD_ORIGIN;
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setRefreshing(true);
@@ -542,10 +544,6 @@ export default function ConnectorConsole({
       if (!quiet) setRefreshing(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (!publicOrigin) setPublicOrigin(window.location.origin);
-  }, [publicOrigin]);
 
   useEffect(() => {
     void refresh();
@@ -601,6 +599,14 @@ export default function ConnectorConsole({
 
   const onlineCount = devices.filter((device) => device.status === 'online').length;
   const runtimeCount = devices.reduce((total, device) => total + device.runtimes.length, 0);
+  const hasTaskReadyRuntime = devices.some(
+    (device) =>
+      device.status === 'online'
+      && device.runtimes.some(
+        (runtime) => runtime.available && runtime.capabilities.includes('task.dispatch'),
+      ),
+  );
+  const hasJoinableBinding = bindings.some(isConnectorBindingJoinable);
   const pairingSeconds = pairing
     ? Math.max(0, Math.floor((new Date(pairing.expires_at).getTime() - now) / 1_000))
     : 0;
@@ -805,8 +811,8 @@ export default function ConnectorConsole({
             Bring a runtime into the Arena.
           </h4>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-400 sm:text-base">
-            Start the Connector, approve the matching code, then bind one detected
-            Codex or Claude runtime to an Arena workspace.
+            Install the Connector, approve the matching code, then bind one task-ready
+            runtime to a narrowly allowed Arena workspace.
           </p>
         </div>
 
@@ -824,6 +830,14 @@ export default function ConnectorConsole({
         </div>
       </div>
 
+      <ConnectorInstaller
+        apiOrigin={publicOrigin}
+        hasRegisteredDevice={devices.length > 0}
+        hasOnlineDevice={onlineCount > 0}
+        hasTaskReadyRuntime={hasTaskReadyRuntime}
+        hasJoinableBinding={hasJoinableBinding}
+      />
+
       <div className="connector-layout grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.7fr)]">
         <div className="connector-primary glow-card overflow-hidden">
           <div className="border-b border-arena-border p-5 sm:p-6">
@@ -837,8 +851,8 @@ export default function ConnectorConsole({
                   </span>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-                  One outbound connection discovers supported Claude Code and Codex
-                  installations, then multiplexes Connector-managed sessions.
+                  One outbound connection discovers local Codex and Claude installations.
+                  Codex task execution requires explicit workspace-scoped permission.
                 </p>
               </div>
               <span className="flex items-center gap-1.5 rounded-full border border-arena-border px-2.5 py-1 text-[10px] text-gray-500">
@@ -880,11 +894,11 @@ export default function ConnectorConsole({
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-white">
-                        Start the Connector, then approve its code
+                        Connector installed? Start it and approve its code
                       </p>
                       <p className="mt-1 text-xs leading-5 text-gray-500">
-                        The CLI creates the pairing request and keeps the private device code.
-                        Confirm only when both screens show the same user code.
+                        The foreground command is a fallback for an existing installation.
+                        Confirm only when the Connector and Arena show the same user code.
                       </p>
                     </div>
                   </div>

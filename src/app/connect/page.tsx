@@ -62,7 +62,7 @@ export default function ConnectPage() {
             only the capabilities you bind—never your local credentials.
           </p>
           <div className="connect-steps">
-            <span><b>01</b> Install Connector</span>
+            <Link href="/agents#connect"><b>01</b> Install Connector <span>Open workshop →</span></Link>
             <span><b>02</b> Approve this code</span>
             <span><b>03</b> Bind an Agent</span>
           </div>

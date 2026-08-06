@@ -589,12 +589,38 @@
   background: var(--line);
 }
 
-.connect-steps span {
+.connect-steps > span,
+.connect-steps > a {
   padding: 13px 16px;
   background: var(--ink-deep);
+  color: var(--paper);
   font-size: 9px;
   letter-spacing: 0.15em;
+  text-decoration: none;
   text-transform: uppercase;
+}
+
+.connect-steps > a {
+  display: flex;
+  align-items: center;
+}
+
+.connect-steps > a span {
+  margin-left: auto;
+  color: var(--grey);
+  font-size: 8px;
+}
+
+.connect-steps > a:hover,
+.connect-steps > a:focus-visible {
+  background: var(--paper);
+  color: var(--ink);
+  outline: 0;
+}
+
+.connect-steps > a:hover span,
+.connect-steps > a:focus-visible span {
+  color: var(--ink);
 }
 
 .connect-steps b {

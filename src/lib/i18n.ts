@@ -191,6 +191,7 @@ const ZH_CN: Record<string, string> = {
   'Your Connector discovers supported runtimes locally. Arena receives only the capabilities you bind—never your local credentials.':
     '连接器在本地发现受支持的运行时。竞技场只接收你明确绑定的能力，绝不接触本地凭证。',
   'Install Connector': '安装连接器',
+  'Open workshop →': '打开工坊 →',
   'Approve this code': '批准此代码',
   'Bind an Agent': '绑定智能体',
   'Checking your Arena seal…': '正在验证竞技场身份…',
@@ -295,8 +296,8 @@ const ZH_CN: Record<string, string> = {
   'Provisioning and runtime route status': '配置与运行时路由状态',
   'No Hosted Agents yet': '还没有托管智能体',
   'Complete the form to create the first one.': '填写表单，创建第一个托管智能体。',
-  'Start the Connector, approve the matching code, then bind one detected Codex or Claude runtime to an Arena workspace.':
-    '启动连接器，批准匹配代码，再将检测到的 Codex 或 Claude 运行时绑定到竞技场工作区。',
+  'Install the Connector, approve the matching code, then bind one task-ready runtime to a narrowly allowed Arena workspace.':
+    '安装连接器，批准匹配代码，再将一个任务就绪的运行时绑定到严格限定的竞技场工作区。',
   Updated: '更新时间',
   'Not reported': '未上报',
   'Executable path not reported': '未上报可执行文件路径',
@@ -345,12 +346,54 @@ const ZH_CN: Record<string, string> = {
   'Runtimes found': '已发现运行时',
   'Runtime bindings': '运行时绑定',
   'Connect a local runtime': '连接本地运行时',
+  'Local Connector setup progress': '本地连接器设置进度',
+  'Install & launch': '安装并启动',
+  'Device registered': '设备已注册',
+  'Required on this computer': '此电脑需要安装',
+  'Pair device': '配对设备',
+  'Connector online': '连接器在线',
+  'Approve the matching code': '批准匹配代码',
+  'Ready runtime': '运行时就绪',
+  'Task execution enabled': '任务执行已启用',
+  'Detection is not enough': '仅检测到还不能参赛',
+  'Bind workspace': '绑定工作区',
+  'Ready for Arena games': '已可参加竞技场比赛',
+  'Freeze one allowed directory': '冻结一个获准目录',
+  'Step 01 · Local machine': '步骤 01 · 本地电脑',
+  'Install the Arena Connector': '安装 Arena 连接器',
+  'Download the reviewed installer, choose the local authority you grant, then run the generated command. The installer verifies the Connector binary before installing a current-user startup service.':
+    '下载并检查安装脚本，选择你授予的本地权限，再运行生成的命令。安装器会先验证连接器二进制文件，再安装当前用户的开机启动服务。',
+  'Connector operating system': '连接器操作系统',
+  Windows: 'Windows',
+  Linux: 'Linux',
+  'A macOS installer is not available yet. Use a supported Windows or Linux machine.':
+    '目前尚无 macOS 安装器，请使用受支持的 Windows 或 Linux 电脑。',
+  'Enable Connector-managed Codex tasks': '启用连接器托管的 Codex 任务',
+  'Explicitly allows Arena tasks inside one directory. Leave off for detection-only setup.':
+    '明确允许竞技场任务在一个目录内运行；关闭时仅执行运行时检测。',
+  'Allowed Arena workspace': '允许的竞技场工作区',
+  'Use the narrowest absolute path needed for Arena-managed sessions.':
+    '请使用竞技场托管会话所需的最小范围绝对路径。',
+  'Installation manifest': '安装清单',
+  PowerShell: 'PowerShell',
+  Shell: 'Shell',
+  Download: '下载',
+  'Download install-connector.ps1': '下载 install-connector.ps1',
+  'Download install-connector.sh': '下载 install-connector.sh',
+  'Review the downloaded script before running it.': '运行前请先检查已下载的脚本。',
+  'Copy reviewed installer command': '复制已检查的安装命令',
+  'Enter a valid absolute workspace path to generate the task-enabled command.':
+    '请输入有效的绝对工作区路径，以生成启用任务的命令。',
+  'Credentials remain local. No inbound port is opened. Claude can be detected, but production task execution is not enabled by this installer.':
+    '凭证始终保留在本地，不会开放入站端口。此安装器可以检测 Claude，但不会启用其生产任务执行。',
   'Your computer': '你的电脑',
   'Outbound WSS': '出站 WSS',
   'ADX Gateway': 'ADX 网关',
-  'Start the Connector, then approve its code': '启动连接器，然后批准配对代码',
-  'The CLI creates the pairing request and keeps the private device code. Confirm only when both screens show the same user code.':
-    'CLI 会创建配对请求并保管私有设备代码。只有两边屏幕显示相同用户代码时才确认。',
+  'Connector installed? Start it and approve its code': '已经安装连接器？启动并批准配对代码',
+  'The foreground command is a fallback for an existing installation. Confirm only when the Connector and Arena show the same user code.':
+    '前台命令仅用于已有安装的备用启动方式。只有连接器与竞技场显示相同用户代码时才确认。',
+  'One outbound connection discovers local Codex and Claude installations. Codex task execution requires explicit workspace-scoped permission.':
+    '一个出站连接即可发现本地 Codex 和 Claude。Codex 任务执行需要明确授予工作区范围权限。',
   'Copy Connector start command': '复制连接器启动命令',
   'Pairing code shown by the Connector': '连接器显示的配对代码',
   'Enter code shown by Connector': '输入连接器显示的代码',

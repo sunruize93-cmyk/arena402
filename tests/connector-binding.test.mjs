@@ -55,3 +55,25 @@ test('production hides the entire browser-created demo pairing control', () => {
   assert.ok(demoGuard >= 0 && demoGuard < demoLabel);
   assert.ok(demoLabel < demoInput && demoInput < demoEnd);
 });
+
+test('local onboarding begins with real installers and keeps task permission explicit', () => {
+  const consoleSource = readFileSync(
+    new URL('../src/components/ConnectorConsole.tsx', import.meta.url),
+    'utf8',
+  );
+  const installerSource = readFileSync(
+    new URL('../src/components/ConnectorInstaller.tsx', import.meta.url),
+    'utf8',
+  );
+  const approvalSource = readFileSync(
+    new URL('../src/app/connect/page.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(consoleSource, /<ConnectorInstaller/);
+  assert.match(installerSource, /Download \{platform === 'windows'/);
+  assert.match(installerSource, /checked=\{enableCodexTasks\}/);
+  assert.match(installerSource, /hasTaskReadyRuntime/);
+  assert.match(installerSource, /A macOS installer is not available yet/);
+  assert.match(approvalSource, /href="\/agents#connect"/);
+});

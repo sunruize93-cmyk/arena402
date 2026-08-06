@@ -146,6 +146,14 @@ test('Chinese translation covers the complete player journey surfaces', () => {
   );
   assert.equal(translateText('Treasury wallet', 'zh-CN'), '金库钱包');
   assert.equal(
+    translateText('Install the Arena Connector', 'zh-CN'),
+    '安装 Arena 连接器',
+  );
+  assert.equal(
+    translateText('Detection is not enough', 'zh-CN'),
+    '仅检测到还不能参赛',
+  );
+  assert.equal(
     translateText('No settlement has reached the public ledger.', 'zh-CN'),
     '尚无结算进入公开账本。',
   );

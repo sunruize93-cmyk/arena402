@@ -192,6 +192,348 @@
   border-bottom: 1px solid var(--line);
 }
 
+.connector-onboarding {
+  margin-bottom: 24px;
+}
+
+.connector-onboarding-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  list-style: none;
+}
+
+.connector-onboarding-rail li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  min-height: 76px;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  background: var(--ink-deep);
+  color: var(--grey-dark);
+}
+
+.connector-onboarding-rail li:last-child {
+  border-right: 0;
+}
+
+.connector-onboarding-rail li.active {
+  box-shadow: inset 0 -2px 0 var(--paper);
+  color: var(--paper);
+}
+
+.connector-onboarding-rail li.complete {
+  color: var(--paper-dim);
+}
+
+.connector-step-number {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.connector-onboarding-rail li.complete .connector-step-number {
+  border-color: var(--paper-dim);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.connector-step-number svg {
+  width: 14px;
+  height: 14px;
+}
+
+.connector-onboarding-rail strong,
+.connector-onboarding-rail small {
+  display: block;
+}
+
+.connector-onboarding-rail strong {
+  color: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connector-onboarding-rail small {
+  margin-top: 4px;
+  color: var(--grey);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.connector-install-manifest {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(310px, 0.92fr);
+  border: 1px solid var(--line);
+  border-top: 0;
+  background: var(--ink);
+}
+
+.connector-install-copy,
+.connector-install-receipt {
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.connector-install-copy {
+  border-right: 1px solid var(--line);
+}
+
+.connector-install-copy h3 {
+  margin-top: 10px;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.connector-install-copy > p:not(.label) {
+  max-width: 680px;
+  margin-top: 14px;
+  color: var(--grey);
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.connector-platform-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 24px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.connector-platform-tabs button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  background: var(--ink-deep);
+  color: var(--grey);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connector-platform-tabs button:hover,
+.connector-platform-tabs button:focus-visible,
+.connector-platform-tabs button.active {
+  background: var(--paper);
+  color: var(--ink);
+  outline: 0;
+}
+
+.connector-platform-tabs svg {
+  width: 15px;
+  height: 15px;
+}
+
+.connector-platform-warning,
+.connector-command-blocked {
+  margin-top: 10px;
+  color: var(--paper-dim);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.connector-permission-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.connector-permission-toggle input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--paper);
+}
+
+.connector-permission-toggle strong,
+.connector-permission-toggle small {
+  display: block;
+}
+
+.connector-permission-toggle strong {
+  color: var(--paper);
+  font-size: 11px;
+}
+
+.connector-permission-toggle small {
+  margin-top: 5px;
+  color: var(--grey);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.connector-root-field {
+  display: block;
+  margin-top: 16px;
+}
+
+.connector-root-field > span {
+  color: var(--paper-dim);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.connector-root-field input {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 8px;
+  padding: 11px 12px;
+}
+
+.connector-root-field small {
+  display: block;
+  margin-top: 7px;
+  color: var(--grey-dark);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.connector-install-receipt {
+  align-self: stretch;
+  background:
+    linear-gradient(135deg, rgba(244, 242, 236, 0.035), transparent 42%),
+    var(--ink-deep);
+}
+
+.connector-install-receipt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line-strong);
+  color: var(--grey);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.connector-install-receipt-head span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.connector-install-receipt-head svg,
+.connector-review-note svg,
+.connector-install-safety svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.connector-download {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 20px;
+  border: 1px solid var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.connector-download:hover,
+.connector-download:focus-visible {
+  background: transparent;
+  color: var(--paper);
+  outline: 0;
+}
+
+.connector-review-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  color: var(--grey);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.connector-install-command {
+  display: flex;
+  width: 100%;
+  min-height: 78px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--ink);
+  color: var(--paper-dim);
+  text-align: left;
+}
+
+.connector-install-command code {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.connector-install-command svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.connector-install-command:hover:not(:disabled),
+.connector-install-command:focus-visible:not(:disabled) {
+  border-color: var(--paper-dim);
+  color: var(--paper);
+  outline: 0;
+}
+
+.connector-install-command:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.connector-install-safety {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line-strong);
+  color: var(--grey);
+}
+
+.connector-install-safety p {
+  font-size: 10px;
+  line-height: 1.65;
+}
+
 .connector-stats {
   overflow: visible;
   border-color: var(--line);
@@ -540,6 +882,27 @@
     border-top: 1px solid var(--line) !important;
     border-left: 0 !important;
   }
+
+  .connector-onboarding-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .connector-onboarding-rail li:nth-child(2) {
+    border-right: 0;
+  }
+
+  .connector-onboarding-rail li:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .connector-install-manifest {
+    grid-template-columns: 1fr;
+  }
+
+  .connector-install-copy {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
 }
 
 @media (max-width: 700px) {
@@ -559,5 +922,24 @@
 
   .connector-stats {
     width: 100%;
+  }
+
+  .connector-onboarding-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .connector-onboarding-rail li,
+  .connector-onboarding-rail li:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .connector-onboarding-rail li:last-child {
+    border-bottom: 0;
+  }
+
+  .connector-install-copy,
+  .connector-install-receipt {
+    padding: 20px 16px;
   }
 }

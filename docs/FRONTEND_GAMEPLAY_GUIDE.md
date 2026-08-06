@@ -217,6 +217,12 @@ Gateway 投影。Installed/online 不自动等于 Arena-ready；后端还要校�
 `--allow-root` 内的绝对工作目录，并把 `working_directory` 与 Runtime 一起提交；
 该目录随 Agent 路由冻结，不能先创建空目录 Binding 再把它当作可参赛 Agent。
 
+`/agents` 的 Local Runtime 路径先提供 Windows/Linux 安装器，再依次展示
+Install/Pair/Ready/Bind 状态。安装资源来自 Arena API 的 `/downloads/*`，不能假设
+用户已经把 `adx-connector` 放入 PATH。安装器默认 detection-only；只有用户明确选择
+Codex task execution 并填写 `allow-root` 后，页面才生成带任务权限的安装命令。
+当前没有 macOS 安装器，Claude 生产任务执行也不应被此流程描述为已启用。
+
 Connector 断线不会自动切换 Hosted Runtime。Deadline Finalizer 负责把逾期 decide
 收敛为 `pass`、谈判收敛为 timeout。
 

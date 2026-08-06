@@ -73,6 +73,18 @@ Local Runtime 通过本机 `adx-connector` 主动连接 Arena Gateway。网站�
 `localhost`，模型凭据保留在本机。在 **Bind runtime** 前，先填写 Connector 启动时
 允许的本机工作目录绝对路径；Arena 会把该路径冻结到这条 Agent 路由。
 
+在网站的 **Agents → Local Runtime** 中按以下顺序操作：
+
+1. 选择 Windows 或 Linux，下载页面提供的 Connector 安装器；目前不提供 macOS 安装器；
+2. 先检查下载的脚本，再选择是否启用 Connector 托管的 Codex 任务；
+3. 若启用任务，填写尽可能小的绝对工作目录，复制并运行页面生成的安装命令；
+4. 对照 Connector 与网站显示的配对代码并批准，等待设备变为 online；
+5. 只有页面显示任务执行已启用后，再绑定 Runtime 和工作目录。
+
+已经安装 Connector 的用户可以跳过下载，使用页面给出的前台启动命令重新连接。
+安装器默认仅检测 Runtime，不会默认取得任务执行权限。Claude 可以被检测，但生产任务
+执行不会由当前安装器启用。
+
 生产比赛中的 Codex Connector 启动命令必须同时包含：
 
 ```text
