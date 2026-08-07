@@ -1129,6 +1129,18 @@
 
 .gm-price-chart-svg { width: 100%; height: auto; }
 .gm-price-chart-gridline { stroke: var(--line); stroke-width: 1; }
+.gm-reference-line {
+  fill: none;
+  stroke: var(--paper-dim);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.gm-reference-dot {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
 .gm-price-wick { stroke: var(--paper-dim); stroke-width: 1.25; }
 .gm-price-candle.is-up { fill: var(--paper); }
 .gm-price-candle.is-down { fill: var(--grey-dark); }
@@ -2281,7 +2293,7 @@
 
 .gm-replay-control {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 18px;
   padding: 15px 18px;
@@ -2293,14 +2305,38 @@
 .gm-replay-control p {
   font-family: var(--serif);
   font-size: 18px;
-  text-align: center;
+  text-align: left;
 }
 
-.gm-replay-control .gm-text-link {
+.gm-replay-buttons {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.gm-replay-buttons button,
+.gm-replay-buttons select {
+  min-height: 34px;
+  padding: 0 10px;
   border-color: color-mix(in srgb, var(--ink) 35%, transparent);
   background: transparent;
   color: var(--ink);
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   cursor: pointer;
+}
+
+.gm-replay-buttons label {
+  display: grid;
+  gap: 4px;
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .gm-participant-pool,
@@ -2529,6 +2565,27 @@
 }
 
 .gm-personal-result-grid li b { color: var(--paper); font-weight: 500; }
+
+.gm-owner-portfolio-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.gm-owner-portfolio-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--grey);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.gm-owner-portfolio-card dl div:nth-child(odd) { padding-right: 12px; }
+.gm-owner-portfolio-card dl div:nth-child(even) { padding-left: 12px; }
+.gm-owner-portfolio-card dd { color: var(--paper); }
 
 /* Live battle desk — the running game is a control surface, not a long report. */
 
@@ -2802,17 +2859,65 @@
   white-space: nowrap;
 }
 
+.gm-thread-follow {
+  padding: 6px 8px;
+  border: 1px solid var(--paper-dim);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 6px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .gm-thread-list {
-  display: grid;
-  grid-auto-columns: minmax(190px, 0.62fr);
-  grid-auto-flow: column;
-  gap: 7px;
   overflow-x: auto;
   padding-bottom: 3px;
   overscroll-behavior-inline: contain;
   scrollbar-color: var(--line-strong) transparent;
   scrollbar-width: thin;
 }
+
+.gm-thread-group {
+  display: grid;
+  grid-auto-columns: minmax(190px, 0.62fr);
+  grid-auto-flow: column;
+  gap: 7px;
+}
+
+.gm-thread-group-label {
+  position: sticky;
+  left: 0;
+  display: grid;
+  place-items: center start;
+  min-width: 94px;
+  padding: 0 10px;
+  border-left: 2px solid var(--paper);
+  background: var(--ink-deep);
+  color: var(--paper-dim);
+  font-size: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.gm-thread-history {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.gm-thread-history summary {
+  width: fit-content;
+  padding: 8px 0 6px;
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.gm-thread-history .gm-thread-group { opacity: 0.72; }
 
 .gm-thread-card {
   display: grid;
@@ -3012,6 +3117,29 @@
 }
 
 .gm-desk-inspector .gm-chronicle-list article::before { left: 42px; }
+
+.gm-event-filter {
+  display: flex;
+  gap: 4px;
+}
+
+.gm-event-filter button {
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--grey-dark);
+  font-family: var(--mono);
+  font-size: 6px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.gm-event-filter button[aria-pressed='true'] {
+  border-color: var(--paper-dim);
+  background: var(--paper);
+  color: var(--ink);
+}
 
 .gm-desk-ledger .gm-game-ledger-rows {
   margin-top: 0;
@@ -3370,7 +3498,12 @@
   }
   .gm-desk-core { grid-row: 1; min-height: 650px; }
   .gm-desk-market { grid-row: 2; min-height: 500px; }
-  .gm-desk-inspector { display: grid; grid-row: 3; min-height: 480px; }
+  .gm-desk-inspector {
+    display: grid;
+    grid-row: 3;
+    height: min(70dvh, 640px);
+    min-height: 420px;
+  }
   .gm-market-history-card { padding: 18px; }
   .gm-market-history-card-head { align-items: flex-start; }
   .gm-market-history-card-head > div:last-child > strong { font-size: 21px; }
@@ -3441,8 +3574,9 @@
   .gm-price-authority > div { padding: 0 12px 12px; text-align: left; }
   .gm-order-books { grid-template-columns: 1fr; }
   .gm-order-books > article { grid-template-columns: 58px 1fr 1fr; }
-  .gm-replay-control { grid-template-columns: 1fr; justify-items: start; }
+  .gm-replay-control { grid-template-columns: 1fr; justify-items: stretch; }
   .gm-replay-control p { text-align: left; }
+  .gm-replay-buttons { justify-content: flex-start; }
   .gm-entry-backdrop { padding: 0; place-items: stretch; }
   .gm-entry-desk { width: 100%; max-height: 100vh; min-height: 100vh; border: 0; }
   .gm-entry-head,

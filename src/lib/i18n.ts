@@ -792,6 +792,7 @@ const ZH_CN: Record<string, string> = {
   'PRICE PENDING': '等待价格',
   'PRICE AUTHORITY PENDING': '等待权威价格',
   'COMMITTED ROUND OHLC': '已提交回合 OHLC',
+  'EVENT REFERENCE PRICES': '事件参考价',
   'FINAL SETTLEMENT PRICES': '最终结算价格',
   'AWAITING PRICE AUTHORITY': '等待权威价格源',
   'LIVE LADDER': '实时排行榜',
@@ -1039,6 +1040,8 @@ const TEMPLATE_RULES: Array<[RegExp, (...matches: string[]) => string]> = [
     `确定撤销 ${device} 吗？其连接器令牌和有效绑定将停止工作。`],
   [/^Round (\d+)$/i, (round) => `第 ${round} 回合`],
   [/^ROUND (\d+)$/i, (round) => `第 ${round} 回合`],
+  [/^ROUND (\d+) REFERENCE$/i, (round) => `第 ${round} 回合参考价`],
+  [/^REFERENCE (.+)$/i, (value) => `参考价 ${value}`],
   [/^(\d+) LIVE · (\d+) SETTLED$/i, (live, settled) =>
     `${live} 条进行中 · ${settled} 条已结算`],
   [/^(\d+) TURNS?$/i, (turns) => `${turns} 轮`],

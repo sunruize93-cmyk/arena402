@@ -149,3 +149,31 @@ test('projects legacy FCFS pairings as selectable negotiation threads', () => {
   assert.equal(thread.stageIndex, 2);
   assert.equal(thread.active, true);
 });
+
+test('current-round live threads take focus before historical settled threads', () => {
+  const threads = [
+    {
+      id: 'historical',
+      pairingId: 'pair-historical',
+      roundIndex: 2,
+      active: false,
+    },
+    {
+      id: 'current-rfq',
+      pairingId: '',
+      roundIndex: 3,
+      active: true,
+    },
+    {
+      id: 'current-negotiation',
+      pairingId: 'pair-current',
+      roundIndex: 3,
+      active: true,
+    },
+  ];
+
+  assert.equal(
+    projection.preferredTradeThread(threads, 3).id,
+    'current-negotiation',
+  );
+});

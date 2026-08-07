@@ -333,6 +333,12 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
     'Arena 无法撤回此席位，匹配池保持不变。',
   'Match replay': '对局回放',
   Event: '事件',
+  Pause: '暂停',
+  Previous: '上一步',
+  Next: '下一步',
+  Round: '回合',
+  Speed: '速度',
+  Restart: '重新播放',
   'Replay from opening bell': '从开盘时刻回放',
   'Sealed seats · Current game': '已锁定席位 · 当前对局',
   'Your sealed Agent': '你已锁定的智能体',
@@ -346,6 +352,7 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Pairing rail': '配对轨道',
   'Bargaining chamber · Live focus': '议价室 · 实时焦点',
   'Bargaining chamber · Selected thread': '议价室 · 当前交易线程',
+  'Bargaining chamber · Historical thread': '议价室 · 历史交易线程',
   'Trade threads': '交易线程',
   'RFQ → negotiation → settlement': '询价 → 协商 → 结算',
   RFQ: '询价',
@@ -367,6 +374,9 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Unknown buyer': '未知买方',
   'No RFQ or pairing thread has opened in this game yet.':
     '本局尚未出现询价或配对线程。',
+  'Follow current round': '返回当前回合',
+  'No trade thread has opened this round yet.': '本回合尚未开启交易线程。',
+  'Earlier rounds': '历史回合',
   'The RFQ is waiting for a seller to open negotiations.':
     '该询价正在等待卖方开启协商。',
   'Seller selection pending': '等待卖方选择',
@@ -417,6 +427,11 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Market chronicle · Four goods': '市场纪事 · 四种物品',
   'Every market, round by round.': '逐轮查看全部市场。',
   'COMMITTED ROUNDS': '已确认回合',
+  'REFERENCE ROUNDS': '参考价回合',
+  'Pause replay': '暂停回放',
+  'Resume replay': '继续播放',
+  'Arena event reference prices. Confirmed trades are shown separately.':
+    'Arena 事件参考价；已确认成交会单独显示。',
   'Arena-owned OHLC only. Public events never fabricate a price.':
     '仅显示 Arena 权威的开高低收数据；公开事件不会虚构价格。',
   'Four-good round price history': '四种物品的逐回合价格历史',
@@ -425,6 +440,19 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'The Arena API has not published committed OHLC for this good.':
     'Arena API 尚未发布该物品已确认的开高低收数据。',
   'Market intelligence': '市场情报',
+  'Event reference prices · committed trades shown separately':
+    '事件参考价 · 已确认成交单独显示',
+  'EVENT REFERENCE': '事件参考价',
+  'REFERENCE PRICE ≠ TRADE PRICE': '参考价不等于成交价',
+  Reference: '参考价',
+  'Prior reference': '上一参考价',
+  Change: '变化',
+  'Last clearing': '最近成交价',
+  'Reference price pending': '参考价待发布',
+  'The Arena has not published this round’s event-driven reference price.':
+    'Arena 尚未发布本回合的事件驱动参考价。',
+  'Event reference price by round': '逐回合事件参考价',
+  'Bargaining chamber · Current round': '议价室 · 当前回合',
   'Only committed trades enter the price record': '仅已确认交易会计入价格记录',
   'Official prices': '官方价格',
   'price record': '价格记录',
@@ -450,6 +478,14 @@ export const ZH_CN_PLAYER_EXPERIENCE: Record<string, string> = {
   'Agent decision status': '智能体决策状态',
   'The matching pool is waiting for sealed seats.': '匹配池正在等待锁定席位。',
   'No public participants yet': '尚无公开参与者',
+  'Key moments': '关键节点',
+  'All records': '全部记录',
+  'Waiting for the next key market moment': '正在等待下一个关键市场节点',
+  'Waiting for Arena records': '正在等待 Arena 记录',
+  'Sign in as this game’s owner to view the private portfolio snapshot.':
+    '请以本局玩家身份登录，查看私有资产组合快照。',
+  'Sign in as this game’s owner to view reputation and rank.':
+    '请以本局玩家身份登录，查看信誉与排名。',
   "Open your Agent's dialogue, or inspect every layer used by the Expo broadcast.":
     '打开你的智能体对话，或查看 Expo 实时大屏使用的每一层数据。',
   'Reading your Arena identity and table…': '正在读取你的 Arena 身份与牌桌…',

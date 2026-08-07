@@ -135,7 +135,10 @@ function CandleChart({
       </div>
     );
   }
-  const values = candles.flatMap((candle) => [candle.high, candle.low]);
+  const eventReference = good.dataQuality === 'event_reference';
+  const values = eventReference
+    ? candles.map((candle) => candle.close)
+    : candles.flatMap((candle) => [candle.high, candle.low]);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = Math.max(max - min, max * 0.08, 1);
@@ -146,6 +149,56 @@ function CandleChart({
   const plotHeight = height - top - bottom;
   const step = (width - 54) / Math.max(candles.length, 1);
   const y = (value: number) => top + ((max - value) / span) * plotHeight;
+
+  if (eventReference) {
+    const points = candles
+      .map((candle, index) => {
+        const x = 44 + index * step + step / 2;
+        return `${x},${y(candle.close)}`;
+      })
+      .join(' ');
+    return (
+      <svg
+        className="broadcast-chart-svg"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`${good.name} event reference price by round`}
+      >
+        {[0, 0.5, 1].map((ratio) => (
+          <line
+            className="broadcast-grid-line"
+            key={ratio}
+            x1="30"
+            x2={width - 12}
+            y1={top + ratio * plotHeight}
+            y2={top + ratio * plotHeight}
+          />
+        ))}
+        <polyline className="broadcast-reference-line" points={points} />
+        {candles.map((candle, index) => {
+          const x = 44 + index * step + step / 2;
+          const marked = eventRounds.includes(candle.round);
+          return (
+            <g className={marked ? 'is-event' : ''} key={`${good.goodId}-${candle.round}`}>
+              {marked && (
+                <line
+                  className="broadcast-event-pin"
+                  x1={x}
+                  x2={x}
+                  y1={top}
+                  y2={height - bottom + 5}
+                />
+              )}
+              <circle className="broadcast-reference-dot" cx={x} cy={y(candle.close)} r="6" />
+              <text className="broadcast-round-label" x={x} y={height - 9}>
+                R{candle.round}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
 
   return (
     <svg
@@ -299,8 +352,10 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
   const lagSeconds = Math.max(0, Math.floor((clock - lastUpdated) / 1_000));
   const stale = Boolean(error) || (!demo && lagSeconds > 9);
   const latestSequence = events.at(-1)?.sequence || 0;
-  const quality = goods.some((good) => good.dataQuality === 'authoritative')
-    ? 'COMMITTED ROUND OHLC'
+  const quality = goods.some((good) => good.dataQuality === 'event_reference')
+    ? 'EVENT REFERENCE PRICES'
+    : goods.some((good) => good.dataQuality === 'authoritative_ohlc')
+      ? 'COMMITTED ROUND OHLC'
     : goods.some((good) => good.dataQuality === 'final_settlement')
       ? 'FINAL SETTLEMENT PRICES'
       : 'AWAITING PRICE AUTHORITY';
@@ -378,7 +433,10 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
                   <span className="broadcast-good-mark">{good.mark}</span>
                   <span>
                     <strong>{good.name}</strong>
-                    <small>ROUND {String(round).padStart(2, '0')} CLOSE</small>
+                    <small>
+                      ROUND {String(round).padStart(2, '0')}{' '}
+                      {good.dataQuality === 'event_reference' ? 'REFERENCE' : 'CLOSE'}
+                    </small>
                   </span>
                 </div>
                 <p>
@@ -420,7 +478,8 @@ export default function ExpoBroadcastBoard({ gameId }: { gameId: string }) {
                   <span>
                     <small>
                       {good.candles.length} ROUND
-                      {good.candles.length === 1 ? '' : 'S'} · OHLC
+                      {good.candles.length === 1 ? '' : 'S'} ·{' '}
+                      {good.dataQuality === 'event_reference' ? 'REFERENCE' : 'OHLC'}
                     </small>
                     <b>{gold(good.currentAtomic)}</b>
                   </span>

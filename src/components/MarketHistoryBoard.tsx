@@ -22,7 +22,8 @@ function gold(value: number | null): string {
 }
 
 function qualityLabel(good: BroadcastGood): string {
-  if (good.dataQuality === 'authoritative') return 'COMMITTED OHLC';
+  if (good.dataQuality === 'event_reference') return 'EVENT REFERENCE';
+  if (good.dataQuality === 'authoritative_ohlc') return 'COMMITTED OHLC';
   if (good.dataQuality === 'final_settlement') return 'FINAL SETTLEMENT';
   return 'AWAITING ARENA SNAPSHOT';
 }
@@ -49,6 +50,9 @@ export default function MarketHistoryBoard({
     0,
     ...goods.map((good) => good.candles.length),
   );
+  const usesEventReferences = goods.some(
+    (good) => good.dataQuality === 'event_reference',
+  );
 
   return (
     <section
@@ -64,9 +68,11 @@ export default function MarketHistoryBoard({
         </div>
         <div className="gm-market-history-summary">
           <strong>{String(committedRounds).padStart(2, '0')}</strong>
-          <span>COMMITTED ROUNDS</span>
+          <span>{usesEventReferences ? 'REFERENCE ROUNDS' : 'COMMITTED ROUNDS'}</span>
           <p>
-            Arena-owned OHLC only. Public events never fabricate a price.
+            {usesEventReferences
+              ? 'Arena event reference prices. Confirmed trades are shown separately.'
+              : 'Arena-owned OHLC only. Public events never fabricate a price.'}
           </p>
         </div>
       </header>
@@ -118,11 +124,13 @@ export default function MarketHistoryBoard({
               <footer className="gm-market-history-card-foot">
                 <span>
                   {latest
-                    ? `R${String(latest.round).padStart(2, '0')} · O ${gold(
-                        latest.open,
-                      )} · H ${gold(latest.high)} · L ${gold(
-                        latest.low,
-                      )} · C ${gold(latest.close)}`
+                    ? good.dataQuality === 'event_reference'
+                      ? `R${String(latest.round).padStart(2, '0')} · REFERENCE ${gold(latest.close)}`
+                      : `R${String(latest.round).padStart(2, '0')} · O ${gold(
+                          latest.open,
+                        )} · H ${gold(latest.high)} · L ${gold(
+                          latest.low,
+                        )} · C ${gold(latest.close)}`
                     : 'Waiting for the first committed round'}
                 </span>
                 <span>

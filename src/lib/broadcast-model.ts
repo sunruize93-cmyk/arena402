@@ -30,7 +30,8 @@ export const BROADCAST_GOODS = [
 
 export type BroadcastGoodId = (typeof BROADCAST_GOODS)[number]['goodId'];
 export type BroadcastDataQuality =
-  | 'authoritative'
+  | 'event_reference'
+  | 'authoritative_ohlc'
   | 'final_settlement'
   | 'awaiting_authority';
 
@@ -91,7 +92,7 @@ function historyRows(state: RecordValue): RecordValue[] {
     : [];
 }
 
-function authoritativeCandles(
+function projectedCandles(
   state: RecordValue,
   goodId: BroadcastGoodId,
 ): BroadcastCandle[] {
@@ -163,7 +164,19 @@ export function buildBroadcastGoods(
   void rawEvents;
   const state = rawState || {};
   return BROADCAST_GOODS.map((definition) => {
-    const authorityCandles = authoritativeCandles(
+    const relevantPriceRows = historyRows(state).filter(
+      (row) =>
+        String(pick(row, 'goodId', 'good_id', 'good')).toLowerCase() ===
+        definition.goodId,
+    );
+    const projectedPriceKind = relevantPriceRows.some(
+      (row) =>
+        String(pick(row, 'priceKind', 'price_kind')).toLowerCase() ===
+        'event_reference',
+    )
+      ? 'event_reference'
+      : 'authoritative_ohlc';
+    const authorityCandles = projectedCandles(
       state,
       definition.goodId,
     );
@@ -195,8 +208,27 @@ export function buildBroadcastGoods(
       }
     }
     const currentAtomic = candles.at(-1)?.close ?? null;
+    const latestPriceRow = relevantPriceRows
+      .slice()
+      .sort(
+        (left, right) =>
+          Number(pick(left, 'round', 'roundIndex', 'round_index') || 0) -
+          Number(pick(right, 'round', 'roundIndex', 'round_index') || 0),
+      )
+      .at(-1);
+    const projectedPreviousAtomic = numeric(
+      pick(
+        latestPriceRow || {},
+        'previousMarketPriceAtomic',
+        'previous_market_price_atomic',
+      ),
+    );
     const previousAtomic =
-      candles.at(-2)?.close ?? candles.at(-1)?.open ?? null;
+      projectedPreviousAtomic ??
+      candles.at(-2)?.close ??
+      (projectedPriceKind === 'authoritative_ohlc'
+        ? candles.at(-1)?.open ?? null
+        : null);
     return {
       ...definition,
       currentAtomic,
@@ -211,7 +243,7 @@ export function buildBroadcastGoods(
       latestVolume: candles.at(-1)?.committedTradeCount ?? null,
       candles,
       dataQuality: hasAuthority
-        ? 'authoritative'
+        ? projectedPriceKind
         : completed && finalPrice !== null
           ? 'final_settlement'
           : 'awaiting_authority',
@@ -228,7 +260,8 @@ export function buildBroadcastRankings(
       ? rawState.live_rankings
       : null;
   const final = Array.isArray(rawState.rankings) ? rawState.rankings : null;
-  const source = live || final;
+  const completed = String(rawState.phase || '').toLowerCase() === 'completed';
+  const source = completed ? final || live : live || final;
   if (source && source.length > 0) {
     const rows = source
       .map(asRecord)
@@ -250,7 +283,7 @@ export function buildBroadcastRankings(
       }))
       .sort((left, right) => (left.rank || 99) - (right.rank || 99));
     return {
-      kind: live ? 'live_net_worth' : 'final_net_worth',
+      kind: completed && final ? 'final_net_worth' : live ? 'live_net_worth' : 'final_net_worth',
       rows,
     };
   }

@@ -21,29 +21,18 @@ const DEMO_CLOSES = {
   gems: [3, 2.9, 2.95, 2.75, 4.8, 4.55],
 } as const;
 
-const DEMO_WICKS = {
-  grain: [0.12, 0.28, 0.18, 0.16, 0.14],
-  iron: [0.16, 0.34, 0.28, 0.22, 0.18],
-  warhorse: [0.24, 0.26, 0.42, 0.3, 0.24],
-  gems: [0.1, 0.13, 0.16, 0.31, 0.25],
-} as const;
-
 export const DEMO_PRICE_SNAPSHOTS = Object.entries(DEMO_CLOSES).flatMap(
   ([goodId, values]) =>
     values.slice(1).map((close, index) => {
-      const open = values[index];
-      const wick =
-        DEMO_WICKS[goodId as keyof typeof DEMO_WICKS][index] || 0.12;
       return {
-        round: index + 1,
+        roundIndex: index + 1,
         goodId,
-        openAtomic: String(Math.round(open * 1_000_000)),
-        highAtomic: String(Math.round((Math.max(open, close) + wick) * 1_000_000)),
-        lowAtomic: String(
-          Math.round(Math.max(0, Math.min(open, close) - wick) * 1_000_000),
+        marketPriceAtomic: String(Math.round(close * 1_000_000)),
+        previousMarketPriceAtomic: String(
+          Math.round(values[index] * 1_000_000),
         ),
-        closeAtomic: String(Math.round(close * 1_000_000)),
-        committedTradeCount: 3 + ((index * 2 + goodId.length) % 6),
+        priceKind: 'event_reference',
+        committedTradeCount: 0,
       };
     }),
 );
@@ -301,8 +290,17 @@ export function buildDemoGameState(
     eventScheduleCommitment: '0x402d7c88a33b7a16',
     participants: DEMO_PARTICIPANTS,
     priceSnapshots: DEMO_PRICE_SNAPSHOTS.filter(
-      (snapshot) => snapshot.round <= round.number,
-    ),
+      (snapshot) => snapshot.roundIndex <= round.number,
+    ).map((snapshot) => ({
+      ...snapshot,
+      committedTradeCount:
+        snapshot.roundIndex < round.number ||
+        visibleEvents.some(
+          (event) => event.type === 'settlement.inventory_committed',
+        )
+          ? 1
+          : 0,
+    })),
     liveRankings: demoLiveRankings(round.number),
     rounds: DEMO_ROUNDS.map((candidate) => ({
       round_index: candidate.number,

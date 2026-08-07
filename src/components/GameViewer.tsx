@@ -31,7 +31,10 @@ import {
 } from '@/lib/live-game-feed';
 import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 import { readAgentReputation } from '@/lib/reputation';
-import { buildTradeThreads } from '@/lib/trade-threads';
+import {
+  buildTradeThreads,
+  preferredTradeThread,
+} from '@/lib/trade-threads';
 import {
   activePairingIds,
   timelinePairingId,
@@ -117,6 +120,14 @@ const EVENT_LABELS: Record<string, { title: string; description: string }> = {
     title: 'An Agent entered the Pawnhouse',
     description: 'Its game configuration is now frozen.',
   },
+  'participant.settlement_ready': {
+    title: 'A seat became settlement-ready',
+    description: 'Arena verified the participant wallet and payment mandate.',
+  },
+  'participant.withdrawn': {
+    title: 'A seat left before the bell',
+    description: 'The participant withdrew before the game was locked.',
+  },
   'round.started': {
     title: 'The market bell rang',
     description: 'A new round is accepting Agent decisions.',
@@ -132,6 +143,42 @@ const EVENT_LABELS: Record<string, { title: string; description: string }> = {
   'decision.applied': {
     title: 'An order reached the ledger',
     description: 'Arena validated and applied a buy, sell, or pass decision.',
+  },
+  'market.liquidity_summarized': {
+    title: 'The round’s liquidity was counted',
+    description: 'Arena published passes, opposite-side depth, and price-compatible capacity.',
+  },
+  'market.stage_opened': {
+    title: 'The exchange advanced',
+    description: 'The next bounded market stage is now open.',
+  },
+  'market.intent_published': {
+    title: 'An Agent published its market intent',
+    description: 'A buy or sell intent entered the public A2A market.',
+  },
+  'market.rfq_sent': {
+    title: 'A buyer called for a quote',
+    description: 'The buyer selected one or more sellers from its frozen directory.',
+  },
+  'market.rfq_rejected': {
+    title: 'A seller declined the RFQ',
+    description: 'No negotiation opened for this request.',
+  },
+  'market.rfq_busy': {
+    title: 'The selected seller was already engaged',
+    description: 'The buyer may use a remaining RFQ attempt.',
+  },
+  'market.engagement_created': {
+    title: 'Two Agents opened a trade thread',
+    description: 'A seller accepted one targeted request for negotiation.',
+  },
+  'market.negotiation_created': {
+    title: 'The bargaining chamber opened',
+    description: 'The opening quote and bounded turn budget are now frozen.',
+  },
+  'market.deal_frozen': {
+    title: 'Terms were accepted',
+    description: 'The price is frozen, but payment and inventory are not final yet.',
   },
   'pairing.created': {
     title: 'Two orders met in the queue',
@@ -168,6 +215,14 @@ const EVENT_LABELS: Record<string, { title: string; description: string }> = {
   'settlement.reverted': {
     title: 'Settlement reverted',
     description: 'Arena kept the inventory unchanged.',
+  },
+  'settlement.authorization_failed': {
+    title: 'Payment authorization failed',
+    description: 'Settlement stopped before submission and inventory stayed unchanged.',
+  },
+  'pairing.closed': {
+    title: 'The trade thread closed',
+    description: 'Arena recorded the terminal pairing outcome.',
   },
   'round.closed': {
     title: 'The round ledger closed',
@@ -329,8 +384,73 @@ function eventDescription(event: PawnhouseTimelineEvent): string {
     const price = atomicGold(pick(data, 'priceAtomic', 'price_atomic', 'price'));
     return `${agent} submitted ${action || 'A RESPONSE'}${price ? ` at ${price} gold` : ''}.`;
   }
+  if (event.type === 'market.intent_published') {
+    return `${agent} published ${action || 'AN INTENT'}${good ? ` · ${good}` : ''}.`;
+  }
+  if (event.type === 'market.rfq_sent') {
+    const count = Array.isArray(pick(data, 'requestIds', 'request_ids'))
+      ? (pick(data, 'requestIds', 'request_ids') as unknown[]).length
+      : 1;
+    return `${agent} sent ${count} targeted ${count === 1 ? 'request' : 'requests'}${good ? ` for ${good}` : ''}.`;
+  }
+  if (event.type === 'market.liquidity_summarized') {
+    const intents = Number(pick(data, 'intentCount', 'intent_count') || 0);
+    const compatible = Number(
+      pick(data, 'priceCompatibleCapacity', 'price_compatible_capacity') || 0,
+    );
+    return `${intents} intents entered; ${compatible} price-compatible ${compatible === 1 ? 'trade' : 'trades'} were possible.`;
+  }
+  if (event.type === 'pairing.closed') {
+    const status = publicText(pick(data, 'status'), 'closed').replaceAll('_', ' ');
+    return `The thread closed as ${status}.`;
+  }
+  if (event.type.startsWith('runtime.run_')) {
+    const status = event.type.replace('runtime.run_', '').replaceAll('_', ' ');
+    return `The Arena runtime run is ${status}.`;
+  }
   return EVENT_LABELS[event.type]?.description || 'A public Arena event was recorded.';
 }
+
+function eventTitle(event: PawnhouseTimelineEvent): string {
+  const known = EVENT_LABELS[event.type]?.title;
+  if (known) return known;
+  if (event.type.startsWith('runtime.run_')) {
+    const status = event.type
+      .replace('runtime.run_', '')
+      .replaceAll('_', ' ');
+    return `Agent run ${status}`;
+  }
+  return event.type
+    .split('.')
+    .flatMap((part) => part.split('_'))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' · ');
+}
+
+const KEY_EVENT_TYPES = new Set([
+  'round.started',
+  'world.event_revealed',
+  'market.liquidity_summarized',
+  'market.intent_published',
+  'market.rfq_sent',
+  'market.rfq_rejected',
+  'market.rfq_busy',
+  'market.engagement_created',
+  'market.negotiation_created',
+  'negotiation.message',
+  'market.deal_frozen',
+  'settlement.intent_frozen',
+  'settlement.approved',
+  'settlement.submitted',
+  'settlement.chain_confirmed',
+  'settlement.inventory_committed',
+  'settlement.authorization_failed',
+  'settlement.confirmation_timeout',
+  'settlement.reverted',
+  'pairing.closed',
+  'round.closed',
+  'game.completed',
+]);
 
 function eventTime(event: PawnhouseTimelineEvent): string {
   if (!event.occurredAt) return `#${String(event.sequence).padStart(3, '0')}`;
@@ -475,7 +595,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const [myParticipantId, setMyParticipantId] = useState('');
   const [leavingPool, setLeavingPool] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState('');
+  const [followCurrentThread, setFollowCurrentThread] = useState(true);
   const [replayEventCount, setReplayEventCount] = useState<number | null>(null);
+  const [replayPlaying, setReplayPlaying] = useState(true);
+  const [replaySpeed, setReplaySpeed] = useState(1);
+  const [eventView, setEventView] = useState<'key' | 'all'>('key');
   const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
     roundIndex: 0,
     eventCount: DEMO_INITIAL_EVENT_COUNT,
@@ -486,7 +610,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     setMyParticipantId('');
     setActionError('');
     setSelectedThreadId('');
+    setFollowCurrentThread(true);
     setReplayEventCount(null);
+    setReplayPlaying(true);
   }, [gameId]);
 
   useEffect(() => {
@@ -506,19 +632,21 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     });
   }, [demo, gameId]);
 
-  useEffect(() => {
-    if (demo) return;
-    setMyParticipantId(
-      window.localStorage.getItem(`arena402:participant:${gameId}`) || '',
-    );
-  }, [demo, gameId]);
-
   const demoRound = DEMO_ROUNDS[demoPlayback.roundIndex] || DEMO_ROUNDS[0];
   const demoEvents = demoRound.events.slice(0, demoPlayback.eventCount);
   const activeLiveFeed = liveFeed?.gameId === gameId ? liveFeed : null;
   const liveState = activeLiveFeed?.state || null;
   const currentGame = activeLiveFeed?.currentGame || null;
   const currentProjection = currentGame;
+  useEffect(() => {
+    if (demo) return;
+    const authoritative = currentProjection?.myParticipantId || '';
+    setMyParticipantId(
+      authoritative
+      || window.localStorage.getItem(`arena402:participant:${gameId}`)
+      || '',
+    );
+  }, [currentProjection?.myParticipantId, demo, gameId]);
   const liveEvents = activeLiveFeed?.events || EMPTY_TIMELINE_EVENTS;
   const feedDelayed = Boolean(activeLiveFeed?.delayed);
   const feedError =
@@ -526,9 +654,18 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       ? 'This table is not available from the public Arena API.'
       : '';
   const error = actionError || feedError;
-  const state = demo ? buildDemoGameState(demoRound, demoEvents) : liveState;
-  const sourceEvents = demo && replayRequested
+  const replayDemoEvents = demo && replayRequested
     ? DEMO_ROUNDS.flatMap((round) => round.events)
+    : EMPTY_TIMELINE_EVENTS;
+  const replayDemoRound = DEMO_ROUNDS.at(-1) || demoRound;
+  const state = demo
+    ? buildDemoGameState(
+        replayRequested ? replayDemoRound : demoRound,
+        replayRequested ? replayDemoEvents : demoEvents,
+      )
+    : liveState;
+  const sourceEvents = demo && replayRequested
+    ? replayDemoEvents
     : demo
       ? demoEvents
       : liveEvents;
@@ -550,6 +687,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   useEffect(() => {
     if (
       !replayRequested
+      || !replayPlaying
       || replayEventCount === null
       || replayEventCount >= sourceEvents.length
     ) {
@@ -557,9 +695,18 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     }
     const timer = window.setTimeout(
       () => setReplayEventCount((current) => (current || 0) + 1),
-      650,
+      Math.max(120, 650 / replaySpeed),
     );
     return () => window.clearTimeout(timer);
+  }, [replayEventCount, replayPlaying, replayRequested, replaySpeed, sourceEvents.length]);
+  useEffect(() => {
+    if (
+      replayRequested
+      && replayEventCount !== null
+      && replayEventCount >= sourceEvents.length
+    ) {
+      setReplayPlaying(false);
+    }
   }, [replayEventCount, replayRequested, sourceEvents.length]);
   const phase = replayRequested ? replayPhase(events) : currentRoundPhase(state);
   const bulletin = useMemo(() => worldBulletin(events), [events]);
@@ -575,19 +722,6 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   }, [agents]);
   const tradeThreads = useMemo(() => buildTradeThreads(events), [events]);
   const trades = useMemo(() => buildLedgerTrades(events), [events]);
-
-  useEffect(() => {
-    if (tradeThreads.length === 0) {
-      setSelectedThreadId('');
-      return;
-    }
-    if (tradeThreads.some((thread) => thread.id === selectedThreadId)) return;
-    const preferred =
-      tradeThreads.find((thread) => thread.active && thread.pairingId)
-      || tradeThreads.find((thread) => thread.active)
-      || tradeThreads[0];
-    setSelectedThreadId(preferred.id);
-  }, [selectedThreadId, tradeThreads]);
   const replayRound = [...events]
     .reverse()
     .find((event) => event.type === 'round.started');
@@ -599,6 +733,27 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         ?? 0,
       )
     : Number(state?.currentRound || 0);
+  const preferredThread = useMemo(
+    () => preferredTradeThread(tradeThreads, currentRound),
+    [currentRound, tradeThreads],
+  );
+
+  useEffect(() => {
+    if (tradeThreads.length === 0) {
+      setSelectedThreadId('');
+      return;
+    }
+    const selectionExists = tradeThreads.some(
+      (thread) => thread.id === selectedThreadId,
+    );
+    if (followCurrentThread || !selectionExists) {
+      setSelectedThreadId(preferredThread?.id || '');
+    }
+  }, [followCurrentThread, preferredThread, selectedThreadId, tradeThreads]);
+
+  useEffect(() => {
+    setFollowCurrentThread(true);
+  }, [currentRound]);
   const viewState =
     replayRequested && state
       ? {
@@ -656,6 +811,12 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     : undefined;
   const selectedThread = tradeThreads.find(
     (thread) => thread.id === selectedThreadId,
+  );
+  const viewingHistoricalThread = Boolean(
+    selectedThread
+    && currentRound > 0
+    && selectedThread.roundIndex > 0
+    && selectedThread.roundIndex !== currentRound,
   );
   const selectedPair = selectedThread?.pairingId
     ? pairs.find((pair) => pair.id === selectedThread.pairingId) || {
@@ -747,6 +908,25 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     : readyCount === 0
       ? 'After first seat'
       : 'Preparing';
+  const replayRoundStarts = sourceEvents.reduce<Array<{
+    round: number;
+    eventCount: number;
+  }>>((starts, event, index) => {
+    if (event.type !== 'round.started') return starts;
+    const round = Number(
+      event.data.round
+      ?? event.data.roundIndex
+      ?? event.data.round_index
+      ?? 0,
+    );
+    if (round > 0) starts.push({ round, eventCount: index + 1 });
+    return starts;
+  }, []);
+  const chronicleEvents = (
+    eventView === 'key'
+      ? events.filter((event) => KEY_EVENT_TYPES.has(event.type))
+      : events
+  );
   return (
     <section className={`gm gm-live ${isRegistration ? 'is-registration' : 'is-battle'}`}>
       <div className="gm-utility-row">
@@ -804,18 +984,83 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       </header>
 
       {replayRequested && (
-        <div className="gm-replay-control" role="status">
-          <span className="label">Match replay</span>
-          <p>
-            Event {replayEventCount || 0} / {sourceEvents.length}
-          </p>
-          <button
-            type="button"
-            className="gm-text-link"
-            onClick={() => setReplayEventCount(1)}
-          >
-            Replay from opening bell
-          </button>
+        <div className="gm-replay-control" role="group" aria-label="Match replay controls">
+          <div>
+            <span className="label">Match replay</span>
+            <p>
+              Event {replayEventCount || 0} / {sourceEvents.length}
+            </p>
+          </div>
+          <div className="gm-replay-buttons">
+            <button
+              type="button"
+              onClick={() => setReplayPlaying((playing) => !playing)}
+            >
+              {replayPlaying ? 'Pause replay' : 'Resume replay'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReplayPlaying(false);
+                setReplayEventCount((count) => Math.max(1, (count || 1) - 1));
+              }}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReplayPlaying(false);
+                setReplayEventCount((count) =>
+                  Math.min(sourceEvents.length, (count || 0) + 1),
+                );
+              }}
+            >
+              Next
+            </button>
+            <label>
+              <span>Round</span>
+              <select
+                value={currentRound || ''}
+                onChange={(event) => {
+                  const target = replayRoundStarts.find(
+                    (start) => start.round === Number(event.target.value),
+                  );
+                  if (target) {
+                    setReplayPlaying(false);
+                    setReplayEventCount(target.eventCount);
+                  }
+                }}
+              >
+                {replayRoundStarts.map((start) => (
+                  <option key={start.round} value={start.round}>
+                    {start.round}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Speed</span>
+              <select
+                value={replaySpeed}
+                onChange={(event) => setReplaySpeed(Number(event.target.value))}
+              >
+                <option value={0.5}>0.5×</option>
+                <option value={1}>1×</option>
+                <option value={2}>2×</option>
+                <option value={4}>4×</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setReplayEventCount(1);
+                setReplayPlaying(true);
+              }}
+            >
+              Restart
+            </button>
+          </div>
         </div>
       )}
 
@@ -987,7 +1232,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           </dl>
           <div className="gm-lobby-chronicle" aria-live="polite">
             <span className="label">Latest public record</span>
-            <strong>{EVENT_LABELS[latestEvent?.type || '']?.title || 'The table is open'}</strong>
+            <strong>{latestEvent ? eventTitle(latestEvent) : 'The table is open'}</strong>
             <span>
               {locale === 'zh-CN'
                 ? `${events.length} 条公开事件${
@@ -1117,7 +1362,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           <main className="gm-desk-core">
             <div className="gm-desk-core-head">
               <div>
-                <p className="label">Bargaining chamber · Selected thread</p>
+                <p className="label">
+                  Bargaining chamber ·{' '}
+                  {viewingHistoricalThread ? 'Historical thread' : 'Current round'}
+                </p>
                 <h2>
                   {selectedThread || currentPair
                     ? `${selectedBuyer} × ${selectedSeller}`
@@ -1136,8 +1384,20 @@ export default function GameViewer({ gameId }: { gameId: string }) {
             <TradeThreadRail
               threads={tradeThreads}
               selectedId={selectedThreadId}
+              currentRound={currentRound}
+              followingCurrent={followCurrentThread}
               participantNames={participantNames}
-              onSelect={setSelectedThreadId}
+              onSelect={(id) => {
+                setSelectedThreadId(id);
+                const target = tradeThreads.find((thread) => thread.id === id);
+                if (target?.roundIndex !== currentRound) {
+                  setFollowCurrentThread(false);
+                }
+              }}
+              onFollowCurrent={() => {
+                setFollowCurrentThread(true);
+                if (preferredThread) setSelectedThreadId(preferredThread.id);
+              }}
             />
             <div className="gm-desk-terminal">
               {currentPair ? (
@@ -1234,31 +1494,48 @@ export default function GameViewer({ gameId }: { gameId: string }) {
                 <section className="gm-chronicle">
                   <div className="gm-panel-head">
                     <p className="label">Live chronicle</p>
-                    <p>Public events only</p>
+                    <div className="gm-event-filter" aria-label="Chronicle detail">
+                      <button
+                        type="button"
+                        aria-pressed={eventView === 'key'}
+                        onClick={() => setEventView('key')}
+                      >
+                        Key moments
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={eventView === 'all'}
+                        onClick={() => setEventView('all')}
+                      >
+                        All records
+                      </button>
+                    </div>
                   </div>
                   <div className="gm-chronicle-list" aria-live="polite">
-                    {events
+                    {chronicleEvents
                       .slice(-200)
                       .reverse()
                       .map((event) => (
                         <article key={event.sequence}>
                           <time>{eventTime(event)}</time>
                           <div>
-                            <strong>
-                              {EVENT_LABELS[event.type]?.title || 'Arena event recorded'}
-                            </strong>
+                            <strong>{eventTitle(event)}</strong>
                             <p>{eventDescription(event)}</p>
                           </div>
                         </article>
                       ))}
-                    {events.length > 200 && (
+                    {chronicleEvents.length > 200 && (
                       <p className="empty">
-                        Showing the latest 200 of {events.length} public events.
+                        Showing the latest 200 of {chronicleEvents.length} public records.
                         The proof drawer retains the current audit tail.
                       </p>
                     )}
-                    {events.length === 0 && (
-                      <p className="empty">Waiting for Arena events</p>
+                    {chronicleEvents.length === 0 && (
+                      <p className="empty">
+                        {eventView === 'key'
+                          ? 'Waiting for the next key market moment'
+                          : 'Waiting for Arena records'}
+                      </p>
                     )}
                   </div>
                 </section>

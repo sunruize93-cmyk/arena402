@@ -49,7 +49,7 @@ test('broadcast goods use authoritative round candles when the API supplies them
   assert.equal(grain.candles[1].high, 2_800_000);
   assert.equal(grain.lastClearingAtomic, 2_750_000);
   assert.equal(grain.latestVolume, 6);
-  assert.equal(grain.dataQuality, 'authoritative');
+  assert.equal(grain.dataQuality, 'authoritative_ohlc');
   assert.equal(
     buildBroadcastGoods(state, []).find((good) => good.goodId === 'iron')
       .dataQuality,
@@ -105,6 +105,48 @@ test('leaderboard prefers the live ranking projection and never treats seats as 
   });
   assert.equal(waiting.kind, 'awaiting_authority');
   assert.equal(waiting.rows.every((row) => row.value === null), true);
+});
+
+test('event reference snapshots remain distinct from committed OHLC', () => {
+  const { buildBroadcastGoods } = loadBroadcastModel();
+  const grain = buildBroadcastGoods(
+    {
+      priceSnapshots: [
+        {
+          roundIndex: 1,
+          goodId: 'grain',
+          marketPriceAtomic: '3200000',
+          previousMarketPriceAtomic: '2000000',
+          priceKind: 'event_reference',
+          committedTradeCount: 1,
+          lastClearingAtomic: '3050000',
+        },
+      ],
+    },
+    [],
+  ).find((good) => good.goodId === 'grain');
+
+  assert.equal(grain.dataQuality, 'event_reference');
+  assert.equal(grain.currentAtomic, 3_200_000);
+  assert.equal(grain.previousAtomic, 2_000_000);
+  assert.equal(grain.changePercent, 60);
+  assert.equal(grain.lastClearingAtomic, 3_050_000);
+});
+
+test('completed games prefer frozen rankings over the last live estimate', () => {
+  const { buildBroadcastRankings } = loadBroadcastModel();
+  const ranking = buildBroadcastRankings({
+    phase: 'completed',
+    liveRankings: [
+      { rank: 1, agentId: 'live-leader', netWorthAtomic: '25000000' },
+    ],
+    rankings: [
+      { rank: 1, agentId: 'final-winner', netWorthAtomic: '30000000' },
+    ],
+  });
+
+  assert.equal(ranking.kind, 'final_net_worth');
+  assert.equal(ranking.rows[0].name, 'final-winner');
 });
 
 test('a completed game uses its authoritative final settlement prices', () => {

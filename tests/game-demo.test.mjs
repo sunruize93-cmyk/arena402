@@ -83,3 +83,18 @@ test('the demo game projection follows the visible event phase', () => {
   const closed = buildDemoGameState(round, round.events);
   assert.equal(closed.rounds[1].phase, 'closed');
 });
+
+test('the complete demo state carries every round price snapshot for replay', () => {
+  const { buildDemoGameState, DEMO_ROUNDS } = loadTypeScriptModule(
+    new URL('../src/lib/game-demo.ts', import.meta.url),
+  );
+  const finalRound = DEMO_ROUNDS.at(-1);
+  const allEvents = DEMO_ROUNDS.flatMap((round) => round.events);
+  const state = buildDemoGameState(finalRound, allEvents);
+
+  assert.equal(state.priceSnapshots.length, 20);
+  assert.equal(
+    new Set(state.priceSnapshots.map((snapshot) => snapshot.roundIndex)).size,
+    5,
+  );
+});

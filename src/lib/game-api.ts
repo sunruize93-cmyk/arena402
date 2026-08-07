@@ -100,11 +100,42 @@ export interface CurrentGame {
   marketProtocol?: 'fcfs.v1' | 'agent_a2a.v1';
   roundPhase: string | null;
   joinedByMe: boolean;
+  myParticipantId?: string | null;
   participants: CurrentGameParticipant[];
   matchmaking: CurrentGameMatchmaking;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+}
+
+export interface OwnerPortfolioSnapshot {
+  cashAtomic: string;
+  holdings: Record<string, number>;
+}
+
+export interface GameOwnerState {
+  gameId: string;
+  participantId: string;
+  agentId: string;
+  displayName: string;
+  gamePhase: string;
+  participantStatus: string;
+  initialPortfolio: OwnerPortfolioSnapshot;
+  currentPortfolio: OwnerPortfolioSnapshot;
+  finalPortfolio: OwnerPortfolioSnapshot | null;
+  roundPortfolios: Array<OwnerPortfolioSnapshot & {
+    roundId: string;
+    roundIndex: number;
+    capturedAt: string;
+  }>;
+  reputation: AgentReputation;
+  ranking: {
+    rank: number;
+    netWorthAtomic: string;
+    tier: string;
+    calculatedAt: string;
+  } | null;
+  schemaVersion: string;
 }
 
 export interface CurrentGameResponse {
@@ -373,6 +404,16 @@ export function getPawnhouseGame(
     `/api/v1/pawnhouse/games/${encodeURIComponent(gameId)}`,
     signal,
   ).then(decodePawnhouseGameState);
+}
+
+export function getGameOwnerState(
+  gameId: string,
+  signal?: AbortSignal,
+): Promise<GameOwnerState> {
+  return gameGet<GameOwnerState>(
+    `/api/v1/games/${encodeURIComponent(gameId)}/me`,
+    signal,
+  );
 }
 
 export function getPawnhouseTimeline(

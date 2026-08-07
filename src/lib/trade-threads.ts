@@ -33,6 +33,25 @@ export interface TradeThread {
   active: boolean;
 }
 
+export function preferredTradeThread(
+  threads: TradeThread[],
+  currentRound: number,
+): TradeThread | undefined {
+  return threads.find(
+    (thread) =>
+      thread.roundIndex === currentRound
+      && thread.active
+      && Boolean(thread.pairingId),
+  )
+    || threads.find(
+      (thread) => thread.roundIndex === currentRound && thread.active,
+    )
+    || threads.find((thread) => thread.roundIndex === currentRound)
+    || threads.find((thread) => thread.active && Boolean(thread.pairingId))
+    || threads.find((thread) => thread.active)
+    || threads[0];
+}
+
 interface MutableTradeThread extends TradeThread {
   engaged: boolean;
 }
@@ -330,5 +349,22 @@ export function buildTradeThreads(
 
   return [...threads.values()]
     .sort((left, right) => right.latestSequence - left.latestSequence)
-    .map(({ engaged: _engaged, ...thread }) => thread);
+    .map((thread) => ({
+      id: thread.id,
+      pairingId: thread.pairingId,
+      requestId: thread.requestId,
+      roundId: thread.roundId,
+      roundIndex: thread.roundIndex,
+      buyerId: thread.buyerId,
+      sellerId: thread.sellerId,
+      goodId: thread.goodId,
+      status: thread.status,
+      stageIndex: thread.stageIndex,
+      turnCount: thread.turnCount,
+      rfqAttempt: thread.rfqAttempt,
+      agreedPriceAtomic: thread.agreedPriceAtomic,
+      txHash: thread.txHash,
+      latestSequence: thread.latestSequence,
+      active: thread.active,
+    }));
 }

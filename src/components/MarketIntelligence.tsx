@@ -22,7 +22,8 @@ function gold(value: number | null): string {
 }
 
 function qualityLabel(good: BroadcastGood): string {
-  if (good.dataQuality === 'authoritative') return 'COMMITTED OHLC';
+  if (good.dataQuality === 'event_reference') return 'EVENT REFERENCE';
+  if (good.dataQuality === 'authoritative_ohlc') return 'COMMITTED OHLC';
   if (good.dataQuality === 'final_settlement') return 'FINAL SETTLEMENT';
   return 'AWAITING AUTHORITY';
 }
@@ -77,13 +78,13 @@ export function MarketCandleChart({ good }: { good: BroadcastGood }) {
   if (candles.length === 0) {
     return (
       <div className="gm-price-chart-empty">
-        <strong>Price authority pending</strong>
-        <span>The Arena API has not published committed OHLC for this good.</span>
+        <strong>Reference price pending</strong>
+        <span>The Arena has not published this round’s event-driven reference price.</span>
       </div>
     );
   }
 
-  const values = candles.flatMap((candle) => [candle.high, candle.low]);
+  const values = candles.map((candle) => candle.close);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = Math.max(max - min, max * 0.08, 1);
@@ -94,13 +95,19 @@ export function MarketCandleChart({ good }: { good: BroadcastGood }) {
   const plotHeight = height - top - bottom;
   const step = (width - 48) / candles.length;
   const y = (value: number) => top + ((max - value) / span) * plotHeight;
+  const points = candles
+    .map((candle, index) => {
+      const x = 38 + index * step + step / 2;
+      return `${x},${y(candle.close)}`;
+    })
+    .join(' ');
 
   return (
     <svg
       className="gm-price-chart-svg"
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={`${good.name} committed price candles by round`}
+      aria-label={`${good.name} event reference price by round`}
     >
       {[0, 0.5, 1].map((ratio) => (
         <line
@@ -112,29 +119,16 @@ export function MarketCandleChart({ good }: { good: BroadcastGood }) {
           y2={top + ratio * plotHeight}
         />
       ))}
+      <polyline className="gm-reference-line" points={points} />
       {candles.map((candle, index) => {
         const x = 38 + index * step + step / 2;
-        const openY = y(candle.open);
-        const closeY = y(candle.close);
-        const up = candle.close >= candle.open;
-        const bodyWidth = Math.min(22, step * 0.46);
         return (
           <g key={`${good.goodId}-${candle.round}`}>
-            <line
-              className="gm-price-wick"
-              x1={x}
-              x2={x}
-              y1={y(candle.high)}
-              y2={y(candle.low)}
-            />
-            <rect
-              className={`gm-price-candle ${up ? 'is-up' : 'is-down'}${
-                candle.carriedForward ? ' is-flat' : ''
-              }`}
-              x={x - bodyWidth / 2}
-              y={Math.min(openY, closeY)}
-              width={bodyWidth}
-              height={Math.max(Math.abs(closeY - openY), 3)}
+            <circle
+              className="gm-reference-dot"
+              cx={x}
+              cy={y(candle.close)}
+              r="5"
             />
             <text className="gm-price-round" x={x} y={height - 8}>
               R{candle.round}
@@ -190,7 +184,7 @@ export default function MarketIntelligence({
     <section className="gm-market-intelligence" aria-labelledby="market-price-title">
       <div className="gm-panel-head">
         <p className="label" id="market-price-title">Market intelligence</p>
-        <p>Only committed trades enter the price record</p>
+        <p>Event reference prices · committed trades shown separately</p>
       </div>
       <div className="gm-price-grid-cards" role="list" aria-label="Official prices">
         {goods.map((good) => (
@@ -238,22 +232,29 @@ export default function MarketIntelligence({
           <span>
             {selected.dataQuality === 'final_settlement'
               ? 'FINAL SETTLEMENT'
-              : 'LAST COMMITTED'}
+              : selected.dataQuality === 'authoritative_ohlc'
+                ? 'COMMITTED OHLC'
+                : 'EVENT REFERENCE'}
           </span>
         </div>
       </div>
       {latestCandle && (
         <div className="gm-price-authority">
-          <dl aria-label={`${selected.name} latest committed OHLC`}>
+          <dl aria-label={`${selected.name} latest public price facts`}>
             {[
-              ['Open', latestCandle.open],
-              ['High', latestCandle.high],
-              ['Low', latestCandle.low],
-              ['Close', latestCandle.close],
+              ['Reference', gold(latestCandle.close)],
+              ['Prior reference', gold(selected.previousAtomic)],
+              [
+                'Change',
+                selected.changePercent === null
+                  ? '—'
+                  : `${selected.changePercent >= 0 ? '+' : ''}${selected.changePercent.toFixed(2)}%`,
+              ],
+              ['Last clearing', gold(selected.lastClearingAtomic)],
             ].map(([label, value]) => (
               <div key={String(label)}>
                 <dt>{label}</dt>
-                <dd>{gold(Number(value))}</dd>
+                <dd>{String(value)}</dd>
               </div>
             ))}
           </dl>
@@ -263,7 +264,7 @@ export default function MarketIntelligence({
               {latestCandle.committedTradeCount ?? '—'} COMMITTED TRADES
             </span>
             <span>
-              LAST CLEARING {gold(selected.lastClearingAtomic)}
+              REFERENCE PRICE ≠ TRADE PRICE
             </span>
           </div>
         </div>

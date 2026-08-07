@@ -465,6 +465,20 @@
   opacity: 0.55;
 }
 
+.broadcast-reference-line {
+  fill: none;
+  stroke: var(--broadcast-gold, #d8aa4e);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.broadcast-reference-dot {
+  fill: #10151a;
+  stroke: var(--broadcast-gold, #d8aa4e);
+  stroke-width: 4;
+}
+
 .broadcast-round-label {
   fill: var(--grey);
   font-family: var(--mono);

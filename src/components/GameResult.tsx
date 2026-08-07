@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AgentReputationCard from '@/components/AgentReputationCard';
 import {
+  GameOwnerState,
+  getGameOwnerState,
   getPawnhouseGame,
   PawnhouseGameState,
 } from '@/lib/game-api';
@@ -51,6 +53,7 @@ export default function GameResult({ gameId }: { gameId: string }) {
     demo ? DEMO_FINAL_GAME_STATE : null,
   );
   const [error, setError] = useState('');
+  const [ownerState, setOwnerState] = useState<GameOwnerState | null>(null);
 
   useEffect(() => {
     if (demo) return;
@@ -65,6 +68,9 @@ export default function GameResult({ gameId }: { gameId: string }) {
           setError('The final ledger is not available from the public Arena API.');
         }
       });
+    void getGameOwnerState(gameId, controller.signal)
+      .then(setOwnerState)
+      .catch(() => setOwnerState(null));
     return () => controller.abort();
   }, [demo, gameId]);
 
@@ -103,7 +109,10 @@ export default function GameResult({ gameId }: { gameId: string }) {
   }, [state]);
 
   const winner = rankings[0];
-  const portfolioLabels = ['Initial portfolio', 'Final portfolio'];
+  const portfolioRows = [
+    { label: 'Initial portfolio', value: ownerState?.initialPortfolio },
+    { label: 'Final portfolio', value: ownerState?.finalPortfolio },
+  ];
 
   return (
     <section className="gm gm-result">
@@ -180,20 +189,40 @@ export default function GameResult({ gameId }: { gameId: string }) {
           <p>Server snapshots only · old games remain read-only</p>
         </div>
         <div className="gm-personal-result-grid">
-          {portfolioLabels.map((label) => (
-            <article key={label}>
+          {portfolioRows.map(({ label, value }) => (
+            <article key={label} className="gm-owner-portfolio-card">
               <p className="label">{label}</p>
-              <p className="empty">
-                Awaiting an authenticated owner-scoped portfolio snapshot from Arena.
-              </p>
+              {value ? (
+                <>
+                  <strong>{gold(value.cashAtomic)} <small>GOLD</small></strong>
+                  <dl>
+                    {Object.entries(value.holdings).map(([good, quantity]) => (
+                      <div key={good}>
+                        <dt>{good}</dt>
+                        <dd>{quantity}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
+              ) : (
+                <p className="empty">
+                  Sign in as this game’s owner to view the private portfolio snapshot.
+                </p>
+              )}
             </article>
           ))}
           <article>
             <p className="label">Final reputation</p>
-            <AgentReputationCard reputation={null} />
-            <p className="empty">
-              Awaiting an authenticated reputation delta from Arena.
-            </p>
+            <AgentReputationCard reputation={ownerState?.reputation || null} />
+            {ownerState?.ranking ? (
+              <p>
+                Rank {ownerState.ranking.rank} · {gold(ownerState.ranking.netWorthAtomic)} gold
+              </p>
+            ) : (
+              <p className="empty">
+                Sign in as this game’s owner to view reputation and rank.
+              </p>
+            )}
           </article>
         </div>
       </section>
