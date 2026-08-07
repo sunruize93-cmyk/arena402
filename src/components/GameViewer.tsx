@@ -9,6 +9,7 @@ import MarketHistoryBoard from '@/components/MarketHistoryBoard';
 import MatchmakingPool from '@/components/MatchmakingPool';
 import NegotiationTerminal from '@/components/NegotiationTerminal';
 import SettlementRail from '@/components/SettlementRail';
+import TradeThreadRail from '@/components/TradeThreadRail';
 import { useLocale } from '@/components/LocaleProvider';
 import {
   advanceDemoPlayback,
@@ -30,6 +31,7 @@ import {
 } from '@/lib/live-game-feed';
 import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 import { readAgentReputation } from '@/lib/reputation';
+import { buildTradeThreads } from '@/lib/trade-threads';
 import {
   activePairingIds,
   timelinePairingId,
@@ -472,6 +474,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   );
   const [myParticipantId, setMyParticipantId] = useState('');
   const [leavingPool, setLeavingPool] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState('');
   const [replayEventCount, setReplayEventCount] = useState<number | null>(null);
   const [demoPlayback, setDemoPlayback] = useState<DemoPlaybackPosition>({
     roundIndex: 0,
@@ -482,6 +485,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     setLiveFeed(null);
     setMyParticipantId('');
     setActionError('');
+    setSelectedThreadId('');
     setReplayEventCount(null);
   }, [gameId]);
 
@@ -561,7 +565,29 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const bulletin = useMemo(() => worldBulletin(events), [events]);
   const pairs = useMemo(() => pairingRows(events, state), [events, state]);
   const agents = useMemo(() => agentRows(state, events), [state, events]);
+  const participantNames = useMemo(() => {
+    const names = new Map<string, string>();
+    agents.forEach((agent) => {
+      if (agent.participantId) names.set(agent.participantId, agent.name);
+      if (agent.agentId) names.set(agent.agentId, agent.name);
+    });
+    return names;
+  }, [agents]);
+  const tradeThreads = useMemo(() => buildTradeThreads(events), [events]);
   const trades = useMemo(() => buildLedgerTrades(events), [events]);
+
+  useEffect(() => {
+    if (tradeThreads.length === 0) {
+      setSelectedThreadId('');
+      return;
+    }
+    if (tradeThreads.some((thread) => thread.id === selectedThreadId)) return;
+    const preferred =
+      tradeThreads.find((thread) => thread.active && thread.pairingId)
+      || tradeThreads.find((thread) => thread.active)
+      || tradeThreads[0];
+    setSelectedThreadId(preferred.id);
+  }, [selectedThreadId, tradeThreads]);
   const replayRound = [...events]
     .reverse()
     .find((event) => event.type === 'round.started');
@@ -628,7 +654,42 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const myAgent = myParticipantId
     ? agents.find((agent) => agent.participantId === myParticipantId)
     : undefined;
-  const currentPair = pairs.find((pair) => pair.active) || pairs[0];
+  const selectedThread = tradeThreads.find(
+    (thread) => thread.id === selectedThreadId,
+  );
+  const selectedPair = selectedThread?.pairingId
+    ? pairs.find((pair) => pair.id === selectedThread.pairingId) || {
+        id: selectedThread.pairingId,
+        status: selectedThread.status,
+        roundId: selectedThread.roundId,
+        roundIndex: selectedThread.roundIndex,
+        buyerId: selectedThread.buyerId,
+        sellerId: selectedThread.sellerId,
+        buyer:
+          participantNames.get(selectedThread.buyerId)
+          || shortAgent(selectedThread.buyerId, 'Buyer'),
+        seller:
+          participantNames.get(selectedThread.sellerId)
+          || shortAgent(selectedThread.sellerId, 'Seller'),
+        good: (selectedThread.goodId || 'goods').toUpperCase(),
+        active: selectedThread.active,
+      }
+    : undefined;
+  const currentPair =
+    selectedThread
+      ? selectedPair
+      : pairs.find((pair) => pair.active) || pairs[0];
+  const selectedBuyer = selectedThread
+    ? participantNames.get(selectedThread.buyerId)
+      || shortAgent(selectedThread.buyerId, 'Buyer')
+    : currentPair?.buyer;
+  const selectedSeller = selectedThread
+    ? participantNames.get(selectedThread.sellerId)
+      || shortAgent(
+        selectedThread.sellerId,
+        locale === 'zh-CN' ? '卖方审阅中' : 'Seller reviewing',
+      )
+    : currentPair?.seller;
 
   async function leavePool() {
     if (!myParticipantId || !registrationOpen || leavingPool) return;
@@ -1056,24 +1117,35 @@ export default function GameViewer({ gameId }: { gameId: string }) {
           <main className="gm-desk-core">
             <div className="gm-desk-core-head">
               <div>
-                <p className="label">Bargaining chamber · Live focus</p>
+                <p className="label">Bargaining chamber · Selected thread</p>
                 <h2>
-                  {currentPair
-                    ? `${currentPair.buyer} × ${currentPair.seller}`
+                  {selectedThread || currentPair
+                    ? `${selectedBuyer} × ${selectedSeller}`
                     : 'Waiting for a pairing'}
                 </h2>
               </div>
               <div className="gm-desk-core-meta">
-                <span>{currentPair?.good || 'QUEUE OPEN'}</span>
+                <span>
+                  {selectedThread?.goodId.toUpperCase()
+                    || currentPair?.good
+                    || 'QUEUE OPEN'}
+                </span>
                 <b>{String(events.length).padStart(3, '0')} EVENTS</b>
               </div>
             </div>
+            <TradeThreadRail
+              threads={tradeThreads}
+              selectedId={selectedThreadId}
+              participantNames={participantNames}
+              onSelect={setSelectedThreadId}
+            />
             <div className="gm-desk-terminal">
               {currentPair ? (
                 <NegotiationTerminal
                   events={events}
                   pairingId={currentPair.id}
                   pairingStatus={currentPair.status}
+                  participantNames={participantNames}
                   onReplay={
                     demo
                       ? () =>
@@ -1087,12 +1159,25 @@ export default function GameViewer({ gameId }: { gameId: string }) {
               ) : (
                 <div className="gm-waiting-board">
                   <span className="gm-waiting-mark" aria-hidden="true">II</span>
-                  <p>The bargaining chamber is quiet.</p>
-                  <span className="label">Waiting for a pairing</span>
+                  <p>
+                    {selectedThread
+                      ? 'The RFQ is waiting for a seller to open negotiations.'
+                      : 'The bargaining chamber is quiet.'}
+                  </p>
+                  <span className="label">
+                    {selectedThread ? 'Seller selection pending' : 'Waiting for a pairing'}
+                  </span>
                 </div>
               )}
             </div>
-            <SettlementRail events={events} pairing={currentPair?.id || pairs[0]?.id} />
+            <SettlementRail
+              events={events}
+              pairing={
+                selectedThread
+                  ? selectedThread.pairingId || null
+                  : currentPair?.id
+              }
+            />
           </main>
 
           <aside className="gm-desk-panel gm-desk-inspector">

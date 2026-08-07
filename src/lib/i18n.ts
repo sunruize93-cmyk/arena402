@@ -1039,6 +1039,11 @@ const TEMPLATE_RULES: Array<[RegExp, (...matches: string[]) => string]> = [
     `确定撤销 ${device} 吗？其连接器令牌和有效绑定将停止工作。`],
   [/^Round (\d+)$/i, (round) => `第 ${round} 回合`],
   [/^ROUND (\d+)$/i, (round) => `第 ${round} 回合`],
+  [/^(\d+) LIVE · (\d+) SETTLED$/i, (live, settled) =>
+    `${live} 条进行中 · ${settled} 条已结算`],
+  [/^(\d+) TURNS?$/i, (turns) => `${turns} 轮`],
+  [/^R(\d+) · (.+)$/i, (round, good) =>
+    `第 ${round} 回合 · ${translateText(good, 'zh-CN')}`],
   [/^(\d+) events$/i, (count) => `${count} 条事件`],
   [/^(\d+) of (\d+) ready$/i, (ready, total) => `${ready} / ${total} 就绪`],
   [/^(\d+) public events? · Last event #(\d+)$/i, (count, sequence) =>

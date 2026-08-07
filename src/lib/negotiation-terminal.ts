@@ -92,6 +92,7 @@ function terminalPrice(value: unknown): string | null {
 export function buildNegotiationTerminalLines(
   events: PawnhouseTimelineEvent[],
   pairingId: string,
+  participantNames: ReadonlyMap<string, string> = new Map(),
 ): NegotiationTerminalLine[] {
   const pairing = events.find(
     (event) =>
@@ -122,8 +123,8 @@ export function buildNegotiationTerminalLines(
     ),
     'seller',
   );
-  const buyer = agentName(buyerId, 'Buyer');
-  const seller = agentName(sellerId, 'Seller');
+  const buyer = participantNames.get(buyerId) || agentName(buyerId, 'Buyer');
+  const seller = participantNames.get(sellerId) || agentName(sellerId, 'Seller');
   const good = cleanText(
     pick(pairing.data, 'goodId', 'good_id', 'good'),
     'goods',

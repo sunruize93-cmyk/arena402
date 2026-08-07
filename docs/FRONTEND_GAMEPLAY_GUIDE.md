@@ -33,7 +33,7 @@ Arena 402 不是玩家手动下单的交易游戏。
 | 快速入场 | `/play`, `PlayJourney` | 选择 `READY` Hosted Agent，自动预检、Mandate、Join |
 | 自定义入场 | `/game`, `GameLobby`, `GameEntryDesk` | Agent -> 20 金 Loadout -> Mandate -> Join |
 | 等待池 | `/game/[gameId]#pool`, `GameViewer` | 席位、开赛阈值、倒计时、退出 |
-| 回合市场 | `/game/[gameId]#market` | 事件、Intent、RFQ Engagement、谈判、价格和倒计时；历史 FCFS 局按冻结协议回放 |
+| 回合市场 | `/game/[gameId]#market` | 事件、Intent、RFQ、Engagement、谈判、价格和倒计时；`TradeThreadRail` 可选择并回放完整交互链，历史 FCFS 局按冻结协议回放 |
 | 结算 | 游戏页 `SettlementRail` | 接受、授权、链确认、库存提交分阶段显示 |
 | 结果 | `/game/[gameId]/result`, `GameResult` | 最终价格、净值榜、回放和下一局入口 |
 | 公共证据 | `/ledger`, `ImperialLedger` | 跨局结算状态、哈希、Explorer 元数据 |
@@ -179,6 +179,19 @@ negotiation、final prices 和 final rankings，但不保证：
 
 谈判是有限轮交互，不要求为了“看起来有过程”而强制用完全部轮次。服务端的
 proposal ID、turn order、价格/限价和冻结条款是权威。
+
+`TradeThreadRail` 将同一条公开业务链投影为：
+
+```text
+RFQ -> Seller selected -> Bargaining -> Deal -> Chain
+```
+
+`requestId` 负责连接 A2A 的 RFQ、Engagement、Negotiation 和 Settlement。
+没有形成 Engagement 的 RFQ 仍保留为 `Seller reviewing` 或 `Not selected`，但前端
+不能猜测卖方身份。选择任一已形成 Engagement 的线程会同时切换
+`NegotiationTerminal` 和 `SettlementRail`；选择未成交 RFQ 时，终端显示等待态，
+结算轨道必须清空，不能沿用上一笔交易的结算结果。完成态仍以
+`settlement.inventory_committed` 为准。
 
 | 状态 | 前端解释 |
 | --- | --- |

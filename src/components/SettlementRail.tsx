@@ -35,16 +35,21 @@ export default function SettlementRail({
   pairing,
 }: {
   events: PawnhouseTimelineEvent[];
-  pairing?: string;
+  pairing?: string | null;
 }) {
   const latestSettlement = [...events]
     .reverse()
     .find((event) => event.type.startsWith('settlement.'));
-  const selectedPairing = pairing
-    || (latestSettlement ? timelinePairingId(latestSettlement) : '');
+  const selectedPairing =
+    pairing === undefined
+      ? latestSettlement
+        ? timelinePairingId(latestSettlement)
+        : ''
+      : pairing || '';
   const settlementEvents = events.filter(
     (event) =>
       event.type.startsWith('settlement.')
+      && pairing !== null
       && (!selectedPairing || timelinePairingId(event) === selectedPairing),
   );
   const failed = settlementEvents.find((event) => FAILURE_TYPES.has(event.type));

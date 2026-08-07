@@ -2696,7 +2696,7 @@
 
 .gm-desk-core {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   isolation: isolate;
 }
 
@@ -2766,6 +2766,180 @@
   font-size: 6px;
   font-weight: 500;
   letter-spacing: 0.14em;
+}
+
+.gm-thread-rail {
+  min-width: 0;
+  padding: 11px 14px 13px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.018), transparent 42%),
+    var(--ink-deep);
+}
+
+.gm-thread-rail-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 9px;
+}
+
+.gm-thread-rail-head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+}
+
+.gm-thread-rail-head span,
+.gm-thread-rail-head > p {
+  color: var(--grey-dark);
+  font-size: 6px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gm-thread-list {
+  display: grid;
+  grid-auto-columns: minmax(190px, 0.62fr);
+  grid-auto-flow: column;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.gm-thread-card {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 9px 10px 8px;
+  border: 1px solid var(--line);
+  background: var(--ink);
+  color: var(--paper-dim);
+  font-family: var(--mono);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.gm-thread-card:hover {
+  border-color: var(--line-strong);
+  background: rgba(255,255,255,0.026);
+}
+
+.gm-thread-card:focus-visible {
+  outline: 1px solid var(--paper);
+  outline-offset: 2px;
+}
+
+.gm-thread-card[aria-pressed='true'] {
+  border-color: var(--paper-dim);
+  background: rgba(255,255,255,0.045);
+}
+
+.gm-thread-card-kicker {
+  color: var(--grey-dark);
+  font-size: 6px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.gm-thread-card > strong {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gm-thread-card > strong span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-thread-card > strong span:last-child { text-align: right; }
+.gm-thread-card > strong b {
+  color: var(--grey-dark);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 400;
+}
+
+.gm-thread-stages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.gm-thread-stages i {
+  overflow: hidden;
+  padding-top: 4px;
+  border-top: 2px solid var(--line);
+  color: var(--grey-dark);
+  font-size: 5px;
+  font-style: normal;
+  letter-spacing: 0.05em;
+  text-overflow: clip;
+}
+
+.gm-thread-stages i.is-done {
+  border-color: var(--grey);
+  color: var(--grey);
+}
+
+.gm-thread-stages i.is-current {
+  border-color: var(--paper);
+  color: var(--paper);
+}
+
+.gm-thread-card.is-expired .gm-thread-stages i.is-current,
+.gm-thread-card.is-rejected .gm-thread-stages i.is-current,
+.gm-thread-card.is-failed .gm-thread-stages i.is-current {
+  border-style: dashed;
+}
+
+.gm-thread-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gm-thread-card-foot em,
+.gm-thread-card-foot b {
+  overflow: hidden;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gm-thread-card-foot em { color: var(--paper-dim); }
+.gm-thread-card-foot b { color: var(--grey-dark); }
+
+.gm-thread-empty {
+  padding: 10px;
+  border: 1px dashed var(--line);
+  color: var(--grey-dark);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .gm-desk-terminal {

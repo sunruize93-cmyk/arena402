@@ -197,3 +197,23 @@ test('Chinese translation covers live market, history, and accessibility copy', 
     '确定退出匹配池并撤销未使用的对局支付授权吗？',
   );
 });
+
+test('Chinese translation covers the trade-thread interaction rail', () => {
+  const { translateText } = loadI18n();
+
+  assert.equal(
+    translateText('Bargaining chamber · Selected thread', 'zh-CN'),
+    '议价室 · 当前交易线程',
+  );
+  assert.equal(
+    translateText('RFQ → negotiation → settlement', 'zh-CN'),
+    '询价 → 协商 → 结算',
+  );
+  assert.equal(
+    translateText('2 LIVE · 3 SETTLED', 'zh-CN'),
+    '2 条进行中 · 3 条已结算',
+  );
+  assert.equal(translateText('R6 · IRON', 'zh-CN'), '第 6 回合 · 铁料');
+  assert.equal(translateText('2 TURNS', 'zh-CN'), '2 轮');
+  assert.equal(translateText('Seller reviewing', 'zh-CN'), '卖方审阅中');
+});

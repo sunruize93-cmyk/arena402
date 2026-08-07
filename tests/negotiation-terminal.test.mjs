@@ -188,3 +188,30 @@ test('the terminal renders the production A2A engagement chain', () => {
   assert.match(transcript, /Three gold for one gem/);
   assert.match(transcript, /TX: 0xa2a402/);
 });
+
+test('the terminal can replace public participant IDs with frozen display names', () => {
+  const terminal = loadNegotiationTerminal();
+  const lines = terminal.buildNegotiationTerminalLines(
+    [
+      {
+        sequence: 1,
+        type: 'market.engagement_created',
+        data: {
+          requestId: 'request-name',
+          buyerParticipantId: 'gp:buyer-long-id',
+          sellerParticipantId: 'gp:seller-long-id',
+          good: 'iron',
+        },
+      },
+    ],
+    'pairing:engagement:request-name',
+    new Map([
+      ['gp:buyer-long-id', 'Arena Official 02'],
+      ['gp:seller-long-id', 'Arena Official 10'],
+    ]),
+  );
+
+  assert.match(lines[0].text, /Arena Official 02/);
+  assert.match(lines[1].text, /Arena Official 10/);
+  assert.doesNotMatch(lines[0].text, /gp:buyer/);
+});

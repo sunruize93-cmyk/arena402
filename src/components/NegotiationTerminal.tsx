@@ -14,6 +14,7 @@ interface NegotiationTerminalProps {
   events: PawnhouseTimelineEvent[];
   pairingId: string;
   pairingStatus?: string;
+  participantNames?: ReadonlyMap<string, string>;
   onReplay?: () => void;
 }
 
@@ -21,16 +22,17 @@ export default function NegotiationTerminal({
   events,
   pairingId,
   pairingStatus,
+  participantNames = new Map(),
   onReplay,
 }: NegotiationTerminalProps) {
   const { locale } = useLocale();
   const lines = useMemo(
     () =>
-      buildNegotiationTerminalLines(events, pairingId).map((line) => ({
+      buildNegotiationTerminalLines(events, pairingId, participantNames).map((line) => ({
         ...line,
         text: translateText(line.text, locale),
       })),
-    [events, locale, pairingId],
+    [events, locale, pairingId, participantNames],
   );
   const [visibleChars, setVisibleChars] = useState<Record<string, number>>({});
   const [reduceMotion, setReduceMotion] = useState(false);
