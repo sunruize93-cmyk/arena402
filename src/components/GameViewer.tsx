@@ -32,6 +32,11 @@ import {
 import type { LiveGameFeedSnapshot } from '@/lib/live-game-feed';
 import { readAgentReputation } from '@/lib/reputation';
 import {
+  buildReplayRoundStarts,
+  initialReplayEventCount,
+  timelineEventRound,
+} from '@/lib/replay-position';
+import {
   buildTradeThreads,
   preferredTradeThread,
 } from '@/lib/trade-threads';
@@ -669,6 +674,10 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     : demo
       ? demoEvents
       : liveEvents;
+  const replayInitialEventCount = useMemo(
+    () => initialReplayEventCount(sourceEvents),
+    [sourceEvents],
+  );
   const events =
     replayRequested && replayEventCount !== null
       ? sourceEvents.slice(0, replayEventCount)
@@ -680,9 +689,11 @@ export default function GameViewer({ gameId }: { gameId: string }) {
       return;
     }
     setReplayEventCount((current) =>
-      current === null ? 1 : Math.min(current, sourceEvents.length),
+      current === null
+        ? replayInitialEventCount
+        : Math.min(current, sourceEvents.length),
     );
-  }, [replayRequested, sourceEvents.length]);
+  }, [replayInitialEventCount, replayRequested, sourceEvents.length]);
 
   useEffect(() => {
     if (
@@ -724,14 +735,9 @@ export default function GameViewer({ gameId }: { gameId: string }) {
   const trades = useMemo(() => buildLedgerTrades(events), [events]);
   const replayRound = [...events]
     .reverse()
-    .find((event) => event.type === 'round.started');
+    .find((event) => timelineEventRound(event) !== null);
   const currentRound = replayRequested
-    ? Number(
-        replayRound?.data.round
-        ?? replayRound?.data.roundIndex
-        ?? replayRound?.data.round_index
-        ?? 0,
-      )
+    ? timelineEventRound(replayRound) ?? 0
     : Number(state?.currentRound || 0);
   const preferredThread = useMemo(
     () => preferredTradeThread(tradeThreads, currentRound),
@@ -908,20 +914,7 @@ export default function GameViewer({ gameId }: { gameId: string }) {
     : readyCount === 0
       ? 'After first seat'
       : 'Preparing';
-  const replayRoundStarts = sourceEvents.reduce<Array<{
-    round: number;
-    eventCount: number;
-  }>>((starts, event, index) => {
-    if (event.type !== 'round.started') return starts;
-    const round = Number(
-      event.data.round
-      ?? event.data.roundIndex
-      ?? event.data.round_index
-      ?? 0,
-    );
-    if (round > 0) starts.push({ round, eventCount: index + 1 });
-    return starts;
-  }, []);
+  const replayRoundStarts = buildReplayRoundStarts(sourceEvents);
   const chronicleEvents = (
     eventView === 'key'
       ? events.filter((event) => KEY_EVENT_TYPES.has(event.type))
@@ -970,7 +963,13 @@ export default function GameViewer({ gameId }: { gameId: string }) {
         </div>
         <div className="gm-head-status">
           <p className="label">
-            {isRegistration ? 'Before the opening bell' : 'Now in session'}
+            {isRegistration
+              ? 'Before the opening bell'
+              : replayRequested
+                ? 'Match replay'
+                : isComplete
+                  ? 'Final ledger'
+                  : 'Now in session'}
           </p>
           <p>
             {isRegistration
