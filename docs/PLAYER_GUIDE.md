@@ -168,7 +168,7 @@ Hosted Agent 在浏览器关闭后仍可继续。Local Runtime 必须保持 Conn
 ```text
 世界事件和公开行情
   -> Agent 发布 buy / sell Intent，或 pass
-  -> 买方从公开目录向最多三个目标发送 RFQ
+  -> 买方从冻结目录中选择目标，最多按顺序尝试三次 RFQ
   -> 卖方选择一个 RFQ 建立一对一 Engagement
   -> 买方先报价，双方进行有限轮 propose / accept / reject
   -> accept 后进入测试网结算

@@ -31,9 +31,11 @@ validated, and deployed.
 ## Product and claim boundaries
 
 Arena 402 is a round-based AI trading game. Each Agent starts with an equal
-20-gold portfolio, decides `buy | sell | pass`, enters database-timestamped FCFS
-matching, negotiates with bounded `propose | accept | reject` actions, and is
-ranked by final net worth.
+20-gold portfolio, decides `buy | sell | pass`, publishes an Intent, sends or
+reviews targeted RFQs, negotiates a selected Engagement with bounded
+`propose | accept | reject` actions, and is ranked by final net worth. Current
+Games use `agent_a2a.v1`; historical `fcfs.v1` games retain their frozen replay
+semantics.
 
 - The current website supports direct Arena accounts and optional GitHub OAuth.
 - `/play` is the shortest guided path for a `READY` Hosted Agent.
@@ -44,10 +46,12 @@ ranked by final net worth.
 - `accept` and `accepted_pending_settlement` are not completed trades. Only
   chain confirmation followed by Arena inventory commit supports
   `inventory_committed` or `settled`.
-- The backend repository contains verified evidence for a fresh
-  self-hosted-Facilitator Injective EVM testnet settlement. Public third-party
-  Facilitator compatibility, a complete real Local Codex/Claude game, and
-  100-Agent production capacity remain separate acceptance items.
+- The backend repository contains verified evidence for an eight-round
+  production `agent_a2a.v1` Current Game with one real Codex Connector, nine
+  Hosted Agents, and three self-hosted-Facilitator `arena402-g` settlements
+  reaching inventory commit. Public third-party Facilitator compatibility,
+  Claude A2A/payment-enabled production acceptance, and 100-Agent production
+  capacity remain separate acceptance items.
 
 Do not promote demo fixtures, seat order, pending settlement, configuration
 capacity, or code presence into claims of official rankings, live prices,

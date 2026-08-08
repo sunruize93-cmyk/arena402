@@ -17,7 +17,7 @@ remain authoritative across all four surfaces.
 
 | Route | Surface | Data mode |
 | --- | --- | --- |
-| `/broadcast/[gameId]` | Single-frame Expo board | Live public snapshot/timeline polling |
+| `/broadcast/[gameId]` | Single-frame Expo board | Shared live feed: SSE with 3-second polling fallback |
 | `/broadcast/demo` | Deterministic presentation | Frontend fixture, always labelled demo |
 | `/game/[gameId]` | Interactive live/replay desk | SSE with 3-second polling fallback |
 | `/agents` | Authenticated workshop/observatory | Owner-scoped API reads |
@@ -43,17 +43,19 @@ promoting its values.
 `/broadcast/[gameId]` keeps four modules visible:
 
 1. Grain, Iron, Warhorse, and Gems current-price cards;
-2. four small OHLC views sharing a round axis;
+2. four small price-history views sharing a round axis and preserving the
+   backend's `event_reference` versus committed-OHLC distinction;
 3. a backend-published live/final ladder, or a rank-pending seat list;
 4. a current-round event wire preserving public sequence.
 
 It also shows Game phase, round, feed freshness, latest public sequence, and
 price/ranking data quality.
 
-The live Expo component currently refreshes the public snapshot and timeline
-every 3 seconds. It is not the SSE consumer. A delayed/error state retains the
-last valid frame and displays `DELAYED`; it does not clear the screen or pretend
-stale data is fresh.
+The live Expo component uses the shared live-feed controller: it loads an
+initial public snapshot/timeline, prefers Server-Sent Events, and falls back to
+cursor-aware 3-second polling when SSE is unavailable or stale. A delayed/error
+state retains the last valid frame and displays `DELAYED`; it does not clear the
+screen or pretend stale data is fresh.
 
 ### Broadcast design
 
@@ -104,39 +106,44 @@ raw Connector event objects. Client visibility is not authorization.
 
 ## Data authority and current backend gap
 
-The current public game-state contract reliably supplies:
+The current public game-state contract supplies:
 
 - Game ID, phase, round count/current round;
 - participant identity/runtime/status;
 - round phases;
-- pairings and negotiations;
+- Intent/RFQ/Engagement plus historical pairings and negotiations;
+- backend-published `event_reference` round price snapshots;
+- backend-valued in-progress `liveRankings` when available;
 - final prices and final rankings after completion;
 - sanitized public timeline events.
 
-It does not yet guarantee authoritative:
+Older games, partial responses, or temporarily unavailable projections may omit
+optional fields. The contract also does not equate the following concepts:
 
-- per-round OHLC price snapshots and committed trade counts;
-- in-progress mark-to-market net-worth rankings;
-- complete reputation snapshots.
+- event-reference prices and committed-trade OHLC;
+- an in-progress `liveRankings` valuation and the frozen final ranking;
+- seat order and ranking;
+- partial participant reputation and a complete reputation history.
 
-`src/lib/broadcast-model.ts` accepts optional `priceSnapshots` /
-`priceHistory` and `liveRankings` fields so the frontend can adopt a future
-backend projection without another runtime.
+`src/lib/broadcast-model.ts` consumes optional `priceSnapshots` /
+`priceHistory` and `liveRankings` fields from the current backend projection and
+keeps safe fallback states for older or incomplete responses.
 
-Until those fields are authoritative:
+When a field is absent or carries a lower-authority label:
 
 - `/broadcast/demo` uses explicit fixture OHLC and rankings;
-- live pages show `PRICE AUTHORITY PENDING` when OHLC is absent;
+- live pages label backend `event_reference` paths as reference prices and show
+  `PRICE AUTHORITY PENDING` when no price projection is present;
 - participants may be shown as seats with `RANK PENDING`;
 - insertion order is never presented as ELO or net-worth rank;
 - event effects and accepted prices are never converted into fabricated OHLC;
 - missing reputation remains unknown instead of defaulting to a successful
   history.
 
-The backend must define whether "current price" means reference price, last
-committed clearing price, or round close. Only
-`settlement.inventory_committed` trades may affect official price, inventory,
-and successful-trade projections.
+The frontend must honor the backend's price-kind label: an `event_reference`
+round mark cannot be relabelled as committed OHLC or last-clearing price. Only
+`settlement.inventory_committed` trades may affect official inventory and
+successful-trade projections.
 
 ## Implementation map
 
@@ -144,6 +151,7 @@ and successful-trade projections.
 | --- | --- |
 | Expo board | `src/components/ExpoBroadcastBoard.tsx` |
 | Broadcast projection | `src/lib/broadcast-model.ts` |
+| Shared SSE/polling controller | `src/lib/live-game-feed.ts` |
 | Demo playback | `src/lib/game-demo.ts` |
 | Presentation rankings | `src/components/SeasonLedger.tsx`, `src/lib/rankings-demo.ts` |
 | Live/replay Game | `src/components/GameViewer.tsx` |
@@ -156,11 +164,12 @@ and successful-trade projections.
 
 - `/broadcast/demo` visibly says demo/presentation and requires no network
   authority.
-- A live broadcast retains the last safe frame during API delay.
-- A live Game uses SSE and transitions to polling when needed.
+- A live broadcast and live Game retain the last safe frame during API delay,
+  use SSE, and transition to cursor-aware polling when needed.
 - Switching Game IDs does not show the previous Game's events or participants.
 - Seats are labelled rank pending when live ranking authority is absent.
-- OHLC is labelled pending when price authority is absent.
+- Committed OHLC is labelled pending when only reference prices, or no price
+  projection, are available.
 - Public and authenticated surfaces never render secret/private Runtime fields.
 - `prefers-reduced-motion` reduces the event-wire/pulse motion.
 - Desktop 16:9 remains legible at Expo distance; mobile Game pages remain

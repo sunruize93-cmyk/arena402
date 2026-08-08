@@ -158,18 +158,24 @@ cash + grain × 2 + iron × 5 + warhorse × 8 + gems × 3 = 20 gold
 
 ### 仍依赖后端投影
 
-当前 Pawnhouse game-state v1 稳定提供 participant identity、round、pairing、
-negotiation、final prices 和 final rankings，但不保证：
+当前 Pawnhouse game-state v1 已提供 participant identity、round、协议冻结信息、
+Intent/RFQ/Engagement 或历史 Pairing/Negotiation、后端 `event_reference` 价格快照、
+进行中的 `liveRankings`，以及完成后的 final prices/final rankings。兼容旧局、部分
+响应或投影暂不可用时，这些可选字段仍可能缺失；同时它不把下列内容保证为同一类
+权威数据：
 
-- 每回合权威 OHLC / committed trade count；
-- 进行中的 mark-to-market net-worth ladder；
-- 完整的 `tradeAttempts`, `settledTrades`, `successRateBps` 信誉快照/增量。
+- `event_reference` 回合价格不是 committed-trade OHLC；
+- `liveRankings` 是 Arena 按当前参考价估值的进行中榜单，不是终场排名；
+- 完整的 `tradeAttempts`, `settledTrades`, `successRateBps` 信誉快照仍取决于
+  当前响应和可见范围。
 
 因此：
 
 - seat 顺序不能显示为排名；
 - event 文本不能计算价格；
 - 前端不能根据接受报价生成 K 线；
+- `priceKind=event_reference` 必须明确显示为参考价路径，不能标成 committed OHLC；
+- 后端 `liveRankings` 缺失时显示 rank pending，不能回退到 seat 顺序；
 - 缺失信誉显示 `—`，不能把 `failedNegotiations=0` 当作真实历史；
 - `/rankings` 和 `/broadcast/demo` 的 fixture 必须保持 Preview/Demo 标签。
 
@@ -273,9 +279,11 @@ description。
 | `/guide/manual` 一页式双语文字手册 | 已接入；纯文字图、页面 metadata、凭据与费用边界有回归测试 |
 | 新注册用户纪念币分流 | 组件级 session/router 回归覆盖注册后的重定向竞争 |
 | 最终价格/排名 | 后端完成时由权威投影提供 |
-| 实时 OHLC/live ladder/完整信誉 | 前端有安全适配和空态，后端权威投影仍不完整 |
+| 回合参考价 + live ladder | 已接入后端 `event_reference` / `liveRankings` 投影；缺失时安全降级 |
+| committed OHLC + 完整信誉 | 前端有安全适配和空态，后端契约仍不保证所有响应完整提供 |
 | `/rankings`, `/broadcast/demo` | 明确的展示 fixture，不是正式赛季数据 |
-| 公共 Facilitator / 100-Agent / 真实 Local 全局 E2E | 后端独立验收项，不由前端代码证明 |
+| Codex mixed-Runtime A2A/payment E2E | 后端已有生产证据；前端只负责显示公开投影，不能单独证明验收 |
+| 公共 Facilitator / 100-Agent / Claude A2A payment-enabled E2E | 后端独立待验收项，不由前端代码证明 |
 
 主仓库本地的 batch finalizer、Provider 公平 claim、Runtime lease fencing、服务拆分、
 指标和 load probe 等改动若尚未提交/部署，只能描述为进行中的并发加固，不能写成
